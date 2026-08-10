@@ -122,6 +122,53 @@
     return '<section class="stats">' + tiles + '</section>';
   }
 
+  var RICHTING_TEKST = {
+    aankomen: 'aankomen',
+    afvallen: 'afvallen',
+    behouden: 'op gewicht blijven'
+  };
+
+  /**
+   * Gewichtstrend: gemiddelde van deze periode tegen die van de vorige.
+   * curLabel/prevLabel zijn bv. "week 33" en "week 32".
+   */
+  function weightTrendSection(dates, prevDates, curLabel, prevLabel, perWeek) {
+    var s = store.settings();
+    if ((s.gewichtRichting || 'uit') === 'uit') return '';
+
+    var t = S.weightTrend(dates, prevDates, perWeek);
+    var doelTekst = t.richting === 'behouden'
+      ? 'binnen ' + fmt(t.doelDelta, 2) + ' kg blijven'
+      : (t.richting === 'aankomen' ? '+' : '−') + fmt(t.doelDelta, 2) + ' kg';
+
+    var body;
+    if (t.pct === null) {
+      body = '<div class="trend-info">' +
+        '<p class="hero-sub">Vul je gewicht in ' + esc(curLabel) + ' én ' + esc(prevLabel) +
+        ' in om de trend te zien.</p>' +
+        '<p class="hint">Doel per ' + (perWeek > 1 ? 'maand' : 'week') + ': ' + esc(doelTekst) +
+        ' (' + esc(RICHTING_TEKST[t.richting] || t.richting) + ').</p>' +
+        '</div>';
+    } else {
+      var kleur = GD.scoreColor(t.pct);
+      body = '<div class="trend-ring">' + C.ring(t.pct, 128, 12) + '</div>' +
+        '<div class="trend-info">' +
+        '<div class="trend-delta" style="color:' + kleur + '">' + signed(t.delta, 2, ' kg') + '</div>' +
+        '<p class="hero-sub">' +
+        esc(curLabel.charAt(0).toUpperCase() + curLabel.slice(1)) + ' gemiddeld <strong>' + fmt(t.avg, 2) + ' kg</strong> ' +
+        '(' + t.count + ' meting' + (t.count === 1 ? '' : 'en') + '), ' +
+        esc(prevLabel) + ' <strong>' + fmt(t.prevAvg, 2) + ' kg</strong> ' +
+        '(' + t.prevCount + ').</p>' +
+        '<p class="hint">Doel per ' + (perWeek > 1 ? 'maand' : 'week') + ': ' + esc(doelTekst) +
+        ' (' + esc(RICHTING_TEKST[t.richting] || t.richting) + ').' +
+        (t.note ? ' ' + esc(t.note) : '') + '</p>' +
+        '</div>';
+    }
+
+    return '<section class="card"><h2>Gewichtstrend</h2>' +
+      '<div class="trend">' + body + '</div></section>';
+  }
+
   function heroSection(pct, subtitle, extra) {
     var color = GD.scoreColor(pct);
     return '<section class="card hero">' +
@@ -266,6 +313,12 @@
     html += '<section class="card"><h2>Per dag</h2>' + C.dayBars(period.days) +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
+
+    var vorigeStart = D.addDays(dates[0], -7);
+    html += weightTrendSection(
+      dates, D.range(vorigeStart, D.addDays(vorigeStart, 6)),
+      'week ' + D.isoWeek(dates[0]), 'week ' + D.isoWeek(vorigeStart), 1);
+
     html += '<section class="card"><h2>Gewicht</h2>' +
       C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
     return html;
@@ -287,6 +340,13 @@
     html += '<section class="card"><h2>Kalender</h2>' + C.calendar(ui.anchor, period.days) +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
+
+    var vorigeMaand = D.addMonths(ui.anchor, -1);
+    var vorigeDates = D.range(D.startOfMonth(vorigeMaand), D.endOfMonth(vorigeMaand));
+    html += weightTrendSection(
+      dates, vorigeDates, D.monthName(ui.anchor), D.monthName(vorigeMaand),
+      dates.length / 7);
+
     html += '<section class="card"><h2>Gewicht</h2>' +
       C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
     return html;
@@ -311,6 +371,30 @@
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
       '</div></section>';
+
+    html += '<section class="card"><h2>Gewichtsdoel</h2>' +
+      '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor. ' +
+      'Ga je de verkeerde kant op, dan kleurt de trend rood. Dit staat los van je dagscore: ' +
+      'gewicht is een uitkomst, geen gedrag dat je op één dag kunt halen.</p>' +
+      '<div class="form-grid">' +
+      '<label class="field"><span class="field-label">Ik wil</span>' +
+      '<select data-setting="gewichtRichting">' +
+      opt('aankomen', 'Aankomen (spieropbouw)', s.gewichtRichting) +
+      opt('afvallen', 'Afvallen', s.gewichtRichting) +
+      opt('behouden', 'Op gewicht blijven', s.gewichtRichting) +
+      opt('uit', 'Niet bijhouden', s.gewichtRichting) +
+      '</select></label>' +
+      (s.gewichtRichting && s.gewichtRichting !== 'uit'
+        ? settingNumber('gewichtTempo',
+          s.gewichtRichting === 'behouden' ? 'Toegestane marge' : 'Tempo',
+          'kg per week', s.gewichtTempo, '0.05')
+        : '') +
+      '</div>' +
+      (s.gewichtRichting === 'aankomen'
+        ? '<p class="hint">Vuistregel voor een rustige bulk: 0,25 tot 0,5 kg per week. ' +
+          'Sneller levert vooral extra vet op.</p>'
+        : '') +
+      '</section>';
 
     html += '<section class="card"><h2>Scoreregels</h2><div class="form-grid">' +
       settingNumber('goedeDagDrempel', 'Drempel goede dag', '% voor streak', s.goedeDagDrempel, '5') +
@@ -372,7 +456,9 @@
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Voor vandaag tellen alleen de doelen die je al hebt ingevuld, zodat je score meegroeit met de dag. ' +
       'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
-      '<li>Gewicht is een meetwaarde, geen doel: het telt niet mee in het percentage maar staat wel in de grafieken.</li>' +
+      '<li>Gewicht telt niet mee in je dagscore. Het krijgt een eigen percentage in de ' +
+      '<em>Gewichtstrend</em>: je weekgemiddelde tegenover dat van de week ervoor, ' +
+      'afgemeten aan je gewichtsdoel hierboven.</li>' +
       '</ul></section>';
 
     return html;

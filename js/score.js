@@ -257,6 +257,84 @@
     };
   }
 
+  /** Gemiddeld gewicht over een reeks datums (dagen in de toekomst tellen niet mee). */
+  function weightAvg(dates) {
+    var sum = 0, n = 0, t = D.today();
+    dates.forEach(function (date) {
+      if (date > t) return;
+      var e = store.entry(date);
+      if (!e) return;
+      var w = num(e.gewicht);
+      if (w === null) return;
+      sum += w;
+      n++;
+    });
+    return { avg: n ? sum / n : null, count: n };
+  }
+
+  /**
+   * Vergelijkt het gemiddelde gewicht van twee periodes en scoort dat tegen
+   * je gewichtsdoel (aankomen, afvallen of op gewicht blijven).
+   *
+   * Bewust los van de dagscore: gewicht is een uitkomst, geen gedrag dat je
+   * op één dag kunt "halen".
+   */
+  function weightTrend(dates, prevDates, perWeek) {
+    var s = store.settings();
+    var richting = s.gewichtRichting || 'uit';
+    var cur = weightAvg(dates);
+    var prev = weightAvg(prevDates);
+    var tempoPerWeek = Math.abs(num(s.gewichtTempo, 0.25));
+    // Bij een maandvergelijking hoort een navenant groter verschil.
+    var weeks = perWeek === undefined ? 1 : perWeek;
+    var doelDelta = tempoPerWeek * weeks;
+
+    var out = {
+      richting: richting,
+      avg: cur.avg,
+      count: cur.count,
+      prevAvg: prev.avg,
+      prevCount: prev.count,
+      delta: null,
+      doelDelta: doelDelta,
+      pct: null,
+      note: ''
+    };
+
+    if (richting === 'uit') return out;
+    if (cur.avg === null || prev.avg === null) {
+      out.note = 'Nog te weinig metingen om te vergelijken.';
+      return out;
+    }
+
+    var delta = cur.avg - prev.avg;
+    out.delta = delta;
+
+    if (richting === 'aankomen') {
+      out.pct = doelDelta > 0
+        ? GD.clamp(delta / doelDelta, 0, 1) * 100
+        : (delta > 0 ? 100 : 0);
+      if (delta <= 0) out.note = 'Je zit gelijk of lager dan de vorige periode — dat is de verkeerde kant op voor spieropbouw.';
+      else if (doelDelta > 0 && delta > doelDelta * 2) out.note = 'Ruim boven je tempo. Snel aankomen betekent meestal ook meer vetaanzet.';
+    } else if (richting === 'afvallen') {
+      out.pct = doelDelta > 0
+        ? GD.clamp(-delta / doelDelta, 0, 1) * 100
+        : (delta < 0 ? 100 : 0);
+      if (delta >= 0) out.note = 'Je zit gelijk of hoger dan de vorige periode.';
+      else if (doelDelta > 0 && -delta > doelDelta * 2) out.note = 'Sneller dan je tempo — let op je spierbehoud.';
+    } else if (richting === 'behouden') {
+      var marge = doelDelta > 0 ? doelDelta : 0.25;
+      out.pct = GD.clamp(1 - Math.abs(delta) / marge, 0, 1) * 100;
+      if (Math.abs(delta) > marge) out.note = 'Buiten je marge van ' + marge.toFixed(2) + ' kg.';
+    }
+
+    if (cur.count < 3 || prev.count < 3) {
+      out.note = (out.note ? out.note + ' ' : '') +
+        'Let op: gebaseerd op weinig metingen, dus gevoelig voor toeval. Dagelijks wegen geeft een betrouwbaarder beeld.';
+    }
+    return out;
+  }
+
   /** Huidige reeks goede dagen, geteld vanaf vandaag (of gisteren) terug. */
   function currentStreak() {
     var settings = store.settings();
@@ -305,6 +383,8 @@
     baseMax: baseMax,
     currentStreak: currentStreak,
     bestStreak: bestStreak,
+    weightAvg: weightAvg,
+    weightTrend: weightTrend,
     num: num,
     optionFor: optionFor
   };

@@ -152,17 +152,33 @@
   }
 
   var saveTimer = null;
+
+  function writeNow() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    if (!state) return;
+    try {
+      global.localStorage.setItem(GD.STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error('Opslaan mislukt', e);
+      alert('Opslaan mislukt: de opslag van je browser zit vol of staat uit.');
+    }
+  }
+
   function save() {
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(function () {
-      try {
-        global.localStorage.setItem(GD.STORAGE_KEY, JSON.stringify(state));
-      } catch (e) {
-        console.error('Opslaan mislukt', e);
-        alert('Opslaan mislukt: de opslag van je browser zit vol of staat uit.');
-      }
-    }, 120);
+    saveTimer = setTimeout(writeNow, 120);
   }
+
+  // Op een telefoon kan de app zomaar naar de achtergrond gaan; schrijf dan
+  // meteen weg in plaats van te wachten op de timer.
+  global.addEventListener('pagehide', writeNow);
+  global.addEventListener('beforeunload', writeNow);
+  global.document.addEventListener('visibilitychange', function () {
+    if (global.document.visibilityState === 'hidden') writeNow();
+  });
 
   function settings() { return load().settings; }
 
@@ -242,6 +258,7 @@
   GD.store = {
     load: load,
     save: save,
+    writeNow: writeNow,
     settings: settings,
     setSetting: setSetting,
     setWeight: setWeight,

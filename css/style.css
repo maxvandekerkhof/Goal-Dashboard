@@ -175,6 +175,11 @@ p { margin: 0; }
 .hero-sub { color: var(--muted); font-size: .92rem; margin-top: 4px; }
 .hero-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 
+.trend { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.trend-ring { flex: 0 0 auto; }
+.trend-info { flex: 1 1 220px; min-width: 200px; }
+.trend-delta { font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+
 .ring { display: block; }
 .ring-pct { font-weight: 700; letter-spacing: -.03em; }
 .ring-pct-sign { font-size: .5em; }
@@ -432,6 +437,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .hero-ring svg { width: 150px; height: 150px; }
   .hero-info { text-align: center; }
   .hero-chips { justify-content: center; }
+  .trend { gap: 12px; justify-content: center; }
+  .trend-info { text-align: center; }
   .seg { min-width: 0; font-size: .8rem; padding: 10px 4px; }
   .bd-row { grid-template-columns: 1fr 44px; grid-template-areas: "name pct" "bar bar" "counts counts"; }
   .stat-value { font-size: 1.3rem; }

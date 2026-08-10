@@ -23,7 +23,7 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 
 | Doel | Opties | Standaardgewicht |
 | --- | --- | --- |
-| Gewicht | zelf invullen (kg) | telt niet mee in de score |
+| Gewicht | zelf invullen (kg) | eigen trendscore, zie onder |
 | Creatine gepakt | Ja / Nee | ×1 |
 | Ontbijt | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Lunch | Ja (eiwitrijk) / Ja / Nee | ×1 |
@@ -51,8 +51,32 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
   meegroeit met de dag. Bij **afgelopen dagen** telt niet-ingevuld als niet gedaan.
 - Lege dagen in het verleden tellen als 0% (uit te zetten in Instellingen). Dagen van
   vóór je allereerste invoer tellen nooit mee — toen gebruikte je het dashboard nog niet.
-- **Gewicht** is een meetwaarde, geen doel: het beïnvloedt het percentage niet, maar
-  staat wel in de grafieken.
+- **Gewicht** telt niet mee in je dagscore — het is een uitkomst, geen gedrag dat je op
+  één dag kunt halen. Het krijgt een eigen percentage, zie hieronder.
+
+## Gewichtstrend
+
+In de week- en maandweergave staat een aparte kaart die je **weekgemiddelde vergelijkt met
+dat van de week ervoor** (in de maandweergave: maand tegen maand), met dezelfde kleurschaal
+van donkerrood naar donkergroen.
+
+Stel in **Instellingen → Gewichtsdoel** in wat je wilt:
+
+| Richting | 100% (donkergroen) bij | 0% (donkerrood) bij |
+| --- | --- | --- |
+| Aankomen | toename ≥ je tempo | gelijk gebleven of gezakt |
+| Afvallen | afname ≥ je tempo | gelijk gebleven of gestegen |
+| Op gewicht blijven | verschil van 0 | verschil groter dan je marge |
+| Niet bijhouden | kaart wordt verborgen | — |
+
+Het **tempo** is hoeveel kg per week je wilt opschuiven; daartussenin loopt de score
+evenredig (de helft van je tempo = 50%). Voor een rustige bulk is 0,25 tot 0,5 kg per week
+gebruikelijk — kom je ruim sneller aan, dan blijft de score 100% maar krijg je een
+opmerking dat dat meestal extra vetaanzet betekent.
+
+Weeg bij voorkeur elke dag: het gemiddelde vangt dagschommelingen op die per losse meting
+zomaar een kilo kunnen schelen. Bij minder dan drie metingen in een periode waarschuwt de
+kaart dat de vergelijking gevoelig is voor toeval.
 
 Week- en maandpercentages tellen punten over alle dagen bij elkaar op. Een week met veel
 rustdagen wordt dus niet afgestraft, omdat op zo'n dag ook minder punten haalbaar waren.

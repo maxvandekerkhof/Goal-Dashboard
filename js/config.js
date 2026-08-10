@@ -91,7 +91,9 @@
     calorieDoel: 2200,        // kcal per dag
     calorieRichting: 'max',   // 'max' = onder blijven, 'min' = halen, 'rond' = binnen marge
     calorieMarge: 150,        // kcal, alleen bij 'rond'
-    gewichtDoel: null,        // kg, optioneel (alleen voor de grafiek)
+    gewichtDoel: null,        // kg, optioneel streefgewicht (lijn in de grafiek)
+    gewichtRichting: 'aankomen', // 'aankomen' | 'afvallen' | 'behouden' | 'uit'
+    gewichtTempo: 0.25,       // kg per week; bij 'behouden' is dit de marge
     goedeDagDrempel: 70,      // % vanaf wanneer een dag als "goed" telt (streak)
     countMissingAsZero: true, // lege dagen in het verleden tellen als 0%
     autoMacro: true,          // eiwit/kcal doel automatisch afleiden uit ingevulde waarden
