@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Dagelijks, wekelijks en maandelijks overzicht van je sport- en voedingsdoelen, met een gekleurd percentage van donkerrood naar donkergroen.">
+  <meta name="theme-color" content="#11141a">
+  <title>Goal Dashboard — sport &amp; voeding</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">🎯</span>
+        <div>
+          <h1>Goal Dashboard</h1>
+          <p class="brand-sub">Sport &amp; voeding</p>
+        </div>
+      </div>
+      <button id="btn-theme" class="btn btn-icon" title="Licht/donker wisselen" aria-label="Licht of donker thema">◐</button>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Periode">
+      <button class="tab tab-active" data-view="dag" role="tab" aria-selected="true">Dag</button>
+      <button class="tab" data-view="week" role="tab" aria-selected="false">Week</button>
+      <button class="tab" data-view="maand" role="tab" aria-selected="false">Maand</button>
+      <button class="tab" data-view="instellingen" role="tab" aria-selected="false">Instellingen</button>
+    </nav>
+
+    <div class="period-nav" id="period-nav">
+      <button class="btn btn-icon" data-nav="prev" aria-label="Vorige periode">‹</button>
+      <span id="period-label" class="period-label">—</span>
+      <button class="btn btn-icon" data-nav="next" aria-label="Volgende periode">›</button>
+      <button class="btn btn-ghost btn-sm" id="btn-today" data-nav="today">Vandaag</button>
+    </div>
+  </header>
+
+  <main id="view" class="view"></main>
+
+  <footer class="footer">
+    <p>Je gegevens blijven in deze browser staan. Maak af en toe een back-up via <strong>Instellingen&nbsp;→&nbsp;Je data</strong>.</p>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <input type="file" id="file-csv" accept=".csv,text/csv,text/plain" hidden>
+  <input type="file" id="file-json" accept=".json,application/json" hidden>
+
+  <script src="js/config.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/score.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/mfp.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
