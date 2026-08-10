@@ -117,11 +117,84 @@ een andere app gebruikt.
 Zodra kcal en eiwitten bekend zijn, worden "Eiwitdoel behaald" en "Caloriedoel behaald"
 automatisch bepaald aan de hand van je doelen. Handmatig aanklikken heeft altijd voorrang.
 
+## Synchroniseren tussen telefoon en laptop
+
+Standaard staat je data alleen in de browser waarin je hem invult. Wil je op allebei je
+apparaten kunnen invullen, koppel het dashboard dan aan een gratis **Supabase**-project.
+Je logt in met een code per e-mail; er is geen wachtwoord.
+
+### Eenmalig klaarzetten
+
+1. Maak een gratis account op [supabase.com](https://supabase.com) en daarna een nieuw
+   project. Regio **Frankfurt** ligt het dichtstbij.
+2. Open in het project de **SQL Editor**, plak het blok hieronder en klik op **Run**.
+3. Ga naar **Project Settings → API** en kopieer de **Project URL** en de **anon public**
+   sleutel naar *Instellingen → Synchroniseren* in het dashboard, en klik op
+   *Verbinding opslaan*.
+4. Ga naar **Authentication → Emails**, open de sjabloon **Magic Link** en zet er een regel
+   bij met `{{ .Token }}`. Dat is de code van zes cijfers die je in de app invult.
+5. Vul je e-mailadres in, klik op *Stuur mij een code*, en typ de code uit de mail.
+
+Op je tweede apparaat herhaal je alleen stap 3 en 5, met hetzelfde e-mailadres.
+
+```sql
+create table if not exists public.dagen (
+  user_id uuid not null references auth.users on delete cascade,
+  datum date not null,
+  data jsonb,
+  verwijderd boolean not null default false,
+  bijgewerkt timestamptz not null default now(),
+  primary key (user_id, datum)
+);
+
+create table if not exists public.instellingen (
+  user_id uuid primary key references auth.users on delete cascade,
+  data jsonb not null,
+  bijgewerkt timestamptz not null default now()
+);
+
+alter table public.dagen enable row level security;
+alter table public.instellingen enable row level security;
+
+create policy "eigen dagen" on public.dagen
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "eigen instellingen" on public.instellingen
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+```
+
+### Hoe het werkt
+
+- Je browser blijft de plek waar de app mee werkt, dus **invullen zonder bereik werkt
+  gewoon**. Zodra je weer online bent loopt het vanzelf gelijk.
+- Er wordt gesynchroniseerd bij het openen van de app, een paar seconden na een wijziging,
+  bij terugkeren naar het tabblad, en met de knop *Nu synchroniseren*.
+- **Per dag wint de laatste wijziging.** Vul je 's ochtends op je telefoon je water in en
+  's avonds op je laptop je gewicht, dan blijft allebei staan, omdat je laptop die dag
+  eerst ophaalt en daarna aanvult.
+- Pas je dezelfde dag op beide apparaten aan **zonder er tussendoor te synchroniseren**,
+  dan overschrijft de laatste de hele dag — ook de velden die het andere apparaat had
+  ingevuld. Dat is de prijs van deze eenvoudige regel.
+- Wissen synchroniseert mee: een dag die je hier weghaalt, verdwijnt ook op je andere
+  apparaat.
+
+### Goed om te weten
+
+- De **anon key is bedoeld om openbaar te zijn**; je gegevens zijn beschermd doordat het
+  SQL-blok row level security aanzet, zodat alleen jouw ingelogde account bij jouw rijen
+  kan. Sla hem gerust op in je browser.
+- Gratis Supabase-projecten **pauzeren na ongeveer een week zonder gebruik**. Bij dagelijks
+  gebruik merk je dat niet, maar na een lange vakantie moet je het project in het
+  Supabase-dashboard weer starten. Je lokale data blijft in de tussentijd gewoon werken.
+- Welke wijziging "de laatste" is, wordt bepaald door de **klok van je apparaten**. Staat er
+  ergens een klok flink verkeerd, dan kan een oudere wijziging winnen.
+- De back-up uit *Je data* blijft gewoon werken en is een prima extra vangnet.
+
 ## Je data
 
-Alles staat in `localStorage` van de browser waarin je het gebruikt. Dat betekent:
-niets gaat naar een server, maar het synchroniseert ook niet vanzelf tussen apparaten,
-en het verdwijnt als je je browsergegevens wist.
+Alles staat in `localStorage` van de browser waarin je het gebruikt. Zonder de koppeling
+hierboven gaat er niets naar een server, maar synchroniseert het ook niet vanzelf tussen
+apparaten — en het verdwijnt als je je browsergegevens wist.
 
 Gebruik daarom **Instellingen → Je data**:
 
@@ -148,6 +221,7 @@ js/store.js         opslag (localStorage), import/export, datum-helpers
 js/score.js         scoreberekening per dag en per periode, streaks
 js/charts.js        SVG-ring, balken, kalender en gewichtsgrafiek
 js/mfp.js           CSV-parser voor MyFitnessPal-exports
+js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
 
 tools/build-standalone.py       bouwt het losse bestand hieronder

@@ -503,6 +503,8 @@
       '<div id="csv-preview">' + csvPreviewHTML() + '</div>' +
       '</section>';
 
+    html += syncSection();
+
     /* Data */
     html += '<section class="card"><h2>Je data</h2>' +
       '<p class="hint">Alles staat lokaal in deze browser (localStorage) — er gaat niets naar een server. ' +
@@ -535,6 +537,124 @@
 
     return html;
   }
+
+  /* --------------------------- synchroniseren -------------------------- */
+
+  function tijdstip(ms) {
+    if (!ms) return 'nog niet';
+    var d = new Date(ms);
+    var vandaag = D.iso(d) === D.today();
+    var klok = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return vandaag ? 'vandaag om ' + klok : D.formatShort(D.iso(d)) + ' om ' + klok;
+  }
+
+  function syncSection() {
+    var st = GD.sync.status();
+    var c = GD.sync.config();
+
+    var html = '<section class="card"><h2>Synchroniseren tussen apparaten</h2>';
+
+    if (!st.geconfigureerd) {
+      html += '<p class="hint">Vul je telefoon en laptop allebei dezelfde twee gegevens in, ' +
+        'log in met je e-mailadres, en je dagen lopen automatisch gelijk. ' +
+        'Je vindt ze in Supabase onder <em>Project Settings → API</em>. ' +
+        'De <em>anon key</em> is bedoeld om openbaar te zijn; je gegevens zijn beschermd doordat ' +
+        'alleen jouw ingelogde account bij jouw rijen kan.</p>';
+    } else {
+      html += '<p class="hint">Verbonden met <code>' + esc(c.url.replace(/^https?:\/\//, '')) + '</code>.</p>';
+    }
+
+    html += '<div class="form-grid">' +
+      '<label class="field"><span class="field-label">Project-URL</span>' +
+      '<input type="url" id="sync-url" placeholder="https://xxxx.supabase.co" value="' + esc(c.url) + '"></label>' +
+      '<label class="field"><span class="field-label">Anon key</span>' +
+      '<input type="text" id="sync-key" placeholder="eyJhbGciOi…" value="' + esc(c.anonKey) + '"></label>' +
+      '</div>' +
+      '<div class="row-actions"><button class="btn" data-action="sync-save">Verbinding opslaan</button></div>';
+
+    if (st.geconfigureerd && !st.ingelogd) {
+      html += '<hr class="scheiding">' +
+        '<div class="form-grid">' +
+        '<label class="field"><span class="field-label">E-mailadres</span>' +
+        '<input type="email" id="sync-email" inputmode="email" autocomplete="email" placeholder="jij@voorbeeld.nl" value="' +
+        esc(ui.syncEmail || '') + '"></label>' +
+        '<label class="field"><span class="field-label">Code uit de e-mail</span>' +
+        '<input type="text" id="sync-code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 cijfers"></label>' +
+        '</div>' +
+        '<div class="row-actions">' +
+        '<button class="btn" data-action="sync-code">Stuur mij een code</button>' +
+        '<button class="btn btn-primary" data-action="sync-login">Inloggen</button>' +
+        '</div>' +
+        '<p class="hint">Je krijgt een mail met een code én een link. De code werkt altijd; ' +
+        'de link opent soms een ander venster dan de app op je beginscherm, dus die code is de veiligste weg.</p>';
+    }
+
+    if (st.ingelogd) {
+      html += '<hr class="scheiding">' +
+        '<div class="sync-status">' +
+        '<span class="chip">' + (st.bezig ? '⏳ bezig…' : '✓ ingelogd') +
+        (st.email ? ' als ' + esc(st.email) : '') + '</span>' +
+        '<span class="chip">laatst bijgewerkt: ' + esc(tijdstip(st.laatst)) + '</span>' +
+        '</div>' +
+        '<div class="row-actions">' +
+        '<button class="btn btn-primary" data-action="sync-now"' + (st.bezig ? ' disabled' : '') + '>Nu synchroniseren</button>' +
+        '<button class="btn btn-ghost" data-action="sync-logout">Uitloggen</button>' +
+        '</div>';
+    }
+
+    if (st.fout) {
+      html += '<p class="alert alert-bad">' + esc(st.fout) + '</p>';
+    }
+
+    html += '<p class="hint">Per dag wint de laatste wijziging. Vul je \'s ochtends op je telefoon ' +
+      'je water in en \'s avonds op je laptop je gewicht, dan blijft allebei staan — alleen als je ' +
+      'dezelfde dag op beide apparaten aanpast, telt de laatste. Invullen zonder bereik werkt gewoon; ' +
+      'zodra je weer online bent loopt het vanzelf gelijk.</p>' +
+      '<details class="uitleg"><summary>Hoe zet ik Supabase klaar?</summary>' +
+      '<ol class="explain">' +
+      '<li>Maak een gratis account op <strong>supabase.com</strong> en daarna een nieuw project ' +
+      '(regio Frankfurt ligt het dichtstbij).</li>' +
+      '<li>Open in het project de <strong>SQL Editor</strong>, plak het blok hieronder en klik op ' +
+      '<em>Run</em>. Dat maakt twee tabellen en zorgt dat alleen jij bij je eigen rijen kunt.</li>' +
+      '<li>Ga naar <strong>Project Settings → API</strong> en kopieer de <em>Project URL</em> en de ' +
+      '<em>anon public</em> sleutel naar de velden hierboven.</li>' +
+      '<li>Ga naar <strong>Authentication → Emails</strong>, open de sjabloon <em>Magic Link</em> en ' +
+      'zet er een regel bij met <code>{{ .Token }}</code>. Dat is de code van zes cijfers.</li>' +
+      '<li>Herhaal alleen stap 3 op je andere apparaat en log daar met hetzelfde e-mailadres in.</li>' +
+      '</ol>' +
+      '<pre class="sql">' + esc(SQL_SETUP) + '</pre>' +
+      '<div class="row-actions"><button class="btn btn-sm" data-action="sync-copy-sql">SQL kopiëren</button></div>' +
+      '</details>' +
+      '</section>';
+
+    return html;
+  }
+
+  var SQL_SETUP = [
+    'create table if not exists public.dagen (',
+    '  user_id uuid not null references auth.users on delete cascade,',
+    '  datum date not null,',
+    '  data jsonb,',
+    '  verwijderd boolean not null default false,',
+    '  bijgewerkt timestamptz not null default now(),',
+    '  primary key (user_id, datum)',
+    ');',
+    '',
+    'create table if not exists public.instellingen (',
+    '  user_id uuid primary key references auth.users on delete cascade,',
+    '  data jsonb not null,',
+    '  bijgewerkt timestamptz not null default now()',
+    ');',
+    '',
+    'alter table public.dagen enable row level security;',
+    'alter table public.instellingen enable row level security;',
+    '',
+    'create policy "eigen dagen" on public.dagen',
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
+    '',
+    'create policy "eigen instellingen" on public.instellingen',
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+  ].join('\n');
 
   function opt(v, label, current) {
     return '<option value="' + v + '"' + (current === v ? ' selected' : '') + '>' + esc(label) + '</option>';
@@ -628,6 +748,14 @@
     toast._t = setTimeout(function () { el.className = 'toast'; }, 2600);
   }
 
+  function meldSync(r) {
+    if (!r.opgehaald && !r.verstuurd) { toast('Alles liep al gelijk.'); return; }
+    var delen = [];
+    if (r.opgehaald) delen.push(r.opgehaald + ' dag(en) opgehaald');
+    if (r.verstuurd) delen.push(r.verstuurd + ' verstuurd');
+    toast(delen.join(', ') + '.');
+  }
+
   function copyYesterday() {
     var prev = store.entry(D.addDays(ui.anchor, -1));
     if (!prev) { toast('Gisteren is nog niet ingevuld.', 'bad'); return; }
@@ -692,6 +820,78 @@
       GD.GOALS.forEach(function (g) { store.setWeight(g.key, g.weight); });
       toast('Standaardgewichten hersteld.');
       render();
+      return;
+    }
+    if (action === 'sync-save') {
+      GD.sync.setConfig($('#sync-url').value, $('#sync-key').value);
+      toast(GD.sync.isConfigured() ? 'Verbinding opgeslagen.' : 'Verbinding gewist.');
+      render();
+      return;
+    }
+    if (action === 'sync-code') {
+      var adres = ($('#sync-email').value || '').trim();
+      if (!adres) { toast('Vul eerst je e-mailadres in.', 'bad'); return; }
+      ui.syncEmail = adres;
+      el.disabled = true;
+      GD.sync.sendCode(adres).then(function () {
+        toast('Code verstuurd, kijk in je mail.');
+      }).catch(function (e) {
+        toast(e.message, 'bad');
+      }).then(function () {
+        el.disabled = false;
+      });
+      return;
+    }
+    if (action === 'sync-login') {
+      var adres2 = ($('#sync-email').value || '').trim();
+      var code = ($('#sync-code').value || '').trim();
+      if (!adres2 || !code) { toast('Vul je e-mailadres en de code in.', 'bad'); return; }
+      ui.syncEmail = adres2;
+      el.disabled = true;
+      GD.sync.verifyCode(adres2, code).then(function () {
+        toast('Ingelogd, gegevens worden opgehaald.');
+        render();
+        return GD.sync.syncNow();
+      }).then(function (r) {
+        if (r) meldSync(r);
+        render();
+      }).catch(function (e) {
+        toast(e.message, 'bad');
+        render();
+      });
+      return;
+    }
+    if (action === 'sync-now') {
+      el.disabled = true;
+      render();
+      GD.sync.syncNow().then(function (r) {
+        if (r) meldSync(r);
+        render();
+      }).catch(function (e) {
+        toast(e.message, 'bad');
+        render();
+      });
+      return;
+    }
+    if (action === 'sync-logout') {
+      if (confirm('Uitloggen? Je gegevens op dit apparaat blijven gewoon staan.')) {
+        GD.sync.signOut();
+        toast('Uitgelogd.');
+        render();
+      }
+      return;
+    }
+    if (action === 'sync-copy-sql') {
+      var kopie = SQL_SETUP;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(kopie).then(function () {
+          toast('SQL gekopieerd.');
+        }).catch(function () {
+          toast('Kopiëren mislukt, selecteer de tekst handmatig.', 'bad');
+        });
+      } else {
+        toast('Kopiëren kan hier niet, selecteer de tekst handmatig.', 'bad');
+      }
       return;
     }
     if (action === 'export') {
@@ -839,6 +1039,14 @@
   function init() {
     store.load();
     bind();
+    if (GD.sync) {
+      // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
+      GD.sync.onApplied(function () { render(); });
+      GD.sync.onChange(function () {
+        if (ui.view === 'instellingen') render();
+      });
+      GD.sync.init();
+    }
     render();
   }
 
