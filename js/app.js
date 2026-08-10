@@ -80,12 +80,19 @@
     var rows = breakdown.map(function (b) {
       var w = S.weightOf(b.goal, store.settings());
       var has = b.pct !== null;
-      var counts = Object.keys(b.counts).filter(function (k) {
-        return k !== 'leeg' && b.counts[k] > 0;
-      }).map(function (k) {
-        var opt = S.optionFor(b.goal, k);
-        return (opt ? opt.short : k) + ' ' + b.counts[k] + '×';
-      }).join(' · ');
+      var counts;
+      if (b.goal.type === 'meter') {
+        counts = b.measured
+          ? 'gem. ' + GD.formatVolume(b.avg) + ' · doel gehaald ' + b.hits + '×'
+          : '';
+      } else {
+        counts = Object.keys(b.counts).filter(function (k) {
+          return k !== 'leeg' && b.counts[k] > 0;
+        }).map(function (k) {
+          var opt = S.optionFor(b.goal, k);
+          return (opt ? opt.short : k) + ' ' + b.counts[k] + '×';
+        }).join(' · ');
+      }
 
       return '<div class="bd-row' + (w === 0 ? ' bd-off' : '') + '">' +
         '<div class="bd-name"><span class="bd-icon">' + b.goal.icon + '</span>' +
@@ -117,7 +124,9 @@
       statTile('Gem. eiwit', st.proteinAvg !== null ? fmt(st.proteinAvg) + '<span class="unit">g</span>' : '–',
         'doel ' + fmt(s.eiwitDoel) + ' g'),
       statTile('Gem. calorieën', st.kcalAvg !== null ? fmt(st.kcalAvg) + '<span class="unit">kcal</span>' : '–',
-        'doel ' + fmt(s.calorieDoel) + ' kcal')
+        'doel ' + fmt(s.calorieDoel) + ' kcal'),
+      statTile('Gem. water', st.waterAvg !== null ? GD.formatVolume(st.waterAvg) : '–',
+        'doel ' + GD.formatVolume(s.waterDoel))
     ].join('');
     return '<section class="stats">' + tiles + '</section>';
   }
@@ -223,8 +232,15 @@
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
       '</section>';
 
+    /* Tellers (water) krijgen hun eigen kaart met snelknoppen */
+    day.items.forEach(function (item) {
+      if (item.goal.type === 'meter') html += meterCard(item);
+    });
+
     /* Doelen */
-    var goalRows = day.items.map(function (item) {
+    var goalRows = day.items.filter(function (item) {
+      return item.goal.type !== 'meter';
+    }).map(function (item) {
       return goalRow(item, day);
     }).join('');
 
@@ -254,6 +270,58 @@
       ' placeholder="' + esc(placeholder) + '">' +
       '<span class="measure-unit">' + esc(unit) + '</span>' +
       '</span></label>';
+  }
+
+  /** Waterteller: snelknoppen, voortgangsbalk en correctiemogelijkheid. */
+  function meterCard(item) {
+    var goal = item.goal;
+    var amount = item.amount === null ? 0 : item.amount;
+    var doel = item.doel || 0;
+    var pct = doel > 0 ? GD.clamp((amount / doel) * 100, 0, 100) : (amount > 0 ? 100 : 0);
+    var kleur = GD.scoreColor(pct);
+    var gehaald = doel > 0 && amount >= doel;
+    var rest = Math.max(0, doel - amount);
+
+    var stappen = (goal.stappen || [250, 500, 1000]).map(function (ml) {
+      return '<button class="btn btn-add" data-action="meter-add" data-goal="' + goal.key + '"' +
+        ' data-amount="' + ml + '">' + esc(GD.stepLabel(ml)) + '</button>';
+    }).join('');
+
+    var terug = (goal.stappen || [250, 500, 1000]).slice(0, 2).map(function (ml) {
+      return '<button class="btn btn-ghost btn-sm" data-action="meter-add" data-goal="' + goal.key + '"' +
+        ' data-amount="-' + ml + '"' + (amount <= 0 ? ' disabled' : '') + '>−' +
+        esc(GD.stepLabel(ml).replace('+', '')) + '</button>';
+    }).join('');
+
+    var status = item.included
+      ? '+' + fmt(item.score * item.weight, 1) + ' / ' + fmt(item.weight, item.weight % 1 ? 1 : 0)
+      : (item.reason || '');
+
+    return '<section class="card">' +
+      '<div class="card-head"><h2>' + goal.icon + ' ' + esc(goal.label) + '</h2>' +
+      '<span class="chip"' + (item.included ? ' style="color:' + kleur + '"' : '') + '>' + esc(status) + '</span>' +
+      '</div>' +
+      '<div class="meter-top">' +
+      '<span class="meter-amount" style="color:' + kleur + '">' + esc(GD.formatVolume(amount)) + '</span>' +
+      '<span class="meter-goal">van ' + esc(GD.formatVolume(doel)) + '</span>' +
+      '<span class="meter-pct" style="color:' + kleur + '">' + Math.round(pct) + '%</span>' +
+      '</div>' +
+      C.bar(pct) +
+      '<p class="hint">' + (gehaald
+        ? 'Doel gehaald. '
+        : 'Nog ' + esc(GD.formatVolume(rest)) + ' te gaan. ') +
+      (item.reason === 'nog bezig'
+        ? 'Telt vandaag nog niet mee in je dagscore, zodat je score niet keldert terwijl je nog aan het drinken bent.'
+        : '') + '</p>' +
+      '<div class="meter-buttons">' + stappen + '</div>' +
+      '<div class="meter-tweak">' + terug +
+      '<label class="meter-manual">' +
+      '<input type="number" inputmode="numeric" step="50" min="0" data-field="' + goal.field + '"' +
+      ' value="' + (item.amount === null ? '' : item.amount) + '" placeholder="ml">' +
+      '<span class="measure-unit">ml</span></label>' +
+      (amount > 0 ? '<button class="btn btn-ghost btn-sm" data-action="meter-clear" data-goal="' + goal.key + '">Wissen</button>' : '') +
+      '</div>' +
+      '</section>';
   }
 
   function goalRow(item, day) {
@@ -360,6 +428,7 @@
 
     var html = '<section class="card"><h2>Voedingsdoelen</h2><div class="form-grid">' +
       settingNumber('eiwitDoel', 'Eiwitdoel', 'g per dag', s.eiwitDoel, '1') +
+      settingNumber('waterDoel', 'Waterdoel', 'ml per dag', s.waterDoel, '250') +
       settingNumber('calorieDoel', 'Caloriedoel', 'kcal per dag', s.calorieDoel, '10') +
       '<label class="field"><span class="field-label">Caloriedoel geldt als</span>' +
       '<select data-setting="calorieRichting">' +
@@ -456,6 +525,9 @@
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Voor vandaag tellen alleen de doelen die je al hebt ingevuld, zodat je score meegroeit met de dag. ' +
       'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
+      '<li><em>Water</em> scoort naar rato: 2,25 van de 3 liter is 75%. Zolang de dag loopt telt de teller ' +
+      'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
+      'aan bezig bent. Bij afgelopen dagen telt gewoon het deel dat je haalde.</li>' +
       '<li>Gewicht telt niet mee in je dagscore. Het krijgt een eigen percentage in de ' +
       '<em>Gewichtstrend</em>: je weekgemiddelde tegenover dat van de week ervoor, ' +
       'afgemeten aan je gewichtsdoel hierboven.</li>' +
@@ -562,6 +634,10 @@
     var copy = JSON.parse(JSON.stringify(prev));
     delete copy.date;
     delete copy.notitie;
+    // Tellers beginnen elke dag op nul; gisteren overnemen zou vals staan.
+    GD.GOALS.forEach(function (g) {
+      if (g.type === 'meter') delete copy[g.field];
+    });
     Object.keys(copy).forEach(function (k) {
       store.setField(ui.anchor, k, copy[k]);
     });
@@ -586,6 +662,20 @@
       var key = el.dataset.goal, value = el.dataset.value;
       var current = store.entry(ui.anchor) ? store.entry(ui.anchor)[key] : null;
       store.setField(ui.anchor, key, current === value ? null : value);
+      render();
+      return;
+    }
+    if (action === 'meter-add') {
+      var goal = GD.goalByKey(el.dataset.goal);
+      var huidig = S.num((store.entry(ui.anchor) || {})[goal.field], 0) || 0;
+      var nieuw = Math.max(0, huidig + parseInt(el.dataset.amount, 10));
+      store.setField(ui.anchor, goal.field, nieuw > 0 ? nieuw : null);
+      render();
+      return;
+    }
+    if (action === 'meter-clear') {
+      var g2 = GD.goalByKey(el.dataset.goal);
+      store.setField(ui.anchor, g2.field, null);
       render();
       return;
     }

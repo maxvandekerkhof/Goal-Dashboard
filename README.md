@@ -29,6 +29,7 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 | Lunch | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Avondeten | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Post-workout maaltijd | Ja (eiwitrijk) / Ja / Nee | ×1 |
+| Water | teller met +25 cl / +50 cl / +1 L | ×1 |
 | Gesport | Ja / Nee / Rustdag | ×2 |
 | Progressive overload | Ja / Deels / Nee | ×1,5 |
 | Eiwitdoel behaald | Ja / Nee | ×2 |
@@ -53,6 +54,21 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
   vóór je allereerste invoer tellen nooit mee — toen gebruikte je het dashboard nog niet.
 - **Gewicht** telt niet mee in je dagscore — het is een uitkomst, geen gedrag dat je op
   één dag kunt halen. Het krijgt een eigen percentage, zie hieronder.
+
+## Waterteller
+
+Op de dagweergave staat een aparte kaart met drie knoppen: **+25 cl**, **+50 cl** en
+**+1 L**. Elke tik telt op bij je totaal van die dag, met een balk die verkleurt naar je
+doel toe (standaard 3 liter, aan te passen in Instellingen). Vertikt: met **−25 cl** en
+**−50 cl** corrigeer je een misklik, in het kleine veld typ je desnoods het exacte aantal
+milliliters, en **Wissen** zet de dag terug op nul.
+
+Water scoort naar rato: 2,25 van de 3 liter is 75%. Eén bijzonderheid: **zolang de dag
+loopt telt de teller pas mee zodra je je doel haalt.** Anders zou je dagscore om negen uur
+'s ochtends kelderen door een doel waar je de hele dag nog aan werkt. Bij afgelopen dagen
+telt gewoon het deel dat je haalde, dus je week- en maandcijfers blijven eerlijk.
+
+*Neem gisteren over* kopieert je waterstand bewust niet — een teller begint elke dag op nul.
 
 ## Gewichtstrend
 

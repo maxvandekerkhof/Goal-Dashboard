@@ -286,6 +286,29 @@ textarea { resize: vertical; padding-right: 12px; }
   opacity: .85;
 }
 
+/* -------------------------------- teller ------------------------------ */
+
+.meter-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.meter-amount { font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em; }
+.meter-goal { color: var(--muted); font-size: .88rem; flex: 1; }
+.meter-pct { font-size: 1.1rem; font-weight: 700; }
+
+.meter-buttons { display: flex; gap: 8px; margin-top: 14px; }
+.btn-add {
+  flex: 1;
+  padding: 16px 8px;
+  font-size: 1rem;
+  font-weight: 650;
+  background: color-mix(in srgb, var(--accent) 16%, var(--card-2));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.btn-add:hover { background: color-mix(in srgb, var(--accent) 28%, var(--card-2)); }
+
+.meter-tweak { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.meter-manual { position: relative; display: flex; align-items: center; width: 110px; }
+.meter-manual input { padding: 6px 34px 6px 10px; font-size: .85rem; }
+.meter-manual .measure-unit { right: 10px; font-size: .75rem; }
+
 /* ------------------------------ breakdown ----------------------------- */
 
 .breakdown { display: flex; flex-direction: column; gap: 10px; }
