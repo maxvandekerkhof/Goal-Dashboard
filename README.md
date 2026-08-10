@@ -10,6 +10,10 @@ staat in je eigen browser.
 
 **Lokaal:** open `index.html` in je browser. Klaar.
 
+**Als één bestand:** `goal-dashboard-standalone.html` bevat het hele dashboard (stijl en
+scripts inline) en werkt los van de rest van de map — handig om te bewaren of te mailen.
+Opnieuw genereren na een wijziging: `python3 tools/build-standalone.py`.
+
 **Op je telefoon (aanrader):** zet het online via GitHub Pages —
 _Settings → Pages → Source: Deploy from a branch → branch `main`, map `/ (root)`_.
 Daarna staat het op `https://<gebruikersnaam>.github.io/Goal-Dashboard/`, en kun je het
@@ -105,6 +109,9 @@ js/score.js         scoreberekening per dag en per periode, streaks
 js/charts.js        SVG-ring, balken, kalender en gewichtsgrafiek
 js/mfp.js           CSV-parser voor MyFitnessPal-exports
 js/app.js           weergave en interactie
+
+tools/build-standalone.py       bouwt het losse bestand hieronder
+goal-dashboard-standalone.html  gegenereerd: alles in één bestand
 ```
 
 Geen build-stap, geen dependencies — aanpassen en verversen is genoeg. Wil je een doel

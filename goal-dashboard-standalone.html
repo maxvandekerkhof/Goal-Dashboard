@@ -1,0 +1,2347 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Dagelijks, wekelijks en maandelijks overzicht van je sport- en voedingsdoelen, met een gekleurd percentage van donkerrood naar donkergroen.">
+  <meta name="theme-color" content="#11141a">
+  <title>Goal Dashboard — sport &amp; voeding</title>
+  <style>
+/* Goal Dashboard - stijl */
+
+:root {
+  --bg: #0e1117;
+  --bg-elev: #161b24;
+  --card: #171d27;
+  --card-2: #1d2531;
+  --border: #262f3d;
+  --text: #e7ecf5;
+  --muted: #8e9bb0;
+  --accent: #4c8dff;
+  --track: #232c3a;
+  --danger: #b3261e;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .25);
+  --radius: 14px;
+  --maxw: 940px;
+}
+
+html[data-theme="light"] {
+  --bg: #f3f5f9;
+  --bg-elev: #ffffff;
+  --card: #ffffff;
+  --card-2: #f1f4f9;
+  --border: #dde3ec;
+  --text: #16202e;
+  --muted: #63708a;
+  --accent: #2563eb;
+  --track: #e3e8f0;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .08);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
+h1 { font-size: 1.15rem; }
+h2 { font-size: .95rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+p { margin: 0; }
+
+/* ------------------------------- topbar ------------------------------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding-top: env(safe-area-inset-top);
+}
+
+.topbar-inner,
+.tabs,
+.period-nav,
+.view,
+.footer {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  padding-bottom: 4px;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark { font-size: 1.5rem; }
+.brand-sub { font-size: .78rem; color: var(--muted); }
+
+.tabs { display: flex; gap: 4px; padding-top: 8px; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  flex: 0 0 auto;
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 550;
+  padding: 8px 12px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab-active { color: var(--text); border-bottom-color: var(--accent); }
+
+.period-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid var(--border);
+  margin-top: -1px;
+}
+.period-label { flex: 1; font-weight: 600; font-size: .95rem; text-align: center; }
+
+/* -------------------------------- knoppen ----------------------------- */
+
+.btn {
+  appearance: none;
+  font: inherit;
+  font-weight: 550;
+  color: var(--text);
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .05s;
+}
+.btn:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+.btn:active { transform: translateY(1px); }
+.btn-sm { padding: 6px 10px; font-size: .85rem; }
+.btn-icon { padding: 6px 12px; font-size: 1.1rem; line-height: 1.2; }
+.btn-ghost { background: transparent; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-danger { background: transparent; color: #ef6a63; border-color: color-mix(in srgb, var(--danger) 50%, var(--border)); }
+.btn-danger:hover { background: color-mix(in srgb, var(--danger) 18%, transparent); }
+.btn[hidden] { display: none; }
+
+/* -------------------------------- layout ------------------------------ */
+
+.view {
+  padding-top: 16px;
+  padding-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.card-head h2 { margin: 0; }
+.card > h2 { margin-bottom: 12px; }
+.card-foot { margin-top: 12px; display: flex; justify-content: flex-end; }
+
+.hint { color: var(--muted); font-size: .84rem; margin-top: 10px; }
+.empty { color: var(--muted); font-size: .9rem; padding: 12px 0; }
+
+.footer { padding-bottom: calc(24px + env(safe-area-inset-bottom)); color: var(--muted); font-size: .8rem; }
+
+/* --------------------------------- hero ------------------------------- */
+
+.hero { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.hero-ring { flex: 0 0 auto; }
+.hero-info { flex: 1 1 240px; min-width: 220px; }
+.hero-label { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; }
+.hero-sub { color: var(--muted); font-size: .92rem; margin-top: 4px; }
+.hero-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+.ring { display: block; }
+.ring-pct { font-weight: 700; letter-spacing: -.03em; }
+.ring-pct-sign { font-size: .5em; }
+
+.legend { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); font-size: .72rem; }
+.legend-bar { flex: 1; height: 8px; border-radius: 999px; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.chip-off { opacity: .7; }
+
+/* -------------------------------- stats ------------------------------- */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.stat-label { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+.stat-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; margin-top: 2px; }
+.stat-value .unit { font-size: .8rem; font-weight: 600; color: var(--muted); margin-left: 3px; }
+.stat-sub { color: var(--muted); font-size: .78rem; }
+
+/* ---------------------------- meetwaarden ----------------------------- */
+
+.measure-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.measure { display: flex; flex-direction: column; gap: 6px; }
+.measure-label { font-size: .82rem; color: var(--muted); font-weight: 600; }
+.measure-input { position: relative; display: flex; align-items: center; }
+.measure-unit {
+  position: absolute; right: 12px; color: var(--muted); font-size: .82rem; pointer-events: none;
+}
+
+input[type="number"], input[type="text"], select, textarea {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+}
+input[type="number"] { padding-right: 46px; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; padding-right: 12px; }
+
+/* -------------------------------- doelen ------------------------------ */
+
+.goals { display: flex; flex-direction: column; gap: 14px; }
+.goal-dim { opacity: .55; }
+.goal-off { opacity: .4; }
+.goal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
+.goal-name { font-weight: 600; font-size: .95rem; display: flex; align-items: center; gap: 8px; }
+.goal-icon { font-size: 1.05rem; }
+
+.segmented { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg {
+  flex: 1 1 0;
+  min-width: 92px;
+  appearance: none;
+  font: inherit;
+  font-size: .88rem;
+  font-weight: 550;
+  color: var(--muted);
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 8px;
+  cursor: pointer;
+  position: relative;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.seg:hover:not(:disabled) { color: var(--text); }
+.seg:disabled { cursor: not-allowed; }
+.seg-active {
+  background: var(--seg-color, var(--accent));
+  border-color: var(--seg-color, var(--accent));
+  color: #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--seg-color, var(--accent)) 40%, transparent);
+}
+.auto-dot {
+  display: block;
+  font-size: .62rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  opacity: .85;
+}
+
+/* ------------------------------ breakdown ----------------------------- */
+
+.breakdown { display: flex; flex-direction: column; gap: 10px; }
+.bd-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.3fr) minmax(80px, 2fr) 48px;
+  grid-template-areas: "name bar pct" "counts counts counts";
+  align-items: center;
+  gap: 6px 10px;
+}
+.bd-name { grid-area: name; display: flex; align-items: center; gap: 7px; font-size: .9rem; font-weight: 550; }
+.bd-bar { grid-area: bar; }
+.bd-pct { grid-area: pct; text-align: right; font-weight: 700; font-size: .9rem; }
+.bd-counts { grid-area: counts; color: var(--muted); font-size: .75rem; }
+.bd-off { opacity: .45; }
+.bd-icon { font-size: 1rem; }
+
+.bar { height: 10px; background: var(--track); border-radius: 999px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 999px; transition: width .3s ease; }
+
+/* ------------------------------- daybars ------------------------------ */
+
+.daybars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.daybar {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.daybar-track {
+  width: 100%;
+  height: 110px;
+  background: var(--track);
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.daybar-fill { width: 100%; border-radius: 8px 8px 0 0; transition: height .3s ease; }
+.daybar-label { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+.daybar-val { font-size: .82rem; font-weight: 700; }
+.daybar:hover .daybar-track { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ------------------------------ kalender ------------------------------ */
+
+.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-head { text-align: center; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; padding-bottom: 4px; }
+.cal-cell {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  cursor: pointer;
+  font: inherit;
+  padding: 2px;
+  min-height: 42px;
+}
+.cal-cell:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cal-empty { border: 0; cursor: default; pointer-events: none; }
+.cal-day { font-size: .82rem; font-weight: 650; }
+.cal-pct { font-size: .62rem; opacity: .85; font-weight: 600; }
+.cal-today { box-shadow: 0 0 0 2px var(--accent); }
+.cal-future { opacity: .35; }
+.cal-missing { border-style: dashed; }
+
+/* ------------------------------ grafieken ----------------------------- */
+
+.weight-chart { width: 100%; height: auto; aspect-ratio: 640 / 200; display: block; }
+.wc-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.wc-area { fill: color-mix(in srgb, var(--accent) 16%, transparent); stroke: none; }
+.wc-dot { fill: var(--accent); stroke: var(--card); stroke-width: 1.5; }
+.wc-grid { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.wc-axis { fill: var(--muted); font-size: 11px; }
+.wc-goal { stroke: #d9a30a; stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.wc-goal-label { fill: #d9a30a; font-size: 11px; }
+
+/* ---------------------------- instellingen ---------------------------- */
+
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: .82rem; color: var(--muted); font-weight: 600; }
+.field-input { position: relative; display: flex; align-items: center; }
+.field-unit { position: absolute; right: 12px; color: var(--muted); font-size: .78rem; pointer-events: none; }
+
+.switch { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; cursor: pointer; }
+.switch input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: 0 0 auto; }
+.switch-label { display: block; font-weight: 550; font-size: .92rem; }
+.switch-hint { display: block; color: var(--muted); font-size: .8rem; }
+
+.weights { display: flex; flex-direction: column; gap: 10px; }
+.weight-row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(100px, 1.2fr) 46px; align-items: center; gap: 10px; }
+.weight-name { display: flex; align-items: center; gap: 7px; font-size: .9rem; font-weight: 550; }
+.weight-val { text-align: right; color: var(--muted); font-size: .85rem; font-weight: 650; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; color: var(--muted); cursor: pointer; }
+.check input { accent-color: var(--accent); }
+
+.alert { border-radius: 10px; padding: 12px; font-size: .87rem; margin-top: 12px; }
+.alert-ok { background: color-mix(in srgb, #2f7a3f 16%, transparent); border: 1px solid color-mix(in srgb, #2f7a3f 45%, transparent); }
+.alert-bad { background: color-mix(in srgb, var(--danger) 16%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); }
+
+.preview { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: .82rem; }
+.preview th, .preview td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.preview th { color: var(--muted); font-weight: 600; }
+
+.explain { margin: 0; padding-left: 20px; color: var(--muted); font-size: .88rem; display: flex; flex-direction: column; gap: 7px; }
+.explain em { color: var(--text); font-style: normal; font-weight: 600; }
+
+/* -------------------------------- toast ------------------------------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 20px);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: .88rem;
+  font-weight: 550;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  z-index: 50;
+  max-width: calc(100vw - 32px);
+}
+.toast-show { opacity: 1; transform: translate(-50%, 0); }
+.toast-bad { border-color: color-mix(in srgb, var(--danger) 60%, var(--border)); }
+
+/* ------------------------------- responsive --------------------------- */
+
+@media (max-width: 560px) {
+  .hero { gap: 14px; justify-content: center; }
+  .hero-ring svg { width: 150px; height: 150px; }
+  .hero-info { text-align: center; }
+  .hero-chips { justify-content: center; }
+  .seg { min-width: 0; font-size: .8rem; padding: 10px 4px; }
+  .bd-row { grid-template-columns: 1fr 44px; grid-template-areas: "name pct" "bar bar" "counts counts"; }
+  .stat-value { font-size: 1.3rem; }
+  .daybar-track { height: 84px; }
+  .cal-pct { display: none; }
+  .weight-row { grid-template-columns: 1fr 44px; grid-template-areas: "name val" "range range"; }
+  .weight-row input[type="range"] { grid-area: range; }
+  .weight-name { grid-area: name; }
+  .weight-val { grid-area: val; }
+}
+
+@media print {
+  .topbar, .footer, .toast { display: none; }
+  .card { break-inside: avoid; }
+}
+
+  </style>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">🎯</span>
+        <div>
+          <h1>Goal Dashboard</h1>
+          <p class="brand-sub">Sport &amp; voeding</p>
+        </div>
+      </div>
+      <button id="btn-theme" class="btn btn-icon" title="Licht/donker wisselen" aria-label="Licht of donker thema">◐</button>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Periode">
+      <button class="tab tab-active" data-view="dag" role="tab" aria-selected="true">Dag</button>
+      <button class="tab" data-view="week" role="tab" aria-selected="false">Week</button>
+      <button class="tab" data-view="maand" role="tab" aria-selected="false">Maand</button>
+      <button class="tab" data-view="instellingen" role="tab" aria-selected="false">Instellingen</button>
+    </nav>
+
+    <div class="period-nav" id="period-nav">
+      <button class="btn btn-icon" data-nav="prev" aria-label="Vorige periode">‹</button>
+      <span id="period-label" class="period-label">—</span>
+      <button class="btn btn-icon" data-nav="next" aria-label="Volgende periode">›</button>
+      <button class="btn btn-ghost btn-sm" id="btn-today" data-nav="today">Vandaag</button>
+    </div>
+  </header>
+
+  <main id="view" class="view"></main>
+
+  <footer class="footer">
+    <p>Je gegevens blijven in deze browser staan. Maak af en toe een back-up via <strong>Instellingen&nbsp;→&nbsp;Je data</strong>.</p>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <input type="file" id="file-csv" accept=".csv,text/csv,text/plain" hidden>
+  <input type="file" id="file-json" accept=".json,application/json" hidden>
+
+  <script>
+/* Goal Dashboard - configuratie: doelen, standaardinstellingen, kleurschaal */
+(function (global) {
+  'use strict';
+
+  var STORAGE_KEY = 'goaldash.v1';
+
+  /* ------------------------------------------------------------------ *
+   * Doelen
+   *
+   * score  : 0..1 (of null = telt niet mee, bv. rustdag)
+   * weight : standaard gewicht in de eindscore (aanpasbaar in instellingen)
+   * onlyIfTrained : doel telt alleen mee op een dag waarop echt gesport is
+   * ------------------------------------------------------------------ */
+  var MEAL_OPTIONS = [
+    { v: 'eiwitrijk', label: 'Ja (eiwitrijk)', short: 'Eiwitrijk', score: 1 },
+    { v: 'ja', label: 'Ja', short: 'Ja', score: 0.6 },
+    { v: 'nee', label: 'Nee', short: 'Nee', score: 0 }
+  ];
+
+  var GOALS = [
+    {
+      key: 'creatine',
+      label: 'Creatine gepakt',
+      icon: '💊',
+      weight: 1,
+      options: [
+        { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
+        { v: 'nee', label: 'Nee', short: 'Nee', score: 0 }
+      ]
+    },
+    { key: 'ontbijt', label: 'Ontbijt', icon: '🥣', weight: 1, options: MEAL_OPTIONS },
+    { key: 'lunch', label: 'Lunch', icon: '🥗', weight: 1, options: MEAL_OPTIONS },
+    { key: 'avondeten', label: 'Avondeten', icon: '🍽️', weight: 1, options: MEAL_OPTIONS },
+    {
+      key: 'postworkout',
+      label: 'Post-workout maaltijd',
+      icon: '🥤',
+      weight: 1,
+      onlyIfTrained: true,
+      options: MEAL_OPTIONS
+    },
+    {
+      key: 'gesport',
+      label: 'Gesport',
+      icon: '🏋️',
+      weight: 2,
+      options: [
+        { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
+        { v: 'nee', label: 'Nee', short: 'Nee', score: 0 },
+        { v: 'rustdag', label: 'Rustdag', short: 'Rust', score: null }
+      ]
+    },
+    {
+      key: 'overload',
+      label: 'Progressive overload',
+      icon: '📈',
+      weight: 1.5,
+      onlyIfTrained: true,
+      options: [
+        { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
+        { v: 'deels', label: 'Deels', short: 'Deels', score: 0.5 },
+        { v: 'nee', label: 'Nee', short: 'Nee', score: 0 }
+      ]
+    },
+    {
+      key: 'eiwit',
+      label: 'Eiwitdoel behaald',
+      icon: '🍗',
+      weight: 2,
+      macro: 'protein',
+      options: [
+        { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
+        { v: 'nee', label: 'Nee', short: 'Nee', score: 0 }
+      ]
+    },
+    {
+      key: 'calorieen',
+      label: 'Caloriedoel behaald',
+      icon: '🔥',
+      weight: 1.5,
+      macro: 'calories',
+      options: [
+        { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
+        { v: 'nee', label: 'Nee', short: 'Nee', score: 0 }
+      ]
+    }
+  ];
+
+  var DEFAULT_SETTINGS = {
+    eiwitDoel: 150,           // gram per dag
+    calorieDoel: 2200,        // kcal per dag
+    calorieRichting: 'max',   // 'max' = onder blijven, 'min' = halen, 'rond' = binnen marge
+    calorieMarge: 150,        // kcal, alleen bij 'rond'
+    gewichtDoel: null,        // kg, optioneel (alleen voor de grafiek)
+    goedeDagDrempel: 70,      // % vanaf wanneer een dag als "goed" telt (streak)
+    countMissingAsZero: true, // lege dagen in het verleden tellen als 0%
+    autoMacro: true,          // eiwit/kcal doel automatisch afleiden uit ingevulde waarden
+    theme: 'dark',
+    weights: {}               // per doel-key, gevuld met de standaarden hieronder
+  };
+
+  GOALS.forEach(function (g) { DEFAULT_SETTINGS.weights[g.key] = g.weight; });
+
+  /* ------------------------------------------------------------------ *
+   * Kleurschaal: 0% donkerrood -> 100% donkergroen
+   * ------------------------------------------------------------------ */
+  var COLOR_STOPS = [
+    { p: 0,   c: [122, 12, 18] },   // donkerrood
+    { p: 20,  c: [178, 30, 30] },
+    { p: 40,  c: [214, 96, 20] },
+    { p: 55,  c: [217, 154, 10] },  // amber
+    { p: 70,  c: [154, 168, 20] },
+    { p: 85,  c: [77, 145, 46] },
+    { p: 100, c: [13, 82, 34] }     // donkergroen
+  ];
+
+  function clamp(v, min, max) { return v < min ? min : (v > max ? max : v); }
+
+  function scoreColor(pct) {
+    if (pct === null || pct === undefined || isNaN(pct)) return '#3a3f4b';
+    var p = clamp(pct, 0, 100);
+    var a = COLOR_STOPS[0], b = COLOR_STOPS[COLOR_STOPS.length - 1];
+    for (var i = 0; i < COLOR_STOPS.length - 1; i++) {
+      if (p >= COLOR_STOPS[i].p && p <= COLOR_STOPS[i + 1].p) {
+        a = COLOR_STOPS[i];
+        b = COLOR_STOPS[i + 1];
+        break;
+      }
+    }
+    var t = b.p === a.p ? 0 : (p - a.p) / (b.p - a.p);
+    var rgb = [0, 1, 2].map(function (i) {
+      return Math.round(a.c[i] + (b.c[i] - a.c[i]) * t);
+    });
+    return 'rgb(' + rgb.join(',') + ')';
+  }
+
+  /* Leesbare tekstkleur op een score-achtergrond */
+  function textOn(pct) {
+    if (pct === null || pct === undefined || isNaN(pct)) return '#c9cedb';
+    var m = /rgb\((\d+),(\d+),(\d+)\)/.exec(scoreColor(pct));
+    if (!m) return '#fff';
+    var lum = (0.299 * +m[1] + 0.587 * +m[2] + 0.114 * +m[3]) / 255;
+    return lum > 0.62 ? '#14181f' : '#ffffff';
+  }
+
+  function scoreLabel(pct) {
+    if (pct === null || pct === undefined) return 'Geen data';
+    if (pct >= 90) return 'Uitstekend';
+    if (pct >= 75) return 'Sterk';
+    if (pct >= 60) return 'Prima';
+    if (pct >= 40) return 'Kan beter';
+    if (pct >= 20) return 'Zwak';
+    return 'Slecht';
+  }
+
+  global.GD = global.GD || {};
+  global.GD.STORAGE_KEY = STORAGE_KEY;
+  global.GD.GOALS = GOALS;
+  global.GD.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
+  global.GD.scoreColor = scoreColor;
+  global.GD.textOn = textOn;
+  global.GD.scoreLabel = scoreLabel;
+  global.GD.clamp = clamp;
+  global.GD.goalByKey = function (key) {
+    for (var i = 0; i < GOALS.length; i++) if (GOALS[i].key === key) return GOALS[i];
+    return null;
+  };
+})(window);
+
+  </script>
+  <script>
+/* Goal Dashboard - opslag (localStorage) + datum-helpers */
+(function (global) {
+  'use strict';
+
+  var GD = global.GD;
+
+  /* ---------------------------- datums ---------------------------- */
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  /** Lokale datum -> "YYYY-MM-DD" (geen UTC-verschuiving) */
+  function iso(d) {
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  /** "YYYY-MM-DD" -> Date (lokale middernacht) */
+  function parse(s) {
+    var p = s.split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+
+  function today() { return iso(new Date()); }
+
+  function addDays(s, n) {
+    var d = parse(s);
+    d.setDate(d.getDate() + n);
+    return iso(d);
+  }
+
+  function addMonths(s, n) {
+    var d = parse(s);
+    var day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + n);
+    var last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, last));
+    return iso(d);
+  }
+
+  /** Maandag van de week waarin `s` valt */
+  function startOfWeek(s) {
+    var d = parse(s);
+    var wd = (d.getDay() + 6) % 7; // ma=0 ... zo=6
+    d.setDate(d.getDate() - wd);
+    return iso(d);
+  }
+
+  function startOfMonth(s) {
+    var d = parse(s);
+    return iso(new Date(d.getFullYear(), d.getMonth(), 1));
+  }
+
+  function endOfMonth(s) {
+    var d = parse(s);
+    return iso(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+  }
+
+  /** Lijst met datums van `from` t/m `to` (inclusief) */
+  function range(from, to) {
+    var out = [], cur = from;
+    var guard = 0;
+    while (cur <= to && guard++ < 1000) {
+      out.push(cur);
+      cur = addDays(cur, 1);
+    }
+    return out;
+  }
+
+  /** ISO-weeknummer */
+  function isoWeek(s) {
+    var d = parse(s);
+    var t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7));
+    var week1 = new Date(t.getFullYear(), 0, 4);
+    return 1 + Math.round(
+      ((t - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
+    );
+  }
+
+  var DAY_NAMES = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
+  var MONTH_NAMES = ['januari', 'februari', 'maart', 'april', 'mei', 'juni',
+    'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+
+  function dayName(s) { return DAY_NAMES[(parse(s).getDay() + 6) % 7]; }
+  function monthName(s) { return MONTH_NAMES[parse(s).getMonth()]; }
+
+  function formatDate(s) {
+    var d = parse(s);
+    return dayName(s) + ' ' + d.getDate() + ' ' + MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function formatShort(s) {
+    var d = parse(s);
+    return d.getDate() + ' ' + MONTH_NAMES[d.getMonth()].slice(0, 3);
+  }
+
+  function relativeLabel(s) {
+    var t = today();
+    if (s === t) return 'Vandaag';
+    if (s === addDays(t, -1)) return 'Gisteren';
+    if (s === addDays(t, 1)) return 'Morgen';
+    return null;
+  }
+
+  /* ---------------------------- opslag ---------------------------- */
+
+  function emptyState() {
+    return { version: 1, settings: clone(GD.DEFAULT_SETTINGS), entries: {} };
+  }
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  var state = null;
+
+  function load() {
+    if (state) return state;
+    state = emptyState();
+    try {
+      var raw = global.localStorage.getItem(GD.STORAGE_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        state = migrate(parsed);
+      }
+    } catch (e) {
+      console.warn('Kon opgeslagen data niet lezen, start leeg.', e);
+    }
+    return state;
+  }
+
+  function migrate(data) {
+    var s = emptyState();
+    if (data && typeof data === 'object') {
+      if (data.settings) {
+        Object.keys(s.settings).forEach(function (k) {
+          if (k === 'weights') return;
+          if (data.settings[k] !== undefined) s.settings[k] = data.settings[k];
+        });
+        if (data.settings.weights) {
+          Object.keys(s.settings.weights).forEach(function (k) {
+            var w = data.settings.weights[k];
+            if (typeof w === 'number' && isFinite(w) && w >= 0) s.settings.weights[k] = w;
+          });
+        }
+      }
+      if (data.entries && typeof data.entries === 'object') {
+        Object.keys(data.entries).forEach(function (date) {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(date)) s.entries[date] = data.entries[date];
+        });
+      }
+    }
+    return s;
+  }
+
+  var saveTimer = null;
+  function save() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      try {
+        global.localStorage.setItem(GD.STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.error('Opslaan mislukt', e);
+        alert('Opslaan mislukt: de opslag van je browser zit vol of staat uit.');
+      }
+    }, 120);
+  }
+
+  function settings() { return load().settings; }
+
+  function setSetting(key, value) {
+    load().settings[key] = value;
+    save();
+  }
+
+  function setWeight(key, value) {
+    load().settings.weights[key] = value;
+    save();
+  }
+
+  function entry(date) {
+    return load().entries[date] || null;
+  }
+
+  /** Entry ophalen of aanmaken */
+  function ensureEntry(date) {
+    var st = load();
+    if (!st.entries[date]) st.entries[date] = { date: date };
+    return st.entries[date];
+  }
+
+  function setField(date, field, value) {
+    var e = ensureEntry(date);
+    if (value === null || value === undefined || value === '') delete e[field];
+    else e[field] = value;
+    if (isEmptyEntry(e)) delete load().entries[date];
+    save();
+  }
+
+  function isEmptyEntry(e) {
+    return !Object.keys(e).some(function (k) {
+      return k !== 'date' && e[k] !== null && e[k] !== undefined && e[k] !== '';
+    });
+  }
+
+  function deleteEntry(date) {
+    delete load().entries[date];
+    save();
+  }
+
+  function allDates() {
+    return Object.keys(load().entries).sort();
+  }
+
+  function reset() {
+    state = emptyState();
+    try { global.localStorage.removeItem(GD.STORAGE_KEY); } catch (e) { /* leeg */ }
+  }
+
+  function exportJSON() {
+    return JSON.stringify(load(), null, 2);
+  }
+
+  /**
+   * Importeer een eerder geëxporteerd bestand.
+   * mode 'merge' behoudt bestaande dagen die niet in het bestand zitten.
+   */
+  function importJSON(text, mode) {
+    var data = JSON.parse(text);
+    var incoming = migrate(data);
+    if (mode === 'merge') {
+      var st = load();
+      Object.keys(incoming.entries).forEach(function (d) {
+        st.entries[d] = incoming.entries[d];
+      });
+      st.settings = incoming.settings;
+    } else {
+      state = incoming;
+    }
+    save();
+    return Object.keys(incoming.entries).length;
+  }
+
+  GD.store = {
+    load: load,
+    save: save,
+    settings: settings,
+    setSetting: setSetting,
+    setWeight: setWeight,
+    entry: entry,
+    ensureEntry: ensureEntry,
+    setField: setField,
+    deleteEntry: deleteEntry,
+    allDates: allDates,
+    reset: reset,
+    exportJSON: exportJSON,
+    importJSON: importJSON
+  };
+
+  GD.date = {
+    iso: iso,
+    parse: parse,
+    today: today,
+    addDays: addDays,
+    addMonths: addMonths,
+    startOfWeek: startOfWeek,
+    startOfMonth: startOfMonth,
+    endOfMonth: endOfMonth,
+    range: range,
+    isoWeek: isoWeek,
+    dayName: dayName,
+    monthName: monthName,
+    formatDate: formatDate,
+    formatShort: formatShort,
+    relativeLabel: relativeLabel,
+    DAY_NAMES: DAY_NAMES,
+    MONTH_NAMES: MONTH_NAMES
+  };
+})(window);
+
+  </script>
+  <script>
+/* Goal Dashboard - scoreberekening */
+(function (global) {
+  'use strict';
+
+  var GD = global.GD;
+  var store = GD.store;
+  var D = GD.date;
+
+  function optionFor(goal, value) {
+    for (var i = 0; i < goal.options.length; i++) {
+      if (goal.options[i].v === value) return goal.options[i];
+    }
+    return null;
+  }
+
+  /**
+   * Waarde van een doel voor een dag, inclusief automatische afleiding
+   * uit ingevulde eiwitten/calorieën.
+   * -> { value, auto }
+   */
+  function resolveValue(entry, goal, settings) {
+    if (!entry) return { value: null, auto: false };
+    var explicit = entry[goal.key];
+    if (explicit !== null && explicit !== undefined && explicit !== '') {
+      return { value: explicit, auto: false };
+    }
+    if (!settings.autoMacro || !goal.macro) return { value: null, auto: false };
+
+    if (goal.macro === 'protein') {
+      var g = num(entry.eiwitGram);
+      if (g === null) return { value: null, auto: false };
+      return { value: g >= num(settings.eiwitDoel, 0) ? 'ja' : 'nee', auto: true };
+    }
+    if (goal.macro === 'calories') {
+      var kcal = num(entry.kcal);
+      if (kcal === null) return { value: null, auto: false };
+      var doel = num(settings.calorieDoel, 0);
+      var ok;
+      if (settings.calorieRichting === 'min') ok = kcal >= doel;
+      else if (settings.calorieRichting === 'rond') ok = Math.abs(kcal - doel) <= num(settings.calorieMarge, 0);
+      else ok = kcal <= doel;
+      return { value: ok ? 'ja' : 'nee', auto: true };
+    }
+    return { value: null, auto: false };
+  }
+
+  function num(v, fallback) {
+    if (v === null || v === undefined || v === '') return fallback === undefined ? null : fallback;
+    var n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
+    return isFinite(n) ? n : (fallback === undefined ? null : fallback);
+  }
+
+  function weightOf(goal, settings) {
+    var w = settings.weights && settings.weights[goal.key];
+    return typeof w === 'number' && isFinite(w) && w >= 0 ? w : goal.weight;
+  }
+
+  /**
+   * Score van één dag.
+   * live=true : nog niet ingevulde doelen tellen niet mee (voor vandaag/toekomst)
+   * -> { pct, points, max, items[], hasEntry, trained }
+   */
+  function scoreDay(date, live) {
+    var settings = store.settings();
+    var entry = store.entry(date);
+    if (live === undefined) live = date >= D.today();
+
+    var gesportGoal = GD.goalByKey('gesport');
+    var trainedValue = resolveValue(entry, gesportGoal, settings).value;
+    var trained = trainedValue === 'ja';
+
+    var points = 0, max = 0, items = [];
+
+    GD.GOALS.forEach(function (goal) {
+      var w = weightOf(goal, settings);
+      var res = resolveValue(entry, goal, settings);
+      var opt = res.value ? optionFor(goal, res.value) : null;
+      var item = {
+        key: goal.key,
+        goal: goal,
+        value: res.value,
+        auto: res.auto,
+        option: opt,
+        weight: w,
+        score: null,
+        included: false,
+        reason: ''
+      };
+
+      if (w === 0) {
+        item.reason = 'uitgezet';
+      } else if (goal.onlyIfTrained && !trained) {
+        if (trainedValue === 'rustdag') item.reason = 'rustdag';
+        else if (trainedValue) item.reason = 'niet getraind';
+        else item.reason = live ? 'nog niet ingevuld' : 'niet getraind';
+      } else if (!opt) {
+        if (live) {
+          item.reason = 'nog niet ingevuld';
+        } else {
+          item.score = 0;
+          item.included = true;
+          item.reason = 'niet ingevuld';
+        }
+      } else if (opt.score === null) {
+        item.reason = 'rustdag';
+      } else {
+        item.score = opt.score;
+        item.included = true;
+      }
+
+      if (item.included) {
+        points += item.score * w;
+        max += w;
+      }
+      items.push(item);
+    });
+
+    return {
+      date: date,
+      pct: max > 0 ? (points / max) * 100 : null,
+      points: points,
+      max: max,
+      items: items,
+      trained: trained,
+      trainedValue: trainedValue,
+      restDay: trainedValue === 'rustdag',
+      hasEntry: !!entry
+    };
+  }
+
+  /** Maximaal haalbare punten voor een dag zonder training-afhankelijke doelen */
+  function baseMax() {
+    var settings = store.settings();
+    var m = 0;
+    GD.GOALS.forEach(function (g) {
+      if (!g.onlyIfTrained) m += weightOf(g, settings);
+    });
+    return m;
+  }
+
+  /**
+   * Score over een periode.
+   * -> { pct, days[], logged, scored, missing, future, breakdown[], stats }
+   */
+  function scorePeriod(dates) {
+    var settings = store.settings();
+    var t = D.today();
+    // Dagen van vóór je allereerste invoer zijn geen gemiste dagen: toen
+    // gebruikte je het dashboard nog niet.
+    var known = store.allDates();
+    var firstEver = known.length ? known[0] : null;
+    var points = 0, max = 0;
+    var days = [];
+    var logged = 0, missing = 0, future = 0, scoredDays = 0;
+    var bd = {};
+    GD.GOALS.forEach(function (g) {
+      bd[g.key] = { goal: g, points: 0, max: 0, counts: {}, days: 0 };
+      g.options.forEach(function (o) { bd[g.key].counts[o.v] = 0; });
+      bd[g.key].counts['leeg'] = 0;
+    });
+
+    dates.forEach(function (date) {
+      if (date > t) {
+        future++;
+        days.push({ date: date, pct: null, state: 'future' });
+        return;
+      }
+      var e = store.entry(date);
+      if (e) {
+        logged++;
+        var d = scoreDay(date, date === t);
+        if (d.max > 0) {
+          points += d.points;
+          max += d.max;
+          scoredDays++;
+        }
+        days.push({ date: date, pct: d.pct, state: 'logged', day: d });
+        d.items.forEach(function (it) {
+          var b = bd[it.key];
+          if (it.included) {
+            b.points += it.score * it.weight;
+            b.max += it.weight;
+            b.days++;
+          }
+          if (it.value) b.counts[it.value] = (b.counts[it.value] || 0) + 1;
+          else b.counts['leeg']++;
+        });
+      } else {
+        missing++;
+        var counted = settings.countMissingAsZero && date < t &&
+          firstEver !== null && date >= firstEver;
+        if (counted) max += baseMax();
+        days.push({ date: date, pct: counted ? 0 : null, state: counted ? 'missing0' : 'missing' });
+        GD.GOALS.forEach(function (g) { bd[g.key].counts['leeg']++; });
+      }
+    });
+
+    var breakdown = GD.GOALS.map(function (g) {
+      var b = bd[g.key];
+      return {
+        key: g.key,
+        goal: g,
+        pct: b.max > 0 ? (b.points / b.max) * 100 : null,
+        days: b.days,
+        counts: b.counts
+      };
+    });
+
+    return {
+      pct: max > 0 ? (points / max) * 100 : null,
+      points: points,
+      max: max,
+      days: days,
+      logged: logged,
+      missing: missing,
+      future: future,
+      scoredDays: scoredDays,
+      breakdown: breakdown,
+      stats: periodStats(dates, days)
+    };
+  }
+
+  function periodStats(dates, days) {
+    var t = D.today();
+    var weights = [], trainDays = 0, restDays = 0, kcal = [], prot = [];
+    dates.forEach(function (date) {
+      if (date > t) return;
+      var e = store.entry(date);
+      if (!e) return;
+      var w = num(e.gewicht);
+      if (w !== null) weights.push({ date: date, w: w });
+      var d = scoreDay(date, date === t);
+      if (d.trained) trainDays++;
+      if (d.restDay) restDays++;
+      var k = num(e.kcal); if (k !== null) kcal.push(k);
+      var p = num(e.eiwitGram); if (p !== null) prot.push(p);
+    });
+
+    function avg(arr) {
+      if (!arr.length) return null;
+      return arr.reduce(function (a, b) { return a + b; }, 0) / arr.length;
+    }
+
+    return {
+      weights: weights,
+      weightStart: weights.length ? weights[0].w : null,
+      weightEnd: weights.length ? weights[weights.length - 1].w : null,
+      weightDelta: weights.length > 1 ? weights[weights.length - 1].w - weights[0].w : null,
+      weightAvg: avg(weights.map(function (x) { return x.w; })),
+      trainDays: trainDays,
+      restDays: restDays,
+      kcalAvg: avg(kcal),
+      proteinAvg: avg(prot),
+      goodDays: days.filter(function (d) {
+        return d.pct !== null && d.pct >= store.settings().goedeDagDrempel;
+      }).length
+    };
+  }
+
+  /** Huidige reeks goede dagen, geteld vanaf vandaag (of gisteren) terug. */
+  function currentStreak() {
+    var settings = store.settings();
+    var drempel = num(settings.goedeDagDrempel, 70);
+    var t = D.today();
+    var cursor = t;
+
+    // Vandaag telt alleen mee als hij de drempel al haalt; anders start bij gisteren.
+    var todayScore = store.entry(t) ? scoreDay(t, true).pct : null;
+    if (todayScore === null || todayScore < drempel) cursor = D.addDays(t, -1);
+
+    var streak = 0, guard = 0;
+    while (guard++ < 3650) {
+      var e = store.entry(cursor);
+      if (!e) break;
+      var d = scoreDay(cursor, false);
+      if (d.pct === null || d.pct < drempel) break;
+      streak++;
+      cursor = D.addDays(cursor, -1);
+    }
+    return streak;
+  }
+
+  /** Langste reeks ooit */
+  function bestStreak() {
+    var drempel = num(store.settings().goedeDagDrempel, 70);
+    var dates = store.allDates();
+    var best = 0, run = 0, prev = null;
+    dates.forEach(function (date) {
+      var d = scoreDay(date, false);
+      var good = d.pct !== null && d.pct >= drempel;
+      if (good && prev && D.addDays(prev, 1) === date) run++;
+      else if (good) run = 1;
+      else run = 0;
+      if (run > best) best = run;
+      prev = date;
+    });
+    return best;
+  }
+
+  GD.score = {
+    scoreDay: scoreDay,
+    scorePeriod: scorePeriod,
+    resolveValue: resolveValue,
+    weightOf: weightOf,
+    baseMax: baseMax,
+    currentStreak: currentStreak,
+    bestStreak: bestStreak,
+    num: num,
+    optionFor: optionFor
+  };
+})(window);
+
+  </script>
+  <script>
+/* Goal Dashboard - kleine SVG-grafieken (geen externe libraries) */
+(function (global) {
+  'use strict';
+
+  var GD = global.GD;
+  var D = GD.date;
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  /** Ronde voortgangsmeter */
+  function ring(pct, size, stroke) {
+    size = size || 160;
+    stroke = stroke || 14;
+    var r = (size - stroke) / 2;
+    var c = 2 * Math.PI * r;
+    var has = pct !== null && pct !== undefined && !isNaN(pct);
+    var value = has ? GD.clamp(pct, 0, 100) : 0;
+    var dash = (value / 100) * c;
+    var color = GD.scoreColor(has ? pct : null);
+    var label = has ? Math.round(pct) + '<tspan class="ring-pct-sign">%</tspan>' : '–';
+
+    return '' +
+      '<svg class="ring" viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size +
+      '" role="img" aria-label="Score ' + (has ? Math.round(pct) + ' procent' : 'onbekend') + '">' +
+      '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--track)" stroke-width="' + stroke + '"/>' +
+      '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '"' +
+      ' stroke-width="' + stroke + '" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + (c - dash) + '"' +
+      ' transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/>' +
+      '<text x="' + size / 2 + '" y="' + (size / 2 + size * 0.075) + '" text-anchor="middle" class="ring-pct" fill="' + color + '"' +
+      ' font-size="' + Math.round(size * 0.26) + '">' + label + '</text>' +
+      '</svg>';
+  }
+
+  /** Horizontale balk 0..100 */
+  function bar(pct) {
+    var has = pct !== null && pct !== undefined && !isNaN(pct);
+    var v = has ? GD.clamp(pct, 0, 100) : 0;
+    return '<div class="bar"><div class="bar-fill" style="width:' + v + '%;background:' +
+      GD.scoreColor(has ? pct : null) + '"></div></div>';
+  }
+
+  /**
+   * Lijngrafiek voor gewicht.
+   * points: [{date, w}], doel: number|null
+   */
+  function weightChart(points, doel) {
+    var W = 640, H = 200, padL = 44, padR = 12, padT = 16, padB = 26;
+    if (!points || points.length === 0) {
+      return '<p class="empty">Nog geen gewicht ingevuld in deze periode.</p>';
+    }
+    if (points.length === 1) {
+      return '<p class="empty">Eén meting: <strong>' + points[0].w.toFixed(1) + ' kg</strong> op ' +
+        esc(D.formatShort(points[0].date)) + '. Vul meer dagen in voor een grafiek.</p>';
+    }
+
+    var vals = points.map(function (p) { return p.w; });
+    if (doel !== null && doel !== undefined) vals.push(doel);
+    var min = Math.min.apply(null, vals);
+    var max = Math.max.apply(null, vals);
+    var span = max - min || 1;
+    min -= span * 0.15;
+    max += span * 0.15;
+
+    var t0 = D.parse(points[0].date).getTime();
+    var t1 = D.parse(points[points.length - 1].date).getTime();
+    var tSpan = (t1 - t0) || 1;
+
+    function x(date) {
+      return padL + ((D.parse(date).getTime() - t0) / tSpan) * (W - padL - padR);
+    }
+    function y(v) {
+      return padT + (1 - (v - min) / (max - min)) * (H - padT - padB);
+    }
+
+    var line = points.map(function (p, i) {
+      return (i === 0 ? 'M' : 'L') + x(p.date).toFixed(1) + ' ' + y(p.w).toFixed(1);
+    }).join(' ');
+
+    var area = line + ' L' + x(points[points.length - 1].date).toFixed(1) + ' ' + (H - padB) +
+      ' L' + x(points[0].date).toFixed(1) + ' ' + (H - padB) + ' Z';
+
+    var dots = points.map(function (p) {
+      return '<circle cx="' + x(p.date).toFixed(1) + '" cy="' + y(p.w).toFixed(1) +
+        '" r="3" class="wc-dot"><title>' + esc(D.formatShort(p.date) + ': ' + p.w.toFixed(1) + ' kg') + '</title></circle>';
+    }).join('');
+
+    var gridVals = [min + (max - min) * 0.15, (min + max) / 2, max - (max - min) * 0.15];
+    var grid = gridVals.map(function (v) {
+      return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '" class="wc-grid"/>' +
+        '<text x="' + (padL - 8) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end" class="wc-axis">' + v.toFixed(1) + '</text>';
+    }).join('');
+
+    var goalLine = '';
+    if (doel !== null && doel !== undefined && !isNaN(doel)) {
+      goalLine = '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(doel).toFixed(1) + '" y2="' + y(doel).toFixed(1) +
+        '" class="wc-goal"/><text x="' + (W - padR) + '" y="' + (y(doel) - 5).toFixed(1) +
+        '" text-anchor="end" class="wc-goal-label">doel ' + doel.toFixed(1) + ' kg</text>';
+    }
+
+    var xLabels = '<text x="' + padL + '" y="' + (H - 6) + '" class="wc-axis">' + esc(D.formatShort(points[0].date)) + '</text>' +
+      '<text x="' + (W - padR) + '" y="' + (H - 6) + '" text-anchor="end" class="wc-axis">' +
+      esc(D.formatShort(points[points.length - 1].date)) + '</text>';
+
+    return '<svg class="weight-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Gewichtsverloop">' +
+      grid + goalLine +
+      '<path d="' + area + '" class="wc-area"/>' +
+      '<path d="' + line + '" class="wc-line"/>' +
+      dots + xLabels +
+      '</svg>';
+  }
+
+  /** Staafjes per dag (weekoverzicht) */
+  function dayBars(days, onClickAttr) {
+    return '<div class="daybars">' + days.map(function (d) {
+      var has = d.pct !== null;
+      var h = has ? Math.max(3, GD.clamp(d.pct, 0, 100)) : 3;
+      var color = has ? GD.scoreColor(d.pct) : 'var(--track)';
+      var title = D.formatDate(d.date) + ' — ' + (has ? Math.round(d.pct) + '%' : 'niet ingevuld');
+      return '<button class="daybar" data-date="' + d.date + '" title="' + esc(title) + '" ' + (onClickAttr || '') + '>' +
+        '<span class="daybar-track"><span class="daybar-fill" style="height:' + h + '%;background:' + color + '"></span></span>' +
+        '<span class="daybar-label">' + esc(D.dayName(d.date)) + '</span>' +
+        '<span class="daybar-val" style="color:' + (has ? color : 'var(--muted)') + '">' + (has ? Math.round(d.pct) : '–') + '</span>' +
+        '</button>';
+    }).join('') + '</div>';
+  }
+
+  /** Maandkalender met kleurvlakken */
+  function calendar(anchorDate, days) {
+    var byDate = {};
+    days.forEach(function (d) { byDate[d.date] = d; });
+
+    var first = D.startOfMonth(anchorDate);
+    var last = D.endOfMonth(anchorDate);
+    var lead = (D.parse(first).getDay() + 6) % 7;
+    var t = D.today();
+
+    var cells = '';
+    for (var i = 0; i < lead; i++) cells += '<div class="cal-cell cal-empty"></div>';
+
+    D.range(first, last).forEach(function (date) {
+      var d = byDate[date];
+      var pct = d ? d.pct : null;
+      var has = pct !== null && pct !== undefined;
+      var cls = 'cal-cell';
+      if (date === t) cls += ' cal-today';
+      if (date > t) cls += ' cal-future';
+      if (d && d.state === 'missing0') cls += ' cal-missing';
+      var bg = has ? GD.scoreColor(pct) : 'transparent';
+      var fg = has ? GD.textOn(pct) : 'var(--muted)';
+      var title = D.formatDate(date) + ' — ' +
+        (has ? Math.round(pct) + '%' : (date > t ? 'toekomst' : 'niet ingevuld'));
+      cells += '<button class="' + cls + '" data-date="' + date + '" title="' + esc(title) + '"' +
+        ' style="background:' + bg + ';color:' + fg + '">' +
+        '<span class="cal-day">' + D.parse(date).getDate() + '</span>' +
+        '<span class="cal-pct">' + (has ? Math.round(pct) + '%' : '') + '</span>' +
+        '</button>';
+    });
+
+    var head = D.DAY_NAMES.map(function (n) {
+      return '<div class="cal-head">' + n + '</div>';
+    }).join('');
+
+    return '<div class="calendar">' + head + cells + '</div>';
+  }
+
+  /** Kleurenlegenda 0 -> 100 */
+  function legend() {
+    var stops = [0, 25, 50, 75, 100].map(function (p) {
+      return GD.scoreColor(p) + ' ' + p + '%';
+    }).join(', ');
+    return '<div class="legend"><span>0%</span>' +
+      '<span class="legend-bar" style="background:linear-gradient(90deg,' + stops + ')"></span>' +
+      '<span>100%</span></div>';
+  }
+
+  GD.charts = {
+    ring: ring,
+    bar: bar,
+    weightChart: weightChart,
+    dayBars: dayBars,
+    calendar: calendar,
+    legend: legend,
+    esc: esc
+  };
+})(window);
+
+  </script>
+  <script>
+/* Goal Dashboard - CSV-import (MyFitnessPal-export of eigen CSV)
+ *
+ * MyFitnessPal heeft geen open publieke API meer, dus koppelen gaat via de
+ * CSV-export (MyFitnessPal web -> Reports/Nutrition -> Export). Deze parser is
+ * bewust tolerant: hij zoekt zelf de kolommen voor datum, calorieën en eiwit,
+ * en telt meerdere regels (maaltijden) per dag bij elkaar op.
+ */
+(function (global) {
+  'use strict';
+
+  var GD = global.GD;
+
+  /* ------------------------------- CSV ------------------------------- */
+
+  function detectDelimiter(text) {
+    var firstLine = text.split(/\r?\n/)[0] || '';
+    var counts = [',', ';', '\t'].map(function (d) {
+      return { d: d, n: firstLine.split(d).length };
+    });
+    counts.sort(function (a, b) { return b.n - a.n; });
+    return counts[0].n > 1 ? counts[0].d : ',';
+  }
+
+  function parseCSV(text, delim) {
+    var rows = [], row = [], field = '', inQuotes = false;
+    text = text.replace(/^﻿/, '');
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else inQuotes = false;
+        } else field += ch;
+      } else if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === delim) {
+        row.push(field); field = '';
+      } else if (ch === '\n') {
+        row.push(field); field = '';
+        rows.push(row); row = [];
+      } else if (ch === '\r') {
+        /* genegeerd */
+      } else field += ch;
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    return rows.filter(function (r) {
+      return r.some(function (c) { return String(c).trim() !== ''; });
+    });
+  }
+
+  /* ------------------------------ datums ----------------------------- */
+
+  var MONTHS_EN = ['january', 'february', 'march', 'april', 'may', 'june', 'july',
+    'august', 'september', 'october', 'november', 'december'];
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  /** Herkent YYYY-MM-DD, D-M-YYYY, M/D/YYYY en "January 5, 2026". */
+  function parseDate(raw, dayFirst) {
+    var s = String(raw || '').trim();
+    if (!s) return null;
+
+    var m = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(s);
+    if (m) return m[1] + '-' + pad(+m[2]) + '-' + pad(+m[3]);
+
+    m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/.exec(s);
+    if (m) {
+      var a = +m[1], b = +m[2], y = +m[3], day, mon;
+      if (a > 12) { day = a; mon = b; }
+      else if (b > 12) { mon = a; day = b; }
+      else if (dayFirst) { day = a; mon = b; }
+      else { mon = a; day = b; }
+      if (mon < 1 || mon > 12 || day < 1 || day > 31) return null;
+      return y + '-' + pad(mon) + '-' + pad(day);
+    }
+
+    m = /^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/.exec(s);
+    if (m) {
+      var idx = MONTHS_EN.indexOf(m[1].toLowerCase());
+      if (idx >= 0) return m[3] + '-' + pad(idx + 1) + '-' + pad(+m[2]);
+    }
+
+    m = /^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/.exec(s);
+    if (m) {
+      var i2 = MONTHS_EN.indexOf(m[2].toLowerCase());
+      if (i2 >= 0) return m[3] + '-' + pad(i2 + 1) + '-' + pad(+m[1]);
+    }
+    return null;
+  }
+
+  function toNumber(raw) {
+    var s = String(raw || '').replace(/[^0-9,.\-]/g, '').trim();
+    if (!s) return null;
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) {
+      s = s.replace(/,/g, '');            // 1,234.5 en 2,100 -> punt als decimaal
+    } else if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
+      s = s.replace(/\./g, '').replace(',', '.'); // 1.234,5 -> komma als decimaal
+    } else {
+      s = s.replace(',', '.');            // 82,4 -> 82.4
+    }
+    var n = parseFloat(s);
+    return isFinite(n) ? n : null;
+  }
+
+  /* ----------------------------- kolommen ---------------------------- */
+
+  function findColumn(headers, patterns) {
+    for (var p = 0; p < patterns.length; p++) {
+      for (var i = 0; i < headers.length; i++) {
+        if (patterns[p].test(headers[i])) return i;
+      }
+    }
+    return -1;
+  }
+
+  /**
+   * -> { ok, error, days: {date:{kcal,protein}}, dates[], skipped, columns }
+   */
+  function parse(text, opts) {
+    opts = opts || {};
+    var dayFirst = opts.dayFirst !== false;
+    var rows = parseCSV(text, detectDelimiter(text));
+    if (rows.length < 2) return { ok: false, error: 'Het bestand bevat geen bruikbare regels.' };
+
+    var headers = rows[0].map(function (h) { return String(h).trim().toLowerCase(); });
+    var iDate = findColumn(headers, [/^date$/, /datum/, /date/, /^dag$/]);
+    var iKcal = findColumn(headers, [/^calories$/, /calorie/, /kcal/, /energie/, /energy/]);
+    var iProt = findColumn(headers, [/^protein/, /protein/, /eiwit/]);
+
+    if (iDate < 0) {
+      return { ok: false, error: 'Geen datumkolom gevonden. Verwachte kolomnaam: "Date" of "Datum".' };
+    }
+    if (iKcal < 0 && iProt < 0) {
+      return { ok: false, error: 'Geen kolom voor calorieën of eiwit gevonden.' };
+    }
+
+    var days = {}, skipped = 0;
+    for (var r = 1; r < rows.length; r++) {
+      var row = rows[r];
+      var date = parseDate(row[iDate], dayFirst);
+      if (!date) { skipped++; continue; }
+      // Samenvattingsregels ("Totals") overslaan als ze geen echte datum hebben.
+      if (!days[date]) days[date] = { kcal: null, protein: null };
+      if (iKcal >= 0) {
+        var k = toNumber(row[iKcal]);
+        if (k !== null) days[date].kcal = (days[date].kcal || 0) + k;
+      }
+      if (iProt >= 0) {
+        var p = toNumber(row[iProt]);
+        if (p !== null) days[date].protein = (days[date].protein || 0) + p;
+      }
+    }
+
+    var dates = Object.keys(days).sort();
+    if (!dates.length) {
+      return { ok: false, error: 'Geen geldige datums gevonden in de datumkolom.' };
+    }
+
+    return {
+      ok: true,
+      days: days,
+      dates: dates,
+      skipped: skipped,
+      columns: {
+        date: rows[0][iDate],
+        calories: iKcal >= 0 ? rows[0][iKcal] : null,
+        protein: iProt >= 0 ? rows[0][iProt] : null
+      }
+    };
+  }
+
+  /**
+   * Schrijft de gevonden waarden weg in de dagentries.
+   * overwrite=false laat handmatig ingevulde waarden staan.
+   */
+  function apply(result, overwrite) {
+    var store = GD.store;
+    var written = 0, skipped = 0;
+    result.dates.forEach(function (date) {
+      var d = result.days[date];
+      var e = store.entry(date);
+      var wroteSomething = false;
+
+      if (d.kcal !== null && Math.round(d.kcal) > 0) {
+        if (overwrite || !e || e.kcal === undefined || e.kcal === null) {
+          store.setField(date, 'kcal', Math.round(d.kcal));
+          wroteSomething = true;
+        } else skipped++;
+      }
+      if (d.protein !== null && Math.round(d.protein) > 0) {
+        if (overwrite || !e || e.eiwitGram === undefined || e.eiwitGram === null) {
+          store.setField(date, 'eiwitGram', Math.round(d.protein));
+          wroteSomething = true;
+        } else skipped++;
+      }
+      if (wroteSomething) written++;
+    });
+    return { written: written, skipped: skipped };
+  }
+
+  GD.mfp = {
+    parse: parse,
+    apply: apply,
+    parseDate: parseDate,
+    parseCSV: parseCSV,
+    toNumber: toNumber
+  };
+})(window);
+
+  </script>
+  <script>
+/* Goal Dashboard - weergave en interactie */
+(function (global) {
+  'use strict';
+
+  var GD = global.GD;
+  var store = GD.store;
+  var D = GD.date;
+  var S = GD.score;
+  var C = GD.charts;
+  var esc = C.esc;
+
+  var ui = {
+    view: 'dag',
+    anchor: D.today(),
+    pendingCSV: null
+  };
+
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+  /* ------------------------------ periode ----------------------------- */
+
+  function periodDates() {
+    if (ui.view === 'week') {
+      var start = D.startOfWeek(ui.anchor);
+      return D.range(start, D.addDays(start, 6));
+    }
+    if (ui.view === 'maand') {
+      return D.range(D.startOfMonth(ui.anchor), D.endOfMonth(ui.anchor));
+    }
+    return [ui.anchor];
+  }
+
+  function periodLabel() {
+    if (ui.view === 'dag') {
+      var rel = D.relativeLabel(ui.anchor);
+      return rel ? rel + ' · ' + D.formatDate(ui.anchor) : D.formatDate(ui.anchor);
+    }
+    if (ui.view === 'week') {
+      var start = D.startOfWeek(ui.anchor);
+      var end = D.addDays(start, 6);
+      return 'Week ' + D.isoWeek(start) + ' · ' + D.formatShort(start) + ' – ' + D.formatShort(end);
+    }
+    if (ui.view === 'maand') {
+      var d = D.parse(ui.anchor);
+      return D.monthName(ui.anchor).charAt(0).toUpperCase() + D.monthName(ui.anchor).slice(1) + ' ' + d.getFullYear();
+    }
+    return '';
+  }
+
+  function shift(dir) {
+    if (ui.view === 'dag') ui.anchor = D.addDays(ui.anchor, dir);
+    else if (ui.view === 'week') ui.anchor = D.addDays(ui.anchor, dir * 7);
+    else if (ui.view === 'maand') ui.anchor = D.addMonths(ui.anchor, dir);
+    render();
+  }
+
+  /* ------------------------------ bouwstenen -------------------------- */
+
+  function statTile(label, value, sub, color) {
+    return '<div class="stat">' +
+      '<div class="stat-label">' + esc(label) + '</div>' +
+      '<div class="stat-value"' + (color ? ' style="color:' + color + '"' : '') + '>' + value + '</div>' +
+      (sub ? '<div class="stat-sub">' + sub + '</div>' : '') +
+      '</div>';
+  }
+
+  function fmt(n, digits) {
+    if (n === null || n === undefined || isNaN(n)) return '–';
+    return Number(n).toFixed(digits === undefined ? 0 : digits).replace('.', ',');
+  }
+
+  function signed(n, digits, unit) {
+    if (n === null || n === undefined || isNaN(n)) return '–';
+    var s = (n > 0 ? '+' : '') + fmt(n, digits);
+    return s + (unit || '');
+  }
+
+  function breakdownList(breakdown) {
+    var rows = breakdown.map(function (b) {
+      var w = S.weightOf(b.goal, store.settings());
+      var has = b.pct !== null;
+      var counts = Object.keys(b.counts).filter(function (k) {
+        return k !== 'leeg' && b.counts[k] > 0;
+      }).map(function (k) {
+        var opt = S.optionFor(b.goal, k);
+        return (opt ? opt.short : k) + ' ' + b.counts[k] + '×';
+      }).join(' · ');
+
+      return '<div class="bd-row' + (w === 0 ? ' bd-off' : '') + '">' +
+        '<div class="bd-name"><span class="bd-icon">' + b.goal.icon + '</span>' +
+        '<span>' + esc(b.goal.label) + '</span>' +
+        (w === 0 ? '<span class="chip chip-off">uit</span>' : '<span class="chip">×' + fmt(w, w % 1 ? 1 : 0) + '</span>') +
+        '</div>' +
+        '<div class="bd-bar">' + C.bar(b.pct) + '</div>' +
+        '<div class="bd-pct" style="color:' + (has ? GD.scoreColor(b.pct) : 'var(--muted)') + '">' +
+        (has ? Math.round(b.pct) + '%' : '–') + '</div>' +
+        '<div class="bd-counts">' + esc(counts || '—') + '</div>' +
+        '</div>';
+    }).join('');
+
+    return '<section class="card"><h2>Per doel</h2><div class="breakdown">' + rows + '</div></section>';
+  }
+
+  function periodStatsSection(period, totalDays) {
+    var st = period.stats;
+    var s = store.settings();
+    var tiles = [
+      statTile('Dagen ingevuld', period.logged + '<span class="unit">/' + totalDays + '</span>',
+        period.missing ? period.missing + ' niet ingevuld' : 'compleet'),
+      statTile('Goede dagen', st.goodDays + '<span class="unit">/' + totalDays + '</span>',
+        '≥ ' + fmt(s.goedeDagDrempel) + '%'),
+      statTile('Getraind', st.trainDays + '<span class="unit">×</span>',
+        st.restDays + ' rustdag' + (st.restDays === 1 ? '' : 'en')),
+      statTile('Gewicht', st.weightEnd !== null ? fmt(st.weightEnd, 1) + '<span class="unit">kg</span>' : '–',
+        st.weightDelta !== null ? signed(st.weightDelta, 1, ' kg in periode') : 'gem. ' + fmt(st.weightAvg, 1) + ' kg'),
+      statTile('Gem. eiwit', st.proteinAvg !== null ? fmt(st.proteinAvg) + '<span class="unit">g</span>' : '–',
+        'doel ' + fmt(s.eiwitDoel) + ' g'),
+      statTile('Gem. calorieën', st.kcalAvg !== null ? fmt(st.kcalAvg) + '<span class="unit">kcal</span>' : '–',
+        'doel ' + fmt(s.calorieDoel) + ' kcal')
+    ].join('');
+    return '<section class="stats">' + tiles + '</section>';
+  }
+
+  function heroSection(pct, subtitle, extra) {
+    var color = GD.scoreColor(pct);
+    return '<section class="card hero">' +
+      '<div class="hero-ring">' + C.ring(pct, 190, 16) + '</div>' +
+      '<div class="hero-info">' +
+      '<div class="hero-label" style="color:' + color + '">' + esc(GD.scoreLabel(pct)) + '</div>' +
+      '<p class="hero-sub">' + subtitle + '</p>' +
+      (extra || '') +
+      C.legend() +
+      '</div></section>';
+  }
+
+  /* -------------------------------- dag ------------------------------- */
+
+  function renderDay() {
+    var date = ui.anchor;
+    var isToday = date === D.today();
+    var isFuture = date > D.today();
+    var day = S.scoreDay(date, isToday || isFuture);
+    var entry = store.entry(date) || {};
+    var s = store.settings();
+
+    var answered = day.items.filter(function (i) { return i.value; }).length;
+    var relevant = day.items.filter(function (i) {
+      return S.weightOf(i.goal, s) > 0 &&
+        !(i.goal.onlyIfTrained && !day.trained && !!day.trainedValue);
+    }).length;
+
+    var streak = S.currentStreak();
+    var extra = '<div class="hero-chips">' +
+      '<span class="chip">' + answered + '/' + relevant + ' ingevuld</span>' +
+      '<span class="chip">🔥 ' + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
+      (day.restDay ? '<span class="chip">😴 rustdag</span>' : '') +
+      '</div>';
+
+    var sub = isFuture
+      ? 'Deze dag ligt nog in de toekomst.'
+      : (day.pct === null
+        ? 'Nog niets ingevuld voor deze dag.'
+        : 'Je haalde <strong>' + fmt(day.points, 1) + '</strong> van de <strong>' + fmt(day.max, 1) + '</strong> punten die vandaag telden.');
+
+    var html = heroSection(day.pct, sub, extra);
+
+    /* Meetwaarden */
+    html += '<section class="card">' +
+      '<h2>Meetwaarden</h2>' +
+      '<div class="measure-grid">' +
+      measureField('gewicht', 'Gewicht', 'kg', entry.gewicht, '0.1', 'bv. 82,4') +
+      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel)) +
+      measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel)) +
+      '</div>' +
+      (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
+      '</section>';
+
+    /* Doelen */
+    var goalRows = day.items.map(function (item) {
+      return goalRow(item, day);
+    }).join('');
+
+    html += '<section class="card">' +
+      '<div class="card-head"><h2>Doelen</h2>' +
+      '<button class="btn btn-ghost btn-sm" data-action="copy-yesterday">Neem gisteren over</button></div>' +
+      '<div class="goals">' + goalRows + '</div>' +
+      '</section>';
+
+    /* Notitie */
+    html += '<section class="card">' +
+      '<h2>Notitie</h2>' +
+      '<textarea class="note" data-field="notitie" rows="3" placeholder="Hoe voelde de training? Wat ging goed of mis?">' +
+      esc(entry.notitie || '') + '</textarea>' +
+      (store.entry(date) ? '<div class="card-foot"><button class="btn btn-danger btn-sm" data-action="delete-day">Dag wissen</button></div>' : '') +
+      '</section>';
+
+    return html;
+  }
+
+  function measureField(field, label, unit, value, step, placeholder) {
+    return '<label class="measure">' +
+      '<span class="measure-label">' + esc(label) + '</span>' +
+      '<span class="measure-input">' +
+      '<input type="number" inputmode="decimal" step="' + step + '" data-field="' + field + '"' +
+      ' value="' + (value === undefined || value === null ? '' : esc(value)) + '"' +
+      ' placeholder="' + esc(placeholder) + '">' +
+      '<span class="measure-unit">' + esc(unit) + '</span>' +
+      '</span></label>';
+  }
+
+  function goalRow(item, day) {
+    var goal = item.goal;
+    var s = store.settings();
+    var w = S.weightOf(goal, s);
+    var disabled = w === 0;
+    // Pas dimmen zodra duidelijk is dát er niet getraind is; zolang "gesport"
+    // nog leeg staat blijft de rij gewoon bruikbaar.
+    var dimmed = goal.onlyIfTrained && !day.trained && !!day.trainedValue;
+
+    var opts = goal.options.map(function (o) {
+      var active = item.value === o.v;
+      var isAuto = active && item.auto;
+      return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
+        ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
+        (disabled ? ' disabled' : '') +
+        ' style="' + (active ? '--seg-color:' + GD.scoreColor(o.score === null ? null : o.score * 100) + ';' : '') + '">' +
+        esc(o.label) + (isAuto ? '<span class="auto-dot" title="automatisch bepaald">auto</span>' : '') +
+        '</button>';
+    }).join('');
+
+    var status = '';
+    if (disabled) status = '<span class="chip chip-off">uit</span>';
+    else if (dimmed) status = '<span class="chip chip-off">' + esc(item.reason) + '</span>';
+    else if (item.included) {
+      status = '<span class="chip" style="color:' + GD.scoreColor(item.score * 100) + '">+' +
+        fmt(item.score * w, 1) + ' / ' + fmt(w, w % 1 ? 1 : 0) + '</span>';
+    } else if (item.reason) {
+      status = '<span class="chip chip-off">' + esc(item.reason) + '</span>';
+    }
+
+    return '<div class="goal' + (dimmed ? ' goal-dim' : '') + (disabled ? ' goal-off' : '') + '">' +
+      '<div class="goal-head">' +
+      '<span class="goal-name"><span class="goal-icon">' + goal.icon + '</span>' + esc(goal.label) + '</span>' +
+      status +
+      '</div>' +
+      '<div class="segmented">' + opts + '</div>' +
+      '</div>';
+  }
+
+  /* ------------------------------- week ------------------------------- */
+
+  function renderWeek() {
+    var dates = periodDates();
+    var period = S.scorePeriod(dates);
+    var s = store.settings();
+
+    var sub = period.pct === null
+      ? 'Nog geen ingevulde dagen in deze week.'
+      : 'Gemiddelde over <strong>' + period.logged + '</strong> ingevulde dag' + (period.logged === 1 ? '' : 'en') +
+        (s.countMissingAsZero && period.days.some(function (d) { return d.state === 'missing0'; })
+          ? ', lege dagen tellen als 0%.' : '.');
+
+    var html = heroSection(period.pct, sub);
+    html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
+    html += '<section class="card"><h2>Per dag</h2>' + C.dayBars(period.days) +
+      '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
+    html += breakdownList(period.breakdown);
+    html += '<section class="card"><h2>Gewicht</h2>' +
+      C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
+    return html;
+  }
+
+  /* ------------------------------- maand ------------------------------ */
+
+  function renderMonth() {
+    var dates = periodDates();
+    var period = S.scorePeriod(dates);
+    var s = store.settings();
+
+    var sub = period.pct === null
+      ? 'Nog geen ingevulde dagen in deze maand.'
+      : 'Gemiddelde over <strong>' + period.logged + '</strong> ingevulde dag' + (period.logged === 1 ? '' : 'en') + '.';
+
+    var html = heroSection(period.pct, sub);
+    html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
+    html += '<section class="card"><h2>Kalender</h2>' + C.calendar(ui.anchor, period.days) +
+      '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
+    html += breakdownList(period.breakdown);
+    html += '<section class="card"><h2>Gewicht</h2>' +
+      C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
+    return html;
+  }
+
+  /* ---------------------------- instellingen -------------------------- */
+
+  function renderSettings() {
+    var s = store.settings();
+    var dates = store.allDates();
+
+    var html = '<section class="card"><h2>Voedingsdoelen</h2><div class="form-grid">' +
+      settingNumber('eiwitDoel', 'Eiwitdoel', 'g per dag', s.eiwitDoel, '1') +
+      settingNumber('calorieDoel', 'Caloriedoel', 'kcal per dag', s.calorieDoel, '10') +
+      '<label class="field"><span class="field-label">Caloriedoel geldt als</span>' +
+      '<select data-setting="calorieRichting">' +
+      opt('max', 'Maximum – eronder blijven', s.calorieRichting) +
+      opt('min', 'Minimum – minstens halen', s.calorieRichting) +
+      opt('rond', 'Rond het doel – binnen marge', s.calorieRichting) +
+      '</select></label>' +
+      (s.calorieRichting === 'rond'
+        ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
+      settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
+      '</div></section>';
+
+    html += '<section class="card"><h2>Scoreregels</h2><div class="form-grid">' +
+      settingNumber('goedeDagDrempel', 'Drempel goede dag', '% voor streak', s.goedeDagDrempel, '5') +
+      '</div>' +
+      toggle('countMissingAsZero', 'Lege dagen in het verleden tellen als 0%',
+        'Uit betekent: alleen ingevulde dagen tellen mee in week- en maandpercentages.', s.countMissingAsZero) +
+      toggle('autoMacro', 'Eiwit- en caloriedoel automatisch bepalen',
+        'Leidt “behaald ja/nee” af uit de ingevulde grammen en calorieën.', s.autoMacro) +
+      '</section>';
+
+    var weightRows = GD.GOALS.map(function (g) {
+      var w = S.weightOf(g, s);
+      return '<div class="weight-row">' +
+        '<span class="weight-name"><span class="goal-icon">' + g.icon + '</span>' + esc(g.label) + '</span>' +
+        '<input type="range" min="0" max="4" step="0.5" data-weight="' + g.key + '" value="' + w + '">' +
+        '<span class="weight-val">' + (w === 0 ? 'uit' : '×' + fmt(w, w % 1 ? 1 : 0)) + '</span>' +
+        '</div>';
+    }).join('');
+
+    html += '<section class="card"><h2>Gewicht per doel</h2>' +
+      '<p class="hint">Hoe zwaar telt elk doel mee in je dagscore? Op 0 telt het doel helemaal niet mee.</p>' +
+      '<div class="weights">' + weightRows + '</div>' +
+      '<div class="card-foot"><button class="btn btn-ghost btn-sm" data-action="reset-weights">Standaardgewichten herstellen</button></div>' +
+      '</section>';
+
+    /* CSV / MyFitnessPal */
+    html += '<section class="card"><h2>MyFitnessPal / CSV importeren</h2>' +
+      '<p class="hint">MyFitnessPal biedt geen open API meer, dus dit gaat via hun CSV-export: ' +
+      'open MyFitnessPal in de browser → <em>Reports</em> → <em>Nutrition</em> → periode kiezen → <em>Export</em>. ' +
+      'Kolommen voor datum, calorieën en eiwit worden automatisch herkend; meerdere maaltijdregels per dag worden opgeteld. ' +
+      'Elke andere CSV met die kolommen werkt ook.</p>' +
+      '<div class="row-actions">' +
+      '<button class="btn" data-action="pick-csv">CSV-bestand kiezen</button>' +
+      '<label class="check"><input type="checkbox" id="csv-overwrite"> Bestaande waarden overschrijven</label>' +
+      '<label class="check"><input type="checkbox" id="csv-dayfirst" checked> Datums als dag-maand-jaar lezen</label>' +
+      '</div>' +
+      '<div id="csv-preview">' + csvPreviewHTML() + '</div>' +
+      '</section>';
+
+    /* Data */
+    html += '<section class="card"><h2>Je data</h2>' +
+      '<p class="hint">Alles staat lokaal in deze browser (localStorage) — er gaat niets naar een server. ' +
+      'Maak dus af en toe een back-up, en gebruik die om je data op een ander apparaat te zetten.</p>' +
+      '<div class="row-actions">' +
+      '<button class="btn" data-action="export">Back-up downloaden</button>' +
+      '<button class="btn" data-action="pick-json">Back-up terugzetten</button>' +
+      '<button class="btn btn-danger" data-action="wipe">Alles wissen</button>' +
+      '</div>' +
+      '<p class="hint">' + dates.length + ' dag' + (dates.length === 1 ? '' : 'en') + ' opgeslagen' +
+      (dates.length ? ' (' + esc(D.formatShort(dates[0])) + ' t/m ' + esc(D.formatShort(dates[dates.length - 1])) + ')' : '') +
+      '.</p></section>';
+
+    html += '<section class="card"><h2>Hoe wordt de score berekend?</h2>' +
+      '<ul class="explain">' +
+      '<li>Elk doel levert punten op: <em>Ja (eiwitrijk)</em> = vol, <em>Ja</em> = 60%, <em>Nee</em> = niets. ' +
+      '<em>Deels</em> bij progressive overload telt voor de helft.</li>' +
+      '<li>Je score is <em>behaalde punten ÷ haalbare punten</em>, met de gewichten hierboven.</li>' +
+      '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
+      'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
+      '<li>Voor vandaag tellen alleen de doelen die je al hebt ingevuld, zodat je score meegroeit met de dag. ' +
+      'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
+      '<li>Gewicht is een meetwaarde, geen doel: het telt niet mee in het percentage maar staat wel in de grafieken.</li>' +
+      '</ul></section>';
+
+    return html;
+  }
+
+  function opt(v, label, current) {
+    return '<option value="' + v + '"' + (current === v ? ' selected' : '') + '>' + esc(label) + '</option>';
+  }
+
+  function settingNumber(key, label, unit, value, step) {
+    return '<label class="field"><span class="field-label">' + esc(label) + '</span>' +
+      '<span class="field-input"><input type="number" inputmode="decimal" step="' + step + '" data-setting="' + key + '"' +
+      ' value="' + (value === null || value === undefined ? '' : esc(value)) + '">' +
+      '<span class="field-unit">' + esc(unit) + '</span></span></label>';
+  }
+
+  function toggle(key, label, hint, checked) {
+    return '<label class="switch">' +
+      '<input type="checkbox" data-setting="' + key + '"' + (checked ? ' checked' : '') + '>' +
+      '<span class="switch-body"><span class="switch-label">' + esc(label) + '</span>' +
+      '<span class="switch-hint">' + esc(hint) + '</span></span></label>';
+  }
+
+  function csvPreviewHTML() {
+    var p = ui.pendingCSV;
+    if (!p) return '';
+    if (!p.ok) return '<p class="alert alert-bad">' + esc(p.error) + '</p>';
+    var sample = p.dates.slice(0, 5).map(function (d) {
+      var row = p.days[d];
+      return '<tr><td>' + esc(D.formatShort(d)) + '</td><td>' +
+        (row.kcal !== null ? fmt(row.kcal) + ' kcal' : '–') + '</td><td>' +
+        (row.protein !== null ? fmt(row.protein) + ' g' : '–') + '</td></tr>';
+    }).join('');
+
+    return '<div class="alert alert-ok">' +
+      '<p><strong>' + p.dates.length + ' dag' + (p.dates.length === 1 ? '' : 'en') + '</strong> gevonden ' +
+      '(' + esc(D.formatShort(p.dates[0])) + ' t/m ' + esc(D.formatShort(p.dates[p.dates.length - 1])) + ') ' +
+      'in kolommen: ' + esc(p.columns.date) +
+      (p.columns.calories ? ', ' + esc(p.columns.calories) : '') +
+      (p.columns.protein ? ', ' + esc(p.columns.protein) : '') + '.' +
+      (p.skipped ? ' ' + p.skipped + ' regel(s) zonder geldige datum overgeslagen.' : '') + '</p>' +
+      '<table class="preview"><thead><tr><th>Datum</th><th>Calorieën</th><th>Eiwit</th></tr></thead><tbody>' +
+      sample + '</tbody></table>' +
+      '<div class="row-actions"><button class="btn btn-primary" data-action="apply-csv">Importeren</button>' +
+      '<button class="btn btn-ghost" data-action="cancel-csv">Annuleren</button></div>' +
+      '</div>';
+  }
+
+  /* ------------------------------- render ----------------------------- */
+
+  function render() {
+    var s = store.settings();
+    document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
+
+    $$('.tab').forEach(function (t) {
+      var active = t.dataset.view === ui.view;
+      t.classList.toggle('tab-active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+
+    var nav = $('#period-nav');
+    if (ui.view === 'instellingen') {
+      nav.hidden = true;
+    } else {
+      nav.hidden = false;
+      $('#period-label').textContent = periodLabel();
+      $('#btn-today').hidden = isCurrentPeriod();
+    }
+
+    var html;
+    if (ui.view === 'dag') html = renderDay();
+    else if (ui.view === 'week') html = renderWeek();
+    else if (ui.view === 'maand') html = renderMonth();
+    else html = renderSettings();
+
+    $('#view').innerHTML = html;
+    $('#view').scrollTop = 0;
+  }
+
+  function isCurrentPeriod() {
+    var t = D.today();
+    if (ui.view === 'dag') return ui.anchor === t;
+    if (ui.view === 'week') return D.startOfWeek(ui.anchor) === D.startOfWeek(t);
+    if (ui.view === 'maand') return D.startOfMonth(ui.anchor) === D.startOfMonth(t);
+    return true;
+  }
+
+  /* ------------------------------- acties ----------------------------- */
+
+  function toast(msg, kind) {
+    var el = $('#toast');
+    el.textContent = msg;
+    el.className = 'toast toast-show' + (kind ? ' toast-' + kind : '');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { el.className = 'toast'; }, 2600);
+  }
+
+  function copyYesterday() {
+    var prev = store.entry(D.addDays(ui.anchor, -1));
+    if (!prev) { toast('Gisteren is nog niet ingevuld.', 'bad'); return; }
+    var copy = JSON.parse(JSON.stringify(prev));
+    delete copy.date;
+    delete copy.notitie;
+    Object.keys(copy).forEach(function (k) {
+      store.setField(ui.anchor, k, copy[k]);
+    });
+    toast('Gisteren overgenomen.');
+    render();
+  }
+
+  function download(filename, text, type) {
+    var blob = new Blob([text], { type: type || 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function handleAction(action, el) {
+    if (action === 'set-goal') {
+      var key = el.dataset.goal, value = el.dataset.value;
+      var current = store.entry(ui.anchor) ? store.entry(ui.anchor)[key] : null;
+      store.setField(ui.anchor, key, current === value ? null : value);
+      render();
+      return;
+    }
+    if (action === 'copy-yesterday') { copyYesterday(); return; }
+    if (action === 'delete-day') {
+      if (confirm('Alles van ' + D.formatDate(ui.anchor) + ' wissen?')) {
+        store.deleteEntry(ui.anchor);
+        toast('Dag gewist.');
+        render();
+      }
+      return;
+    }
+    if (action === 'reset-weights') {
+      GD.GOALS.forEach(function (g) { store.setWeight(g.key, g.weight); });
+      toast('Standaardgewichten hersteld.');
+      render();
+      return;
+    }
+    if (action === 'export') {
+      download('goal-dashboard-' + D.today() + '.json', store.exportJSON());
+      toast('Back-up gedownload.');
+      return;
+    }
+    if (action === 'pick-json') { $('#file-json').click(); return; }
+    if (action === 'pick-csv') { $('#file-csv').click(); return; }
+    if (action === 'cancel-csv') { ui.pendingCSV = null; render(); return; }
+    if (action === 'apply-csv') {
+      var overwrite = $('#csv-overwrite') && $('#csv-overwrite').checked;
+      var res = GD.mfp.apply(ui.pendingCSV, overwrite);
+      ui.pendingCSV = null;
+      render();
+      toast(res.written + ' dag(en) bijgewerkt' + (res.skipped ? ', ' + res.skipped + ' waarde(n) behouden' : '') + '.');
+      return;
+    }
+    if (action === 'wipe') {
+      if (confirm('Weet je het zeker? Alle ingevulde dagen en instellingen worden gewist.') &&
+          confirm('Echt alles wissen? Dit kan niet ongedaan worden gemaakt.')) {
+        store.reset();
+        ui.anchor = D.today();
+        toast('Alles gewist.');
+        render();
+      }
+      return;
+    }
+  }
+
+  function bind() {
+    document.addEventListener('click', function (e) {
+      var actionEl = e.target.closest('[data-action]');
+      if (actionEl) { handleAction(actionEl.dataset.action, actionEl); return; }
+
+      var tab = e.target.closest('.tab');
+      if (tab) { ui.view = tab.dataset.view; render(); return; }
+
+      var navBtn = e.target.closest('[data-nav]');
+      if (navBtn) {
+        if (navBtn.dataset.nav === 'today') { ui.anchor = D.today(); render(); }
+        else shift(navBtn.dataset.nav === 'next' ? 1 : -1);
+        return;
+      }
+
+      var dayEl = e.target.closest('[data-date]');
+      if (dayEl) {
+        ui.anchor = dayEl.dataset.date;
+        ui.view = 'dag';
+        render();
+        return;
+      }
+
+      var themeBtn = e.target.closest('#btn-theme');
+      if (themeBtn) {
+        store.setSetting('theme', store.settings().theme === 'light' ? 'dark' : 'light');
+        render();
+      }
+    });
+
+    /* Meetwaarden en notitie */
+    document.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t.dataset && t.dataset.field) {
+        var val = t.value;
+        if (t.type === 'number') {
+          var n = S.num(val);
+          store.setField(ui.anchor, t.dataset.field, n);
+        } else {
+          store.setField(ui.anchor, t.dataset.field, val.trim() || null);
+        }
+        if (t.type === 'number') render();
+        return;
+      }
+      if (t.dataset && t.dataset.setting) {
+        var key = t.dataset.setting;
+        if (t.type === 'checkbox') store.setSetting(key, t.checked);
+        else if (t.type === 'number') store.setSetting(key, S.num(t.value));
+        else store.setSetting(key, t.value);
+        render();
+        return;
+      }
+    });
+
+    document.addEventListener('input', function (e) {
+      var t = e.target;
+      if (t.dataset && t.dataset.weight) {
+        var val = parseFloat(t.value);
+        store.setWeight(t.dataset.weight, val);
+        var out = t.parentNode.querySelector('.weight-val');
+        if (out) out.textContent = val === 0 ? 'uit' : '×' + fmt(val, val % 1 ? 1 : 0);
+      }
+    });
+
+    /* Notitie direct opslaan zonder opnieuw te tekenen */
+    document.addEventListener('input', function (e) {
+      if (e.target.classList && e.target.classList.contains('note')) {
+        store.setField(ui.anchor, 'notitie', e.target.value.trim() || null);
+      }
+    });
+
+    $('#file-csv').addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var dayFirst = $('#csv-dayfirst') ? $('#csv-dayfirst').checked : true;
+        ui.pendingCSV = GD.mfp.parse(String(reader.result), { dayFirst: dayFirst });
+        render();
+        if (!ui.pendingCSV.ok) toast('Import mislukt.', 'bad');
+      };
+      reader.onerror = function () { toast('Kon het bestand niet lezen.', 'bad'); };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    $('#file-json').addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var merge = confirm('OK = samenvoegen met je huidige data.\nAnnuleren = huidige data vervangen.');
+          var n = store.importJSON(String(reader.result), merge ? 'merge' : 'replace');
+          toast(n + ' dag(en) teruggezet.');
+          render();
+        } catch (err) {
+          console.error(err);
+          toast('Ongeldig back-upbestand.', 'bad');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.target.matches('input, textarea, select')) return;
+      if (ui.view === 'instellingen') return;
+      if (e.key === 'ArrowLeft') shift(-1);
+      else if (e.key === 'ArrowRight') shift(1);
+      else if (e.key === 't' || e.key === 'T') { ui.anchor = D.today(); render(); }
+    });
+  }
+
+  function init() {
+    store.load();
+    bind();
+    render();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else init();
+
+  GD.ui = ui;
+})(window);
+
+  </script>
+</body>
+</html>
