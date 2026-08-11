@@ -2160,17 +2160,20 @@ ol.explain { list-style: decimal; }
 
   /* ------------------------------- inloggen ------------------------------- */
 
-  /** Vraagt een inlogcode aan; Supabase mailt een code én een link. */
+  /**
+   * Vraagt een inlogcode aan; Supabase mailt een code én een link.
+   *
+   * De terugkeerpagina hoort als query-parameter mee (de REST-API kent het
+   * options-object van de JavaScript-bibliotheek niet). Zonder deze parameter
+   * valt Supabase terug op de Site URL van het project — standaard localhost.
+   */
   async function sendCode(adres) {
     var c = config();
-    var res = await haal(c.url + '/auth/v1/otp', {
+    var hier = global.location.href.split('#')[0];
+    var res = await haal(c.url + '/auth/v1/otp?redirect_to=' + encodeURIComponent(hier), {
       method: 'POST',
       headers: apiHeaders(false),
-      body: JSON.stringify({
-        email: adres,
-        create_user: true,
-        options: { email_redirect_to: global.location.href.split('#')[0] }
-      })
+      body: JSON.stringify({ email: adres, create_user: true })
     });
     if (!res.ok) throw new Error(await leesFout(res, 'Versturen van de code mislukt'));
     return true;
@@ -2447,6 +2450,13 @@ ol.explain { list-style: decimal; }
 
   function init() {
     handleRedirect();
+    // Opent de link uit de mail in een venster waar de app al draait, dan
+    // verandert alleen de hash en herlaadt de pagina niet.
+    global.addEventListener('hashchange', function () {
+      if (handleRedirect()) {
+        syncNow().catch(function () { /* stil */ });
+      }
+    });
     store.onChange(planPush);
     if (isConfigured() && signedIn()) {
       syncNow().catch(function (e) { console.warn('Synchroniseren bij opstarten mislukt:', e.message); });
