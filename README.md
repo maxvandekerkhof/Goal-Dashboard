@@ -121,21 +121,34 @@ automatisch bepaald aan de hand van je doelen. Handmatig aanklikken heeft altijd
 
 Standaard staat je data alleen in de browser waarin je hem invult. Wil je op allebei je
 apparaten kunnen invullen, koppel het dashboard dan aan een gratis **Supabase**-project.
-Je logt in met een code per e-mail; er is geen wachtwoord.
+Je logt in met een e-mailadres en een zelfgekozen wachtwoord.
 
 ### Eenmalig klaarzetten
 
 1. Maak een gratis account op [supabase.com](https://supabase.com) en daarna een nieuw
    project. Regio **Frankfurt** ligt het dichtstbij.
 2. Open in het project de **SQL Editor**, plak het blok hieronder en klik op **Run**.
-3. Ga naar **Project Settings → API** en kopieer de **Project URL** en de **anon public**
-   sleutel naar *Instellingen → Synchroniseren* in het dashboard, en klik op
-   *Verbinding opslaan*.
-4. Ga naar **Authentication → Emails**, open de sjabloon **Magic Link** en zet er een regel
-   bij met `{{ .Token }}`. Dat is de code van zes cijfers die je in de app invult.
-5. Vul je e-mailadres in, klik op *Stuur mij een code*, en typ de code uit de mail.
+   Verwacht *"Success. No rows returned"*.
+3. Kopieer de **project-URL** (te vinden onder *Settings → Data API*, of achter de knop
+   *Connect*) en de **publishable key** (*Settings → API Keys*; in oudere projecten heet
+   die *anon public*) naar *Instellingen → Synchroniseren* in het dashboard, en klik op
+   *Verbinding opslaan*. Nooit de *secret*- of *service_role*-sleutel gebruiken.
+4. Ga naar **Authentication → Sign In / Providers → Email** en zet **Confirm email uit**.
+   Anders wacht Supabase op een bevestigingsmail voordat je kunt inloggen.
+5. Maak in het dashboard één keer een account aan met je e-mailadres en een zelfgekozen
+   wachtwoord. Zet daarna in datzelfde Supabase-scherm *Allow new users to sign up* uit,
+   dan kan niemand anders zich nog bij jouw project aanmelden.
 
-Op je tweede apparaat herhaal je alleen stap 3 en 5, met hetzelfde e-mailadres.
+Op je tweede apparaat herhaal je alleen stap 3 en log je in met datzelfde adres en
+wachtwoord.
+
+**Waarom een wachtwoord en geen code per e-mail?** De app kan ook met een eenmalige code
+overweg, maar die zit alleen in de mail als je de sjabloon *Magic link or OTP* aanpast met
+`{{ .Token }}` — en dat kan Supabase alleen als je een eigen mailserver (SMTP) hebt
+ingesteld. De magic link zelf werkt wel, maar opent op een telefoon vaak een ander venster
+dan de app op je beginscherm, waardoor je daar alsnog niet ingelogd bent. Een wachtwoord
+omzeilt dat allebei. De code-route zit nog wel in de app, onder *Liever een code per
+e-mail?*, voor als je later SMTP instelt.
 
 ```sql
 create table if not exists public.dagen (

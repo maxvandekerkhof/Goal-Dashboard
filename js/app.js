@@ -584,15 +584,29 @@
         '<label class="field"><span class="field-label">E-mailadres</span>' +
         '<input type="email" id="sync-email" inputmode="email" autocomplete="email" placeholder="jij@voorbeeld.nl" value="' +
         esc(ui.syncEmail || '') + '"></label>' +
+        '<label class="field"><span class="field-label">Wachtwoord</span>' +
+        '<input type="password" id="sync-pass" autocomplete="current-password" placeholder="minstens 6 tekens"></label>' +
+        '</div>' +
+        '<div class="row-actions">' +
+        '<button class="btn btn-primary" data-action="sync-login">Inloggen</button>' +
+        '<button class="btn" data-action="sync-signup">Account aanmaken</button>' +
+        '</div>' +
+        '<p class="hint">Maak dit account één keer aan en log er op je andere apparaat mee in. ' +
+        'Het wachtwoord kies je zelf en heeft niets te maken met je Supabase-account.</p>' +
+        '<details class="uitleg"><summary>Liever een code per e-mail?</summary>' +
+        '<p class="hint">Dat werkt alleen als je in Supabase een eigen mailserver (SMTP) hebt ingesteld: ' +
+        'op de gratis ingebouwde mailservice kun je de e-mailsjablonen niet aanpassen, en zonder ' +
+        '<code>{{ .Token }}</code> in de sjabloon <em>Magic link or OTP</em> zit er geen code in de mail. ' +
+        'De link uit die mail werkt wel, maar opent op een telefoon vaak een ander venster dan de app ' +
+        'op je beginscherm — en dan ben je daar nog steeds niet ingelogd.</p>' +
+        '<div class="form-grid">' +
         '<label class="field"><span class="field-label">Code uit de e-mail</span>' +
         '<input type="text" id="sync-code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 cijfers"></label>' +
         '</div>' +
         '<div class="row-actions">' +
-        '<button class="btn" data-action="sync-code">Stuur mij een code</button>' +
-        '<button class="btn btn-primary" data-action="sync-login">Inloggen</button>' +
-        '</div>' +
-        '<p class="hint">Je krijgt een mail met een code én een link. De code werkt altijd; ' +
-        'de link opent soms een ander venster dan de app op je beginscherm, dus die code is de veiligste weg.</p>';
+        '<button class="btn btn-sm" data-action="sync-code">Stuur mij een code</button>' +
+        '<button class="btn btn-sm" data-action="sync-code-login">Inloggen met code</button>' +
+        '</div></details>';
     }
 
     if (st.ingelogd) {
@@ -625,9 +639,13 @@
       '<li>Kopieer de <em>Project URL</em> uit <strong>Settings → Data API</strong> en de ' +
       '<em>publishable key</em> uit <strong>Settings → API Keys</strong> naar de velden hierboven. ' +
       'In oudere projecten heet die sleutel <em>anon public</em>. De <em>secret key</em> laat je staan.</li>' +
-      '<li>Ga naar <strong>Authentication → Emails</strong>, open de sjabloon <em>Magic Link</em> en ' +
-      'zet er een regel bij met <code>{{ .Token }}</code>. Dat is de code van zes cijfers.</li>' +
-      '<li>Herhaal alleen stap 3 op je andere apparaat en log daar met hetzelfde e-mailadres in.</li>' +
+      '<li>Ga naar <strong>Authentication → Sign In / Providers → Email</strong> en zet ' +
+      '<em>Confirm email</em> <strong>uit</strong>. Anders wacht Supabase op een bevestigingsmail ' +
+      'voordat je kunt inloggen.</li>' +
+      '<li>Maak hierboven één keer een account aan met je e-mailadres en een zelfgekozen wachtwoord. ' +
+      'Zet daarna in datzelfde scherm <em>Allow new users to sign up</em> uit, dan kan niemand anders ' +
+      'zich nog aanmelden bij jouw project.</li>' +
+      '<li>Herhaal stap 3 op je andere apparaat en log daar in met datzelfde e-mailadres en wachtwoord.</li>' +
       '</ol>' +
       '<pre class="sql">' + esc(SQL_SETUP) + '</pre>' +
       '<div class="row-actions"><button class="btn btn-sm" data-action="sync-copy-sql">SQL kopiëren</button></div>' +
@@ -849,7 +867,37 @@
       });
       return;
     }
-    if (action === 'sync-login') {
+    if (action === 'sync-login' || action === 'sync-signup') {
+      var adres3 = ($('#sync-email').value || '').trim();
+      var wachtwoord = $('#sync-pass').value || '';
+      if (!adres3 || !wachtwoord) { toast('Vul je e-mailadres en wachtwoord in.', 'bad'); return; }
+      if (wachtwoord.length < 6) { toast('Kies een wachtwoord van minstens zes tekens.', 'bad'); return; }
+      ui.syncEmail = adres3;
+      el.disabled = true;
+      var actie = action === 'sync-signup'
+        ? GD.sync.signUp(adres3, wachtwoord).then(function (r) {
+          if (!r.ingelogd) {
+            throw new Error('Account aangemaakt, maar Supabase wacht op een bevestiging per e-mail. ' +
+              'Zet onder Authentication → Sign In / Providers → Email de optie "Confirm email" uit ' +
+              'en log daarna gewoon in.');
+          }
+        })
+        : GD.sync.signIn(adres3, wachtwoord);
+
+      actie.then(function () {
+        toast('Ingelogd, gegevens worden opgehaald.');
+        render();
+        return GD.sync.syncNow();
+      }).then(function (r) {
+        if (r) meldSync(r);
+        render();
+      }).catch(function (e) {
+        toast(e.message, 'bad');
+        render();
+      });
+      return;
+    }
+    if (action === 'sync-code-login') {
       var adres2 = ($('#sync-email').value || '').trim();
       var code = ($('#sync-code').value || '').trim();
       if (!adres2 || !code) { toast('Vul je e-mailadres en de code in.', 'bad'); return; }

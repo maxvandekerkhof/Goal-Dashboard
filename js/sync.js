@@ -119,7 +119,16 @@
     [/row-level security|permission denied/i,
       'Geen toegang tot je rijen. Controleer of het SQL-blok volledig is uitgevoerd.'],
     [/signups not allowed|email.*not authorized/i,
-      'Dit e-mailadres mag niet inloggen. Zet in Supabase onder Authentication de e-mailaanmelding aan.']
+      'Dit e-mailadres mag niet inloggen. Zet in Supabase onder Authentication de e-mailaanmelding aan.'],
+    [/invalid login credentials/i,
+      'E-mailadres of wachtwoord klopt niet. Nog geen account? Gebruik "Account aanmaken".'],
+    [/email not confirmed/i,
+      'Dit account is nog niet bevestigd. Zet in Supabase onder Authentication → Sign In / Providers → ' +
+      'Email de optie "Confirm email" uit, en probeer opnieuw.'],
+    [/user already registered|already been registered/i,
+      'Er bestaat al een account met dit adres. Gebruik "Inloggen".'],
+    [/password should be at least|weak password/i,
+      'Kies een wachtwoord van minstens zes tekens.']
   ];
 
   function vertaal(tekst) {
@@ -173,6 +182,41 @@
     });
     if (!res.ok) throw new Error(await leesFout(res, 'Versturen van de code mislukt'));
     return true;
+  }
+
+  /**
+   * Inloggen met e-mailadres en wachtwoord. Dit is de eenvoudigste weg: de
+   * gratis mailservice van Supabase laat je de e-mailsjablonen niet aanpassen,
+   * dus een code van zes cijfers is daar niet zonder eigen SMTP te krijgen.
+   */
+  async function signIn(adres, wachtwoord) {
+    var c = config();
+    var res = await haal(c.url + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: apiHeaders(false),
+      body: JSON.stringify({ email: adres, password: wachtwoord })
+    });
+    if (!res.ok) throw new Error(await leesFout(res, 'Inloggen mislukt'));
+    bewaarSessie(await res.json());
+    return true;
+  }
+
+  /** Maakt eenmalig een account aan; daarna log je op beide apparaten gewoon in. */
+  async function signUp(adres, wachtwoord) {
+    var c = config();
+    var res = await haal(c.url + '/auth/v1/signup', {
+      method: 'POST',
+      headers: apiHeaders(false),
+      body: JSON.stringify({ email: adres, password: wachtwoord })
+    });
+    if (!res.ok) throw new Error(await leesFout(res, 'Account aanmaken mislukt'));
+    var data = await res.json();
+    if (data.access_token) {
+      bewaarSessie(data);
+      return { ingelogd: true };
+    }
+    // Geen sessie terug: Supabase wacht op bevestiging per e-mail.
+    return { ingelogd: false };
   }
 
   /** Wisselt de code uit de e-mail in voor een sessie. */
@@ -470,6 +514,8 @@
     isConfigured: isConfigured,
     signedIn: signedIn,
     email: email,
+    signIn: signIn,
+    signUp: signUp,
     sendCode: sendCode,
     verifyCode: verifyCode,
     signOut: signOut,
