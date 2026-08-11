@@ -2122,6 +2122,8 @@ ol.explain { list-style: decimal; }
       'De tabellen bestaan nog niet. Draai eerst het SQL-blok in de Supabase SQL Editor.'],
     [/row-level security|permission denied/i,
       'Geen toegang tot je rijen. Controleer of het SQL-blok volledig is uitgevoerd.'],
+    [/signups not allowed for otp/i,
+      'Er bestaat nog geen account met dit adres. Maak er eerst een aan met een wachtwoord.'],
     [/signups not allowed|email.*not authorized/i,
       'Dit e-mailadres mag niet inloggen. Zet in Supabase onder Authentication de e-mailaanmelding aan.'],
     [/invalid login credentials/i,
@@ -2130,7 +2132,9 @@ ol.explain { list-style: decimal; }
       'Dit account is nog niet bevestigd. Zet in Supabase onder Authentication → Sign In / Providers → ' +
       'Email de optie "Confirm email" uit, en probeer opnieuw.'],
     [/user already registered|already been registered/i,
-      'Er bestaat al een account met dit adres. Gebruik "Inloggen".'],
+      'Er bestaat al een account met dit adres. Gebruik "Inloggen". Lukt dat niet, dan is het account ' +
+      'ooit zonder wachtwoord aangemaakt: verwijder het in Supabase onder Authentication → Users en ' +
+      'maak het hier opnieuw aan.'],
     [/password should be at least|weak password/i,
       'Kies een wachtwoord van minstens zes tekens.']
   ];
@@ -2182,7 +2186,9 @@ ol.explain { list-style: decimal; }
     var res = await haal(c.url + '/auth/v1/otp?redirect_to=' + encodeURIComponent(hier), {
       method: 'POST',
       headers: apiHeaders(false),
-      body: JSON.stringify({ email: adres, create_user: true })
+      // Geen account aanmaken: dat zou een gebruiker zonder wachtwoord opleveren,
+      // waarmee inloggen daarna onmogelijk is.
+      body: JSON.stringify({ email: adres, create_user: false })
     });
     if (!res.ok) throw new Error(await leesFout(res, 'Versturen van de code mislukt'));
     return true;
