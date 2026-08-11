@@ -3022,9 +3022,12 @@ ol.explain { list-style: decimal; }
     if (!st.geconfigureerd) {
       html += '<p class="hint">Vul je telefoon en laptop allebei dezelfde twee gegevens in, ' +
         'log in met je e-mailadres, en je dagen lopen automatisch gelijk. ' +
-        'Je vindt ze in Supabase onder <em>Project Settings → API</em>. ' +
-        'De <em>anon key</em> is bedoeld om openbaar te zijn; je gegevens zijn beschermd doordat ' +
-        'alleen jouw ingelogde account bij jouw rijen kan.</p>';
+        'De <strong>project-URL</strong> staat in Supabase onder <em>Settings → Data API</em> ' +
+        '(of achter de knop <em>Connect</em> bovenin), de <strong>sleutel</strong> onder ' +
+        '<em>Settings → API Keys</em>: neem de <em>publishable key</em>, die in oudere projecten ' +
+        '<em>anon public</em> heet. Die mag openbaar zijn; je gegevens zijn beschermd doordat alleen ' +
+        'jouw ingelogde account bij jouw rijen kan. Neem nooit de <em>secret</em>- of ' +
+        '<em>service_role</em>-sleutel: die omzeilt alle beveiliging.</p>';
     } else {
       html += '<p class="hint">Verbonden met <code>' + esc(c.url.replace(/^https?:\/\//, '')) + '</code>.</p>';
     }
@@ -3032,8 +3035,9 @@ ol.explain { list-style: decimal; }
     html += '<div class="form-grid">' +
       '<label class="field"><span class="field-label">Project-URL</span>' +
       '<input type="url" id="sync-url" placeholder="https://xxxx.supabase.co" value="' + esc(c.url) + '"></label>' +
-      '<label class="field"><span class="field-label">Anon key</span>' +
-      '<input type="text" id="sync-key" placeholder="eyJhbGciOi…" value="' + esc(c.anonKey) + '"></label>' +
+      '<label class="field"><span class="field-label">Publishable key (of anon key)</span>' +
+      '<input type="text" id="sync-key" placeholder="sb_publishable_… of eyJhbGciOi…" value="' +
+      esc(c.anonKey) + '"></label>' +
       '</div>' +
       '<div class="row-actions"><button class="btn" data-action="sync-save">Verbinding opslaan</button></div>';
 
@@ -3081,8 +3085,9 @@ ol.explain { list-style: decimal; }
       '(regio Frankfurt ligt het dichtstbij).</li>' +
       '<li>Open in het project de <strong>SQL Editor</strong>, plak het blok hieronder en klik op ' +
       '<em>Run</em>. Dat maakt twee tabellen en zorgt dat alleen jij bij je eigen rijen kunt.</li>' +
-      '<li>Ga naar <strong>Project Settings → API</strong> en kopieer de <em>Project URL</em> en de ' +
-      '<em>anon public</em> sleutel naar de velden hierboven.</li>' +
+      '<li>Kopieer de <em>Project URL</em> uit <strong>Settings → Data API</strong> en de ' +
+      '<em>publishable key</em> uit <strong>Settings → API Keys</strong> naar de velden hierboven. ' +
+      'In oudere projecten heet die sleutel <em>anon public</em>. De <em>secret key</em> laat je staan.</li>' +
       '<li>Ga naar <strong>Authentication → Emails</strong>, open de sjabloon <em>Magic Link</em> en ' +
       'zet er een regel bij met <code>{{ .Token }}</code>. Dat is de code van zes cijfers.</li>' +
       '<li>Herhaal alleen stap 3 op je andere apparaat en log daar met hetzelfde e-mailadres in.</li>' +
