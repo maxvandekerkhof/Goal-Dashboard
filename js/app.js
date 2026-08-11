@@ -80,12 +80,19 @@
     var rows = breakdown.map(function (b) {
       var w = S.weightOf(b.goal, store.settings());
       var has = b.pct !== null;
-      var counts = Object.keys(b.counts).filter(function (k) {
-        return k !== 'leeg' && b.counts[k] > 0;
-      }).map(function (k) {
-        var opt = S.optionFor(b.goal, k);
-        return (opt ? opt.short : k) + ' ' + b.counts[k] + '×';
-      }).join(' · ');
+      var counts;
+      if (b.goal.type === 'meter') {
+        counts = b.measured
+          ? 'gem. ' + GD.formatVolume(b.avg) + ' · doel gehaald ' + b.hits + '×'
+          : '';
+      } else {
+        counts = Object.keys(b.counts).filter(function (k) {
+          return k !== 'leeg' && b.counts[k] > 0;
+        }).map(function (k) {
+          var opt = S.optionFor(b.goal, k);
+          return (opt ? opt.short : k) + ' ' + b.counts[k] + '×';
+        }).join(' · ');
+      }
 
       return '<div class="bd-row' + (w === 0 ? ' bd-off' : '') + '">' +
         '<div class="bd-name"><span class="bd-icon">' + b.goal.icon + '</span>' +
@@ -117,9 +124,58 @@
       statTile('Gem. eiwit', st.proteinAvg !== null ? fmt(st.proteinAvg) + '<span class="unit">g</span>' : '–',
         'doel ' + fmt(s.eiwitDoel) + ' g'),
       statTile('Gem. calorieën', st.kcalAvg !== null ? fmt(st.kcalAvg) + '<span class="unit">kcal</span>' : '–',
-        'doel ' + fmt(s.calorieDoel) + ' kcal')
+        'doel ' + fmt(s.calorieDoel) + ' kcal'),
+      statTile('Gem. water', st.waterAvg !== null ? GD.formatVolume(st.waterAvg) : '–',
+        'doel ' + GD.formatVolume(s.waterDoel))
     ].join('');
     return '<section class="stats">' + tiles + '</section>';
+  }
+
+  var RICHTING_TEKST = {
+    aankomen: 'aankomen',
+    afvallen: 'afvallen',
+    behouden: 'op gewicht blijven'
+  };
+
+  /**
+   * Gewichtstrend: gemiddelde van deze periode tegen die van de vorige.
+   * curLabel/prevLabel zijn bv. "week 33" en "week 32".
+   */
+  function weightTrendSection(dates, prevDates, curLabel, prevLabel, perWeek) {
+    var s = store.settings();
+    if ((s.gewichtRichting || 'uit') === 'uit') return '';
+
+    var t = S.weightTrend(dates, prevDates, perWeek);
+    var doelTekst = t.richting === 'behouden'
+      ? 'binnen ' + fmt(t.doelDelta, 2) + ' kg blijven'
+      : (t.richting === 'aankomen' ? '+' : '−') + fmt(t.doelDelta, 2) + ' kg';
+
+    var body;
+    if (t.pct === null) {
+      body = '<div class="trend-info">' +
+        '<p class="hero-sub">Vul je gewicht in ' + esc(curLabel) + ' én ' + esc(prevLabel) +
+        ' in om de trend te zien.</p>' +
+        '<p class="hint">Doel per ' + (perWeek > 1 ? 'maand' : 'week') + ': ' + esc(doelTekst) +
+        ' (' + esc(RICHTING_TEKST[t.richting] || t.richting) + ').</p>' +
+        '</div>';
+    } else {
+      var kleur = GD.scoreColor(t.pct);
+      body = '<div class="trend-ring">' + C.ring(t.pct, 128, 12) + '</div>' +
+        '<div class="trend-info">' +
+        '<div class="trend-delta" style="color:' + kleur + '">' + signed(t.delta, 2, ' kg') + '</div>' +
+        '<p class="hero-sub">' +
+        esc(curLabel.charAt(0).toUpperCase() + curLabel.slice(1)) + ' gemiddeld <strong>' + fmt(t.avg, 2) + ' kg</strong> ' +
+        '(' + t.count + ' meting' + (t.count === 1 ? '' : 'en') + '), ' +
+        esc(prevLabel) + ' <strong>' + fmt(t.prevAvg, 2) + ' kg</strong> ' +
+        '(' + t.prevCount + ').</p>' +
+        '<p class="hint">Doel per ' + (perWeek > 1 ? 'maand' : 'week') + ': ' + esc(doelTekst) +
+        ' (' + esc(RICHTING_TEKST[t.richting] || t.richting) + ').' +
+        (t.note ? ' ' + esc(t.note) : '') + '</p>' +
+        '</div>';
+    }
+
+    return '<section class="card"><h2>Gewichtstrend</h2>' +
+      '<div class="trend">' + body + '</div></section>';
   }
 
   function heroSection(pct, subtitle, extra) {
@@ -176,8 +232,15 @@
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
       '</section>';
 
+    /* Tellers (water) krijgen hun eigen kaart met snelknoppen */
+    day.items.forEach(function (item) {
+      if (item.goal.type === 'meter') html += meterCard(item);
+    });
+
     /* Doelen */
-    var goalRows = day.items.map(function (item) {
+    var goalRows = day.items.filter(function (item) {
+      return item.goal.type !== 'meter';
+    }).map(function (item) {
       return goalRow(item, day);
     }).join('');
 
@@ -207,6 +270,58 @@
       ' placeholder="' + esc(placeholder) + '">' +
       '<span class="measure-unit">' + esc(unit) + '</span>' +
       '</span></label>';
+  }
+
+  /** Waterteller: snelknoppen, voortgangsbalk en correctiemogelijkheid. */
+  function meterCard(item) {
+    var goal = item.goal;
+    var amount = item.amount === null ? 0 : item.amount;
+    var doel = item.doel || 0;
+    var pct = doel > 0 ? GD.clamp((amount / doel) * 100, 0, 100) : (amount > 0 ? 100 : 0);
+    var kleur = GD.scoreColor(pct);
+    var gehaald = doel > 0 && amount >= doel;
+    var rest = Math.max(0, doel - amount);
+
+    var stappen = (goal.stappen || [250, 500, 1000]).map(function (ml) {
+      return '<button class="btn btn-add" data-action="meter-add" data-goal="' + goal.key + '"' +
+        ' data-amount="' + ml + '">' + esc(GD.stepLabel(ml)) + '</button>';
+    }).join('');
+
+    var terug = (goal.stappen || [250, 500, 1000]).slice(0, 2).map(function (ml) {
+      return '<button class="btn btn-ghost btn-sm" data-action="meter-add" data-goal="' + goal.key + '"' +
+        ' data-amount="-' + ml + '"' + (amount <= 0 ? ' disabled' : '') + '>−' +
+        esc(GD.stepLabel(ml).replace('+', '')) + '</button>';
+    }).join('');
+
+    var status = item.included
+      ? '+' + fmt(item.score * item.weight, 1) + ' / ' + fmt(item.weight, item.weight % 1 ? 1 : 0)
+      : (item.reason || '');
+
+    return '<section class="card">' +
+      '<div class="card-head"><h2>' + goal.icon + ' ' + esc(goal.label) + '</h2>' +
+      '<span class="chip"' + (item.included ? ' style="color:' + kleur + '"' : '') + '>' + esc(status) + '</span>' +
+      '</div>' +
+      '<div class="meter-top">' +
+      '<span class="meter-amount" style="color:' + kleur + '">' + esc(GD.formatVolume(amount)) + '</span>' +
+      '<span class="meter-goal">van ' + esc(GD.formatVolume(doel)) + '</span>' +
+      '<span class="meter-pct" style="color:' + kleur + '">' + Math.round(pct) + '%</span>' +
+      '</div>' +
+      C.bar(pct) +
+      '<p class="hint">' + (gehaald
+        ? 'Doel gehaald. '
+        : 'Nog ' + esc(GD.formatVolume(rest)) + ' te gaan. ') +
+      (item.reason === 'nog bezig'
+        ? 'Telt vandaag nog niet mee in je dagscore, zodat je score niet keldert terwijl je nog aan het drinken bent.'
+        : '') + '</p>' +
+      '<div class="meter-buttons">' + stappen + '</div>' +
+      '<div class="meter-tweak">' + terug +
+      '<label class="meter-manual">' +
+      '<input type="number" inputmode="numeric" step="50" min="0" data-field="' + goal.field + '"' +
+      ' value="' + (item.amount === null ? '' : item.amount) + '" placeholder="ml">' +
+      '<span class="measure-unit">ml</span></label>' +
+      (amount > 0 ? '<button class="btn btn-ghost btn-sm" data-action="meter-clear" data-goal="' + goal.key + '">Wissen</button>' : '') +
+      '</div>' +
+      '</section>';
   }
 
   function goalRow(item, day) {
@@ -266,6 +381,12 @@
     html += '<section class="card"><h2>Per dag</h2>' + C.dayBars(period.days) +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
+
+    var vorigeStart = D.addDays(dates[0], -7);
+    html += weightTrendSection(
+      dates, D.range(vorigeStart, D.addDays(vorigeStart, 6)),
+      'week ' + D.isoWeek(dates[0]), 'week ' + D.isoWeek(vorigeStart), 1);
+
     html += '<section class="card"><h2>Gewicht</h2>' +
       C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
     return html;
@@ -287,6 +408,13 @@
     html += '<section class="card"><h2>Kalender</h2>' + C.calendar(ui.anchor, period.days) +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
+
+    var vorigeMaand = D.addMonths(ui.anchor, -1);
+    var vorigeDates = D.range(D.startOfMonth(vorigeMaand), D.endOfMonth(vorigeMaand));
+    html += weightTrendSection(
+      dates, vorigeDates, D.monthName(ui.anchor), D.monthName(vorigeMaand),
+      dates.length / 7);
+
     html += '<section class="card"><h2>Gewicht</h2>' +
       C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
     return html;
@@ -300,6 +428,7 @@
 
     var html = '<section class="card"><h2>Voedingsdoelen</h2><div class="form-grid">' +
       settingNumber('eiwitDoel', 'Eiwitdoel', 'g per dag', s.eiwitDoel, '1') +
+      settingNumber('waterDoel', 'Waterdoel', 'ml per dag', s.waterDoel, '250') +
       settingNumber('calorieDoel', 'Caloriedoel', 'kcal per dag', s.calorieDoel, '10') +
       '<label class="field"><span class="field-label">Caloriedoel geldt als</span>' +
       '<select data-setting="calorieRichting">' +
@@ -311,6 +440,30 @@
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
       '</div></section>';
+
+    html += '<section class="card"><h2>Gewichtsdoel</h2>' +
+      '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor. ' +
+      'Ga je de verkeerde kant op, dan kleurt de trend rood. Dit staat los van je dagscore: ' +
+      'gewicht is een uitkomst, geen gedrag dat je op één dag kunt halen.</p>' +
+      '<div class="form-grid">' +
+      '<label class="field"><span class="field-label">Ik wil</span>' +
+      '<select data-setting="gewichtRichting">' +
+      opt('aankomen', 'Aankomen (spieropbouw)', s.gewichtRichting) +
+      opt('afvallen', 'Afvallen', s.gewichtRichting) +
+      opt('behouden', 'Op gewicht blijven', s.gewichtRichting) +
+      opt('uit', 'Niet bijhouden', s.gewichtRichting) +
+      '</select></label>' +
+      (s.gewichtRichting && s.gewichtRichting !== 'uit'
+        ? settingNumber('gewichtTempo',
+          s.gewichtRichting === 'behouden' ? 'Toegestane marge' : 'Tempo',
+          'kg per week', s.gewichtTempo, '0.05')
+        : '') +
+      '</div>' +
+      (s.gewichtRichting === 'aankomen'
+        ? '<p class="hint">Vuistregel voor een rustige bulk: 0,25 tot 0,5 kg per week. ' +
+          'Sneller levert vooral extra vet op.</p>'
+        : '') +
+      '</section>';
 
     html += '<section class="card"><h2>Scoreregels</h2><div class="form-grid">' +
       settingNumber('goedeDagDrempel', 'Drempel goede dag', '% voor streak', s.goedeDagDrempel, '5') +
@@ -350,6 +503,8 @@
       '<div id="csv-preview">' + csvPreviewHTML() + '</div>' +
       '</section>';
 
+    html += syncSection();
+
     /* Data */
     html += '<section class="card"><h2>Je data</h2>' +
       '<p class="hint">Alles staat lokaal in deze browser (localStorage) — er gaat niets naar een server. ' +
@@ -372,11 +527,159 @@
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Voor vandaag tellen alleen de doelen die je al hebt ingevuld, zodat je score meegroeit met de dag. ' +
       'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
-      '<li>Gewicht is een meetwaarde, geen doel: het telt niet mee in het percentage maar staat wel in de grafieken.</li>' +
+      '<li><em>Water</em> scoort naar rato: 2,25 van de 3 liter is 75%. Zolang de dag loopt telt de teller ' +
+      'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
+      'aan bezig bent. Bij afgelopen dagen telt gewoon het deel dat je haalde.</li>' +
+      '<li>Gewicht telt niet mee in je dagscore. Het krijgt een eigen percentage in de ' +
+      '<em>Gewichtstrend</em>: je weekgemiddelde tegenover dat van de week ervoor, ' +
+      'afgemeten aan je gewichtsdoel hierboven.</li>' +
       '</ul></section>';
 
     return html;
   }
+
+  /* --------------------------- synchroniseren -------------------------- */
+
+  function tijdstip(ms) {
+    if (!ms) return 'nog niet';
+    var d = new Date(ms);
+    var vandaag = D.iso(d) === D.today();
+    var klok = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return vandaag ? 'vandaag om ' + klok : D.formatShort(D.iso(d)) + ' om ' + klok;
+  }
+
+  function syncSection() {
+    var st = GD.sync.status();
+    var c = GD.sync.config();
+
+    var html = '<section class="card"><h2>Synchroniseren tussen apparaten</h2>';
+
+    if (!st.geconfigureerd) {
+      html += '<p class="hint">Vul je telefoon en laptop allebei dezelfde twee gegevens in, ' +
+        'log in met je e-mailadres, en je dagen lopen automatisch gelijk. ' +
+        'De <strong>project-URL</strong> staat in Supabase onder <em>Settings → Data API</em> ' +
+        '(of achter de knop <em>Connect</em> bovenin), de <strong>sleutel</strong> onder ' +
+        '<em>Settings → API Keys</em>: neem de <em>publishable key</em>, die in oudere projecten ' +
+        '<em>anon public</em> heet. Die mag openbaar zijn; je gegevens zijn beschermd doordat alleen ' +
+        'jouw ingelogde account bij jouw rijen kan. Neem nooit de <em>secret</em>- of ' +
+        '<em>service_role</em>-sleutel: die omzeilt alle beveiliging.</p>';
+    } else {
+      html += '<p class="hint">Verbonden met <code>' + esc(c.url.replace(/^https?:\/\//, '')) + '</code>.</p>';
+    }
+
+    html += '<div class="form-grid">' +
+      '<label class="field"><span class="field-label">Project-URL</span>' +
+      '<input type="url" id="sync-url" placeholder="https://xxxx.supabase.co" value="' + esc(c.url) + '">' +
+      '<span class="field-hint">Plak gerust de hele API-URL; een staart als /rest/v1 haalt de app er zelf af.</span>' +
+      '</label>' +
+      '<label class="field"><span class="field-label">Publishable key (of anon key)</span>' +
+      '<input type="text" id="sync-key" placeholder="sb_publishable_… of eyJhbGciOi…" value="' +
+      esc(c.anonKey) + '"></label>' +
+      '</div>' +
+      '<div class="row-actions"><button class="btn" data-action="sync-save">Verbinding opslaan</button></div>';
+
+    if (st.geconfigureerd && !st.ingelogd) {
+      html += '<hr class="scheiding">' +
+        '<div class="form-grid">' +
+        '<label class="field"><span class="field-label">E-mailadres</span>' +
+        '<input type="email" id="sync-email" inputmode="email" autocomplete="email" placeholder="jij@voorbeeld.nl" value="' +
+        esc(ui.syncEmail || '') + '"></label>' +
+        '<label class="field"><span class="field-label">Wachtwoord</span>' +
+        '<input type="password" id="sync-pass" autocomplete="current-password" placeholder="minstens 6 tekens"></label>' +
+        '</div>' +
+        '<div class="row-actions">' +
+        '<button class="btn btn-primary" data-action="sync-login">Inloggen</button>' +
+        '<button class="btn" data-action="sync-signup">Account aanmaken</button>' +
+        '</div>' +
+        '<p class="hint">Maak dit account één keer aan en log er op je andere apparaat mee in. ' +
+        'Het wachtwoord kies je zelf en heeft niets te maken met je Supabase-account.</p>' +
+        '<details class="uitleg"><summary>Liever een code per e-mail?</summary>' +
+        '<p class="hint">Dat werkt alleen als je in Supabase een eigen mailserver (SMTP) hebt ingesteld: ' +
+        'op de gratis ingebouwde mailservice kun je de e-mailsjablonen niet aanpassen, en zonder ' +
+        '<code>{{ .Token }}</code> in de sjabloon <em>Magic link or OTP</em> zit er geen code in de mail. ' +
+        'De link uit die mail werkt wel, maar opent op een telefoon vaak een ander venster dan de app ' +
+        'op je beginscherm — en dan ben je daar nog steeds niet ingelogd.</p>' +
+        '<div class="form-grid">' +
+        '<label class="field"><span class="field-label">Code uit de e-mail</span>' +
+        '<input type="text" id="sync-code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 cijfers"></label>' +
+        '</div>' +
+        '<div class="row-actions">' +
+        '<button class="btn btn-sm" data-action="sync-code">Stuur mij een code</button>' +
+        '<button class="btn btn-sm" data-action="sync-code-login">Inloggen met code</button>' +
+        '</div></details>';
+    }
+
+    if (st.ingelogd) {
+      html += '<hr class="scheiding">' +
+        '<div class="sync-status">' +
+        '<span class="chip">' + (st.bezig ? '⏳ bezig…' : '✓ ingelogd') +
+        (st.email ? ' als ' + esc(st.email) : '') + '</span>' +
+        '<span class="chip">laatst bijgewerkt: ' + esc(tijdstip(st.laatst)) + '</span>' +
+        '</div>' +
+        '<div class="row-actions">' +
+        '<button class="btn btn-primary" data-action="sync-now"' + (st.bezig ? ' disabled' : '') + '>Nu synchroniseren</button>' +
+        '<button class="btn btn-ghost" data-action="sync-logout">Uitloggen</button>' +
+        '</div>';
+    }
+
+    if (st.fout) {
+      html += '<p class="alert alert-bad">' + esc(st.fout) + '</p>';
+    }
+
+    html += '<p class="hint">Per dag wint de laatste wijziging. Vul je \'s ochtends op je telefoon ' +
+      'je water in en \'s avonds op je laptop je gewicht, dan blijft allebei staan — alleen als je ' +
+      'dezelfde dag op beide apparaten aanpast, telt de laatste. Invullen zonder bereik werkt gewoon; ' +
+      'zodra je weer online bent loopt het vanzelf gelijk.</p>' +
+      '<details class="uitleg"><summary>Hoe zet ik Supabase klaar?</summary>' +
+      '<ol class="explain">' +
+      '<li>Maak een gratis account op <strong>supabase.com</strong> en daarna een nieuw project ' +
+      '(regio Frankfurt ligt het dichtstbij).</li>' +
+      '<li>Open in het project de <strong>SQL Editor</strong>, plak het blok hieronder en klik op ' +
+      '<em>Run</em>. Dat maakt twee tabellen en zorgt dat alleen jij bij je eigen rijen kunt.</li>' +
+      '<li>Kopieer de <em>Project URL</em> uit <strong>Settings → Data API</strong> en de ' +
+      '<em>publishable key</em> uit <strong>Settings → API Keys</strong> naar de velden hierboven. ' +
+      'In oudere projecten heet die sleutel <em>anon public</em>. De <em>secret key</em> laat je staan.</li>' +
+      '<li>Ga naar <strong>Authentication → Sign In / Providers → Email</strong> en zet ' +
+      '<em>Confirm email</em> <strong>uit</strong>. Anders wacht Supabase op een bevestigingsmail ' +
+      'voordat je kunt inloggen.</li>' +
+      '<li>Maak hierboven één keer een account aan met je e-mailadres en een zelfgekozen wachtwoord. ' +
+      'Zet daarna in datzelfde scherm <em>Allow new users to sign up</em> uit, dan kan niemand anders ' +
+      'zich nog aanmelden bij jouw project.</li>' +
+      '<li>Herhaal stap 3 op je andere apparaat en log daar in met datzelfde e-mailadres en wachtwoord.</li>' +
+      '</ol>' +
+      '<pre class="sql">' + esc(SQL_SETUP) + '</pre>' +
+      '<div class="row-actions"><button class="btn btn-sm" data-action="sync-copy-sql">SQL kopiëren</button></div>' +
+      '</details>' +
+      '</section>';
+
+    return html;
+  }
+
+  var SQL_SETUP = [
+    'create table if not exists public.dagen (',
+    '  user_id uuid not null references auth.users on delete cascade,',
+    '  datum date not null,',
+    '  data jsonb,',
+    '  verwijderd boolean not null default false,',
+    '  bijgewerkt timestamptz not null default now(),',
+    '  primary key (user_id, datum)',
+    ');',
+    '',
+    'create table if not exists public.instellingen (',
+    '  user_id uuid primary key references auth.users on delete cascade,',
+    '  data jsonb not null,',
+    '  bijgewerkt timestamptz not null default now()',
+    ');',
+    '',
+    'alter table public.dagen enable row level security;',
+    'alter table public.instellingen enable row level security;',
+    '',
+    'create policy "eigen dagen" on public.dagen',
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
+    '',
+    'create policy "eigen instellingen" on public.instellingen',
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+  ].join('\n');
 
   function opt(v, label, current) {
     return '<option value="' + v + '"' + (current === v ? ' selected' : '') + '>' + esc(label) + '</option>';
@@ -470,12 +773,24 @@
     toast._t = setTimeout(function () { el.className = 'toast'; }, 2600);
   }
 
+  function meldSync(r) {
+    if (!r.opgehaald && !r.verstuurd) { toast('Alles liep al gelijk.'); return; }
+    var delen = [];
+    if (r.opgehaald) delen.push(r.opgehaald + ' dag(en) opgehaald');
+    if (r.verstuurd) delen.push(r.verstuurd + ' verstuurd');
+    toast(delen.join(', ') + '.');
+  }
+
   function copyYesterday() {
     var prev = store.entry(D.addDays(ui.anchor, -1));
     if (!prev) { toast('Gisteren is nog niet ingevuld.', 'bad'); return; }
     var copy = JSON.parse(JSON.stringify(prev));
     delete copy.date;
     delete copy.notitie;
+    // Tellers beginnen elke dag op nul; gisteren overnemen zou vals staan.
+    GD.GOALS.forEach(function (g) {
+      if (g.type === 'meter') delete copy[g.field];
+    });
     Object.keys(copy).forEach(function (k) {
       store.setField(ui.anchor, k, copy[k]);
     });
@@ -503,6 +818,20 @@
       render();
       return;
     }
+    if (action === 'meter-add') {
+      var goal = GD.goalByKey(el.dataset.goal);
+      var huidig = S.num((store.entry(ui.anchor) || {})[goal.field], 0) || 0;
+      var nieuw = Math.max(0, huidig + parseInt(el.dataset.amount, 10));
+      store.setField(ui.anchor, goal.field, nieuw > 0 ? nieuw : null);
+      render();
+      return;
+    }
+    if (action === 'meter-clear') {
+      var g2 = GD.goalByKey(el.dataset.goal);
+      store.setField(ui.anchor, g2.field, null);
+      render();
+      return;
+    }
     if (action === 'copy-yesterday') { copyYesterday(); return; }
     if (action === 'delete-day') {
       if (confirm('Alles van ' + D.formatDate(ui.anchor) + ' wissen?')) {
@@ -516,6 +845,108 @@
       GD.GOALS.forEach(function (g) { store.setWeight(g.key, g.weight); });
       toast('Standaardgewichten hersteld.');
       render();
+      return;
+    }
+    if (action === 'sync-save') {
+      GD.sync.setConfig($('#sync-url').value, $('#sync-key').value);
+      toast(GD.sync.isConfigured() ? 'Verbinding opgeslagen.' : 'Verbinding gewist.');
+      render();
+      return;
+    }
+    if (action === 'sync-code') {
+      var adres = ($('#sync-email').value || '').trim();
+      if (!adres) { toast('Vul eerst je e-mailadres in.', 'bad'); return; }
+      ui.syncEmail = adres;
+      el.disabled = true;
+      GD.sync.sendCode(adres).then(function () {
+        toast('Code verstuurd, kijk in je mail.');
+      }).catch(function (e) {
+        toast(e.message, 'bad');
+      }).then(function () {
+        el.disabled = false;
+      });
+      return;
+    }
+    if (action === 'sync-login' || action === 'sync-signup') {
+      var adres3 = ($('#sync-email').value || '').trim();
+      var wachtwoord = $('#sync-pass').value || '';
+      if (!adres3 || !wachtwoord) { toast('Vul je e-mailadres en wachtwoord in.', 'bad'); return; }
+      if (wachtwoord.length < 6) { toast('Kies een wachtwoord van minstens zes tekens.', 'bad'); return; }
+      ui.syncEmail = adres3;
+      el.disabled = true;
+      var actie = action === 'sync-signup'
+        ? GD.sync.signUp(adres3, wachtwoord).then(function (r) {
+          if (!r.ingelogd) {
+            throw new Error('Account aangemaakt, maar Supabase wacht op een bevestiging per e-mail. ' +
+              'Zet onder Authentication → Sign In / Providers → Email de optie "Confirm email" uit ' +
+              'en log daarna gewoon in.');
+          }
+        })
+        : GD.sync.signIn(adres3, wachtwoord);
+
+      actie.then(function () {
+        toast('Ingelogd, gegevens worden opgehaald.');
+        render();
+        return GD.sync.syncNow();
+      }).then(function (r) {
+        if (r) meldSync(r);
+        render();
+      }).catch(function (e) {
+        toast(e.message, 'bad');
+        render();
+      });
+      return;
+    }
+    if (action === 'sync-code-login') {
+      var adres2 = ($('#sync-email').value || '').trim();
+      var code = ($('#sync-code').value || '').trim();
+      if (!adres2 || !code) { toast('Vul je e-mailadres en de code in.', 'bad'); return; }
+      ui.syncEmail = adres2;
+      el.disabled = true;
+      GD.sync.verifyCode(adres2, code).then(function () {
+        toast('Ingelogd, gegevens worden opgehaald.');
+        render();
+        return GD.sync.syncNow();
+      }).then(function (r) {
+        if (r) meldSync(r);
+        render();
+      }).catch(function (e) {
+        toast(e.message, 'bad');
+        render();
+      });
+      return;
+    }
+    if (action === 'sync-now') {
+      el.disabled = true;
+      render();
+      GD.sync.syncNow().then(function (r) {
+        if (r) meldSync(r);
+        render();
+      }).catch(function (e) {
+        toast(e.message, 'bad');
+        render();
+      });
+      return;
+    }
+    if (action === 'sync-logout') {
+      if (confirm('Uitloggen? Je gegevens op dit apparaat blijven gewoon staan.')) {
+        GD.sync.signOut();
+        toast('Uitgelogd.');
+        render();
+      }
+      return;
+    }
+    if (action === 'sync-copy-sql') {
+      var kopie = SQL_SETUP;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(kopie).then(function () {
+          toast('SQL gekopieerd.');
+        }).catch(function () {
+          toast('Kopiëren mislukt, selecteer de tekst handmatig.', 'bad');
+        });
+      } else {
+        toast('Kopiëren kan hier niet, selecteer de tekst handmatig.', 'bad');
+      }
       return;
     }
     if (action === 'export') {
@@ -663,6 +1094,14 @@
   function init() {
     store.load();
     bind();
+    if (GD.sync) {
+      // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
+      GD.sync.onApplied(function () { render(); });
+      GD.sync.onChange(function () {
+        if (ui.view === 'instellingen') render();
+      });
+      GD.sync.init();
+    }
     render();
   }
 

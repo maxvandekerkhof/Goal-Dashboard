@@ -7,6 +7,7 @@
   var D = GD.date;
 
   function optionFor(goal, value) {
+    if (!goal.options) return null;
     for (var i = 0; i < goal.options.length; i++) {
       if (goal.options[i].v === value) return goal.options[i];
     }
@@ -56,6 +57,55 @@
   }
 
   /**
+   * Doel met een teller (water): je scoort naar rato van je doel.
+   *
+   * Zolang de dag loopt telt een nog niet gehaalde teller niet mee — anders
+   * kelderde je dagscore 's ochtends door een doel waar je nog aan bezig bent.
+   * Bij afgelopen dagen telt gewoon het deel dat je haalde.
+   */
+  function meterItem(goal, entry, settings, w, live) {
+    var amount = entry ? num(entry[goal.field]) : null;
+    var doel = num(settings[goal.doelKey], 0);
+    var item = {
+      key: goal.key,
+      goal: goal,
+      value: amount,
+      amount: amount,
+      doel: doel,
+      auto: false,
+      option: null,
+      weight: w,
+      score: null,
+      included: false,
+      reason: ''
+    };
+
+    var frac = null;
+    if (amount !== null) {
+      frac = doel > 0 ? GD.clamp(amount / doel, 0, 1) : (amount > 0 ? 1 : 0);
+    }
+    item.frac = frac;
+
+    if (w === 0) {
+      item.reason = 'uitgezet';
+    } else if (amount === null) {
+      if (live) {
+        item.reason = 'nog niet ingevuld';
+      } else {
+        item.score = 0;
+        item.included = true;
+        item.reason = 'niet ingevuld';
+      }
+    } else if (live && frac < 1) {
+      item.reason = 'nog bezig';
+    } else {
+      item.score = frac;
+      item.included = true;
+    }
+    return item;
+  }
+
+  /**
    * Score van één dag.
    * live=true : nog niet ingevulde doelen tellen niet mee (voor vandaag/toekomst)
    * -> { pct, points, max, items[], hasEntry, trained }
@@ -73,6 +123,17 @@
 
     GD.GOALS.forEach(function (goal) {
       var w = weightOf(goal, settings);
+
+      if (goal.type === 'meter') {
+        var mItem = meterItem(goal, entry, settings, w, live);
+        if (mItem.included) {
+          points += mItem.score * w;
+          max += w;
+        }
+        items.push(mItem);
+        return;
+      }
+
       var res = resolveValue(entry, goal, settings);
       var opt = res.value ? optionFor(goal, res.value) : null;
       var item = {
@@ -154,8 +215,8 @@
     var logged = 0, missing = 0, future = 0, scoredDays = 0;
     var bd = {};
     GD.GOALS.forEach(function (g) {
-      bd[g.key] = { goal: g, points: 0, max: 0, counts: {}, days: 0 };
-      g.options.forEach(function (o) { bd[g.key].counts[o.v] = 0; });
+      bd[g.key] = { goal: g, points: 0, max: 0, counts: {}, days: 0, sum: 0, measured: 0, hits: 0 };
+      (g.options || []).forEach(function (o) { bd[g.key].counts[o.v] = 0; });
       bd[g.key].counts['leeg'] = 0;
     });
 
@@ -182,8 +243,18 @@
             b.max += it.weight;
             b.days++;
           }
-          if (it.value) b.counts[it.value] = (b.counts[it.value] || 0) + 1;
-          else b.counts['leeg']++;
+          if (it.goal.type === 'meter') {
+            if (it.amount === null) b.counts['leeg']++;
+            else {
+              b.sum += it.amount;
+              b.measured++;
+              if (it.frac >= 1) b.hits++;
+            }
+          } else if (it.value) {
+            b.counts[it.value] = (b.counts[it.value] || 0) + 1;
+          } else {
+            b.counts['leeg']++;
+          }
         });
       } else {
         missing++;
@@ -202,7 +273,10 @@
         goal: g,
         pct: b.max > 0 ? (b.points / b.max) * 100 : null,
         days: b.days,
-        counts: b.counts
+        counts: b.counts,
+        avg: b.measured ? b.sum / b.measured : null,
+        measured: b.measured,
+        hits: b.hits
       };
     });
 
@@ -222,7 +296,7 @@
 
   function periodStats(dates, days) {
     var t = D.today();
-    var weights = [], trainDays = 0, restDays = 0, kcal = [], prot = [];
+    var weights = [], trainDays = 0, restDays = 0, kcal = [], prot = [], water = [];
     dates.forEach(function (date) {
       if (date > t) return;
       var e = store.entry(date);
@@ -234,6 +308,7 @@
       if (d.restDay) restDays++;
       var k = num(e.kcal); if (k !== null) kcal.push(k);
       var p = num(e.eiwitGram); if (p !== null) prot.push(p);
+      var wa = num(e.waterMl); if (wa !== null) water.push(wa);
     });
 
     function avg(arr) {
@@ -251,10 +326,90 @@
       restDays: restDays,
       kcalAvg: avg(kcal),
       proteinAvg: avg(prot),
+      waterAvg: avg(water),
+      waterDays: water.length,
       goodDays: days.filter(function (d) {
         return d.pct !== null && d.pct >= store.settings().goedeDagDrempel;
       }).length
     };
+  }
+
+  /** Gemiddeld gewicht over een reeks datums (dagen in de toekomst tellen niet mee). */
+  function weightAvg(dates) {
+    var sum = 0, n = 0, t = D.today();
+    dates.forEach(function (date) {
+      if (date > t) return;
+      var e = store.entry(date);
+      if (!e) return;
+      var w = num(e.gewicht);
+      if (w === null) return;
+      sum += w;
+      n++;
+    });
+    return { avg: n ? sum / n : null, count: n };
+  }
+
+  /**
+   * Vergelijkt het gemiddelde gewicht van twee periodes en scoort dat tegen
+   * je gewichtsdoel (aankomen, afvallen of op gewicht blijven).
+   *
+   * Bewust los van de dagscore: gewicht is een uitkomst, geen gedrag dat je
+   * op één dag kunt "halen".
+   */
+  function weightTrend(dates, prevDates, perWeek) {
+    var s = store.settings();
+    var richting = s.gewichtRichting || 'uit';
+    var cur = weightAvg(dates);
+    var prev = weightAvg(prevDates);
+    var tempoPerWeek = Math.abs(num(s.gewichtTempo, 0.25));
+    // Bij een maandvergelijking hoort een navenant groter verschil.
+    var weeks = perWeek === undefined ? 1 : perWeek;
+    var doelDelta = tempoPerWeek * weeks;
+
+    var out = {
+      richting: richting,
+      avg: cur.avg,
+      count: cur.count,
+      prevAvg: prev.avg,
+      prevCount: prev.count,
+      delta: null,
+      doelDelta: doelDelta,
+      pct: null,
+      note: ''
+    };
+
+    if (richting === 'uit') return out;
+    if (cur.avg === null || prev.avg === null) {
+      out.note = 'Nog te weinig metingen om te vergelijken.';
+      return out;
+    }
+
+    var delta = cur.avg - prev.avg;
+    out.delta = delta;
+
+    if (richting === 'aankomen') {
+      out.pct = doelDelta > 0
+        ? GD.clamp(delta / doelDelta, 0, 1) * 100
+        : (delta > 0 ? 100 : 0);
+      if (delta <= 0) out.note = 'Je zit gelijk of lager dan de vorige periode — dat is de verkeerde kant op voor spieropbouw.';
+      else if (doelDelta > 0 && delta > doelDelta * 2) out.note = 'Ruim boven je tempo. Snel aankomen betekent meestal ook meer vetaanzet.';
+    } else if (richting === 'afvallen') {
+      out.pct = doelDelta > 0
+        ? GD.clamp(-delta / doelDelta, 0, 1) * 100
+        : (delta < 0 ? 100 : 0);
+      if (delta >= 0) out.note = 'Je zit gelijk of hoger dan de vorige periode.';
+      else if (doelDelta > 0 && -delta > doelDelta * 2) out.note = 'Sneller dan je tempo — let op je spierbehoud.';
+    } else if (richting === 'behouden') {
+      var marge = doelDelta > 0 ? doelDelta : 0.25;
+      out.pct = GD.clamp(1 - Math.abs(delta) / marge, 0, 1) * 100;
+      if (Math.abs(delta) > marge) out.note = 'Buiten je marge van ' + marge.toFixed(2) + ' kg.';
+    }
+
+    if (cur.count < 3 || prev.count < 3) {
+      out.note = (out.note ? out.note + ' ' : '') +
+        'Let op: gebaseerd op weinig metingen, dus gevoelig voor toeval. Dagelijks wegen geeft een betrouwbaarder beeld.';
+    }
+    return out;
   }
 
   /** Huidige reeks goede dagen, geteld vanaf vandaag (of gisteren) terug. */
@@ -305,6 +460,8 @@
     baseMax: baseMax,
     currentStreak: currentStreak,
     bestStreak: bestStreak,
+    weightAvg: weightAvg,
+    weightTrend: weightTrend,
     num: num,
     optionFor: optionFor
   };

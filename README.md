@@ -23,12 +23,13 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 
 | Doel | Opties | Standaardgewicht |
 | --- | --- | --- |
-| Gewicht | zelf invullen (kg) | telt niet mee in de score |
+| Gewicht | zelf invullen (kg) | eigen trendscore, zie onder |
 | Creatine gepakt | Ja / Nee | ×1 |
 | Ontbijt | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Lunch | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Avondeten | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Post-workout maaltijd | Ja (eiwitrijk) / Ja / Nee | ×1 |
+| Water | teller met +25 cl / +50 cl / +1 L | ×1 |
 | Gesport | Ja / Nee / Rustdag | ×2 |
 | Progressive overload | Ja / Deels / Nee | ×1,5 |
 | Eiwitdoel behaald | Ja / Nee | ×2 |
@@ -51,8 +52,47 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
   meegroeit met de dag. Bij **afgelopen dagen** telt niet-ingevuld als niet gedaan.
 - Lege dagen in het verleden tellen als 0% (uit te zetten in Instellingen). Dagen van
   vóór je allereerste invoer tellen nooit mee — toen gebruikte je het dashboard nog niet.
-- **Gewicht** is een meetwaarde, geen doel: het beïnvloedt het percentage niet, maar
-  staat wel in de grafieken.
+- **Gewicht** telt niet mee in je dagscore — het is een uitkomst, geen gedrag dat je op
+  één dag kunt halen. Het krijgt een eigen percentage, zie hieronder.
+
+## Waterteller
+
+Op de dagweergave staat een aparte kaart met drie knoppen: **+25 cl**, **+50 cl** en
+**+1 L**. Elke tik telt op bij je totaal van die dag, met een balk die verkleurt naar je
+doel toe (standaard 3 liter, aan te passen in Instellingen). Vertikt: met **−25 cl** en
+**−50 cl** corrigeer je een misklik, in het kleine veld typ je desnoods het exacte aantal
+milliliters, en **Wissen** zet de dag terug op nul.
+
+Water scoort naar rato: 2,25 van de 3 liter is 75%. Eén bijzonderheid: **zolang de dag
+loopt telt de teller pas mee zodra je je doel haalt.** Anders zou je dagscore om negen uur
+'s ochtends kelderen door een doel waar je de hele dag nog aan werkt. Bij afgelopen dagen
+telt gewoon het deel dat je haalde, dus je week- en maandcijfers blijven eerlijk.
+
+*Neem gisteren over* kopieert je waterstand bewust niet — een teller begint elke dag op nul.
+
+## Gewichtstrend
+
+In de week- en maandweergave staat een aparte kaart die je **weekgemiddelde vergelijkt met
+dat van de week ervoor** (in de maandweergave: maand tegen maand), met dezelfde kleurschaal
+van donkerrood naar donkergroen.
+
+Stel in **Instellingen → Gewichtsdoel** in wat je wilt:
+
+| Richting | 100% (donkergroen) bij | 0% (donkerrood) bij |
+| --- | --- | --- |
+| Aankomen | toename ≥ je tempo | gelijk gebleven of gezakt |
+| Afvallen | afname ≥ je tempo | gelijk gebleven of gestegen |
+| Op gewicht blijven | verschil van 0 | verschil groter dan je marge |
+| Niet bijhouden | kaart wordt verborgen | — |
+
+Het **tempo** is hoeveel kg per week je wilt opschuiven; daartussenin loopt de score
+evenredig (de helft van je tempo = 50%). Voor een rustige bulk is 0,25 tot 0,5 kg per week
+gebruikelijk — kom je ruim sneller aan, dan blijft de score 100% maar krijg je een
+opmerking dat dat meestal extra vetaanzet betekent.
+
+Weeg bij voorkeur elke dag: het gemiddelde vangt dagschommelingen op die per losse meting
+zomaar een kilo kunnen schelen. Bij minder dan drie metingen in een periode waarschuwt de
+kaart dat de vergelijking gevoelig is voor toeval.
 
 Week- en maandpercentages tellen punten over alle dagen bij elkaar op. Een week met veel
 rustdagen wordt dus niet afgestraft, omdat op zo'n dag ook minder punten haalbaar waren.
@@ -77,11 +117,97 @@ een andere app gebruikt.
 Zodra kcal en eiwitten bekend zijn, worden "Eiwitdoel behaald" en "Caloriedoel behaald"
 automatisch bepaald aan de hand van je doelen. Handmatig aanklikken heeft altijd voorrang.
 
+## Synchroniseren tussen telefoon en laptop
+
+Standaard staat je data alleen in de browser waarin je hem invult. Wil je op allebei je
+apparaten kunnen invullen, koppel het dashboard dan aan een gratis **Supabase**-project.
+Je logt in met een e-mailadres en een zelfgekozen wachtwoord.
+
+### Eenmalig klaarzetten
+
+1. Maak een gratis account op [supabase.com](https://supabase.com) en daarna een nieuw
+   project. Regio **Frankfurt** ligt het dichtstbij.
+2. Open in het project de **SQL Editor**, plak het blok hieronder en klik op **Run**.
+   Verwacht *"Success. No rows returned"*.
+3. Kopieer de **project-URL** (te vinden onder *Settings → Data API*, of achter de knop
+   *Connect*) en de **publishable key** (*Settings → API Keys*; in oudere projecten heet
+   die *anon public*) naar *Instellingen → Synchroniseren* in het dashboard, en klik op
+   *Verbinding opslaan*. Nooit de *secret*- of *service_role*-sleutel gebruiken.
+4. Ga naar **Authentication → Sign In / Providers → Email** en zet **Confirm email uit**.
+   Anders wacht Supabase op een bevestigingsmail voordat je kunt inloggen.
+5. Maak in het dashboard één keer een account aan met je e-mailadres en een zelfgekozen
+   wachtwoord. Zet daarna in datzelfde Supabase-scherm *Allow new users to sign up* uit,
+   dan kan niemand anders zich nog bij jouw project aanmelden.
+
+Op je tweede apparaat herhaal je alleen stap 3 en log je in met datzelfde adres en
+wachtwoord.
+
+**Waarom een wachtwoord en geen code per e-mail?** De app kan ook met een eenmalige code
+overweg, maar die zit alleen in de mail als je de sjabloon *Magic link or OTP* aanpast met
+`{{ .Token }}` — en dat kan Supabase alleen als je een eigen mailserver (SMTP) hebt
+ingesteld. De magic link zelf werkt wel, maar opent op een telefoon vaak een ander venster
+dan de app op je beginscherm, waardoor je daar alsnog niet ingelogd bent. Een wachtwoord
+omzeilt dat allebei. De code-route zit nog wel in de app, onder *Liever een code per
+e-mail?*, voor als je later SMTP instelt.
+
+```sql
+create table if not exists public.dagen (
+  user_id uuid not null references auth.users on delete cascade,
+  datum date not null,
+  data jsonb,
+  verwijderd boolean not null default false,
+  bijgewerkt timestamptz not null default now(),
+  primary key (user_id, datum)
+);
+
+create table if not exists public.instellingen (
+  user_id uuid primary key references auth.users on delete cascade,
+  data jsonb not null,
+  bijgewerkt timestamptz not null default now()
+);
+
+alter table public.dagen enable row level security;
+alter table public.instellingen enable row level security;
+
+create policy "eigen dagen" on public.dagen
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "eigen instellingen" on public.instellingen
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+```
+
+### Hoe het werkt
+
+- Je browser blijft de plek waar de app mee werkt, dus **invullen zonder bereik werkt
+  gewoon**. Zodra je weer online bent loopt het vanzelf gelijk.
+- Er wordt gesynchroniseerd bij het openen van de app, een paar seconden na een wijziging,
+  bij terugkeren naar het tabblad, en met de knop *Nu synchroniseren*.
+- **Per dag wint de laatste wijziging.** Vul je 's ochtends op je telefoon je water in en
+  's avonds op je laptop je gewicht, dan blijft allebei staan, omdat je laptop die dag
+  eerst ophaalt en daarna aanvult.
+- Pas je dezelfde dag op beide apparaten aan **zonder er tussendoor te synchroniseren**,
+  dan overschrijft de laatste de hele dag — ook de velden die het andere apparaat had
+  ingevuld. Dat is de prijs van deze eenvoudige regel.
+- Wissen synchroniseert mee: een dag die je hier weghaalt, verdwijnt ook op je andere
+  apparaat.
+
+### Goed om te weten
+
+- De **anon key is bedoeld om openbaar te zijn**; je gegevens zijn beschermd doordat het
+  SQL-blok row level security aanzet, zodat alleen jouw ingelogde account bij jouw rijen
+  kan. Sla hem gerust op in je browser.
+- Gratis Supabase-projecten **pauzeren na ongeveer een week zonder gebruik**. Bij dagelijks
+  gebruik merk je dat niet, maar na een lange vakantie moet je het project in het
+  Supabase-dashboard weer starten. Je lokale data blijft in de tussentijd gewoon werken.
+- Welke wijziging "de laatste" is, wordt bepaald door de **klok van je apparaten**. Staat er
+  ergens een klok flink verkeerd, dan kan een oudere wijziging winnen.
+- De back-up uit *Je data* blijft gewoon werken en is een prima extra vangnet.
+
 ## Je data
 
-Alles staat in `localStorage` van de browser waarin je het gebruikt. Dat betekent:
-niets gaat naar een server, maar het synchroniseert ook niet vanzelf tussen apparaten,
-en het verdwijnt als je je browsergegevens wist.
+Alles staat in `localStorage` van de browser waarin je het gebruikt. Zonder de koppeling
+hierboven gaat er niets naar een server, maar synchroniseert het ook niet vanzelf tussen
+apparaten — en het verdwijnt als je je browsergegevens wist.
 
 Gebruik daarom **Instellingen → Je data**:
 
@@ -108,6 +234,7 @@ js/store.js         opslag (localStorage), import/export, datum-helpers
 js/score.js         scoreberekening per dag en per periode, streaks
 js/charts.js        SVG-ring, balken, kalender en gewichtsgrafiek
 js/mfp.js           CSV-parser voor MyFitnessPal-exports
+js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
 
 tools/build-standalone.py       bouwt het losse bestand hieronder

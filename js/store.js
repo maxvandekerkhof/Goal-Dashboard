@@ -105,7 +105,31 @@
   /* ---------------------------- opslag ---------------------------- */
 
   function emptyState() {
-    return { version: 1, settings: clone(GD.DEFAULT_SETTINGS), entries: {} };
+    return {
+      version: 2,
+      settings: clone(GD.DEFAULT_SETTINGS),
+      settingsTs: 0,
+      entries: {},
+      // Gewiste dagen onthouden we, anders zet een synchronisatie ze terug.
+      tombstones: {}
+    };
+  }
+
+  /**
+   * Tijdstempel van een dag: elke wijziging zet hem op nu. Dagen van vóór de
+   * synchronisatie krijgen 1, zodat een echt bewerkte versie elders wint.
+   */
+  function entryTs(date) {
+    var e = load().entries[date];
+    if (e && typeof e._ts === 'number') return e._ts;
+    if (e) return 1;
+    var t = load().tombstones[date];
+    return typeof t === 'number' ? t : 0;
+  }
+
+  function stamp(date, ts) {
+    var e = load().entries[date];
+    if (e) e._ts = ts === undefined ? Date.now() : ts;
   }
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -142,9 +166,17 @@
           });
         }
       }
+      if (typeof data.settingsTs === 'number') s.settingsTs = data.settingsTs;
       if (data.entries && typeof data.entries === 'object') {
         Object.keys(data.entries).forEach(function (date) {
           if (/^\d{4}-\d{2}-\d{2}$/.test(date)) s.entries[date] = data.entries[date];
+        });
+      }
+      if (data.tombstones && typeof data.tombstones === 'object') {
+        Object.keys(data.tombstones).forEach(function (date) {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(date) && typeof data.tombstones[date] === 'number') {
+            s.tombstones[date] = data.tombstones[date];
+          }
         });
       }
     }
@@ -152,28 +184,57 @@
   }
 
   var saveTimer = null;
+
+  function writeNow() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    if (!state) return;
+    try {
+      global.localStorage.setItem(GD.STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error('Opslaan mislukt', e);
+      alert('Opslaan mislukt: de opslag van je browser zit vol of staat uit.');
+    }
+  }
+
   function save() {
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(function () {
-      try {
-        global.localStorage.setItem(GD.STORAGE_KEY, JSON.stringify(state));
-      } catch (e) {
-        console.error('Opslaan mislukt', e);
-        alert('Opslaan mislukt: de opslag van je browser zit vol of staat uit.');
-      }
-    }, 120);
+    saveTimer = setTimeout(writeNow, 120);
   }
+
+  // Op een telefoon kan de app zomaar naar de achtergrond gaan; schrijf dan
+  // meteen weg in plaats van te wachten op de timer.
+  global.addEventListener('pagehide', writeNow);
+  global.addEventListener('beforeunload', writeNow);
+  global.document.addEventListener('visibilitychange', function () {
+    if (global.document.visibilityState === 'hidden') writeNow();
+  });
 
   function settings() { return load().settings; }
 
   function setSetting(key, value) {
     load().settings[key] = value;
+    load().settingsTs = Date.now();
     save();
+    changed();
   }
 
   function setWeight(key, value) {
     load().settings.weights[key] = value;
+    load().settingsTs = Date.now();
     save();
+    changed();
+  }
+
+  /* Luisteraars (de synchronisatie) op de hoogte brengen van wijzigingen. */
+  var listeners = [];
+  function onChange(fn) { listeners.push(fn); }
+  function changed() {
+    listeners.forEach(function (fn) {
+      try { fn(); } catch (e) { console.error(e); }
+    });
   }
 
   function entry(date) {
@@ -191,19 +252,29 @@
     var e = ensureEntry(date);
     if (value === null || value === undefined || value === '') delete e[field];
     else e[field] = value;
-    if (isEmptyEntry(e)) delete load().entries[date];
+    if (isEmptyEntry(e)) {
+      delete load().entries[date];
+      load().tombstones[date] = Date.now();
+    } else {
+      e._ts = Date.now();
+      delete load().tombstones[date];
+    }
     save();
+    changed();
   }
 
   function isEmptyEntry(e) {
     return !Object.keys(e).some(function (k) {
-      return k !== 'date' && e[k] !== null && e[k] !== undefined && e[k] !== '';
+      return k !== 'date' && k !== '_ts' &&
+        e[k] !== null && e[k] !== undefined && e[k] !== '';
     });
   }
 
   function deleteEntry(date) {
     delete load().entries[date];
+    load().tombstones[date] = Date.now();
     save();
+    changed();
   }
 
   function allDates() {
@@ -242,6 +313,7 @@
   GD.store = {
     load: load,
     save: save,
+    writeNow: writeNow,
     settings: settings,
     setSetting: setSetting,
     setWeight: setWeight,
@@ -252,7 +324,33 @@
     allDates: allDates,
     reset: reset,
     exportJSON: exportJSON,
-    importJSON: importJSON
+    importJSON: importJSON,
+    entryTs: entryTs,
+    stamp: stamp,
+    onChange: onChange,
+    changed: changed,
+    /* Rechtstreekse toegang voor de synchronisatie. */
+    raw: function () { return load(); },
+    putEntry: function (date, data, ts) {
+      var st = load();
+      data.date = date;
+      data._ts = ts;
+      st.entries[date] = data;
+      delete st.tombstones[date];
+      save();
+    },
+    removeEntry: function (date, ts) {
+      var st = load();
+      delete st.entries[date];
+      st.tombstones[date] = ts;
+      save();
+    },
+    putSettings: function (data, ts) {
+      var st = load();
+      st.settings = migrate({ settings: data }).settings;
+      st.settingsTs = ts;
+      save();
+    }
   };
 
   GD.date = {

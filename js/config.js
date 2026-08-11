@@ -63,6 +63,17 @@
       ]
     },
     {
+      // Teller in plaats van keuzeknoppen: je telt de dag door op naar je doel.
+      key: 'water',
+      label: 'Water',
+      icon: '💧',
+      weight: 1,
+      type: 'meter',
+      field: 'waterMl',
+      doelKey: 'waterDoel',
+      stappen: [250, 500, 1000]
+    },
+    {
       key: 'eiwit',
       label: 'Eiwitdoel behaald',
       icon: '🍗',
@@ -88,10 +99,13 @@
 
   var DEFAULT_SETTINGS = {
     eiwitDoel: 150,           // gram per dag
+    waterDoel: 3000,          // ml per dag
     calorieDoel: 2200,        // kcal per dag
     calorieRichting: 'max',   // 'max' = onder blijven, 'min' = halen, 'rond' = binnen marge
     calorieMarge: 150,        // kcal, alleen bij 'rond'
-    gewichtDoel: null,        // kg, optioneel (alleen voor de grafiek)
+    gewichtDoel: null,        // kg, optioneel streefgewicht (lijn in de grafiek)
+    gewichtRichting: 'aankomen', // 'aankomen' | 'afvallen' | 'behouden' | 'uit'
+    gewichtTempo: 0.25,       // kg per week; bij 'behouden' is dit de marge
     goedeDagDrempel: 70,      // % vanaf wanneer een dag als "goed" telt (streak)
     countMissingAsZero: true, // lege dagen in het verleden tellen als 0%
     autoMacro: true,          // eiwit/kcal doel automatisch afleiden uit ingevulde waarden
@@ -161,6 +175,23 @@
   global.GD.textOn = textOn;
   global.GD.scoreLabel = scoreLabel;
   global.GD.clamp = clamp;
+  /** "1,75 L" of "750 ml" */
+  function formatVolume(ml) {
+    if (ml === null || ml === undefined || isNaN(ml)) return '–';
+    if (ml < 1000) return Math.round(ml) + ' ml';
+    var l = ml / 1000;
+    return (Math.round(l * 100) / 100).toFixed(2).replace(/[.,]?0+$/, '').replace('.', ',') + ' L';
+  }
+
+  /** "+25 cl" / "+50 cl" / "+1 L" */
+  function stepLabel(ml) {
+    if (ml % 1000 === 0) return '+' + (ml / 1000) + ' L';
+    if (ml % 10 === 0) return '+' + (ml / 10) + ' cl';
+    return '+' + ml + ' ml';
+  }
+
+  global.GD.formatVolume = formatVolume;
+  global.GD.stepLabel = stepLabel;
   global.GD.goalByKey = function (key) {
     for (var i = 0; i < GOALS.length; i++) if (GOALS[i].key === key) return GOALS[i];
     return null;

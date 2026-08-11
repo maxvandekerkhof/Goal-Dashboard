@@ -175,6 +175,11 @@ p { margin: 0; }
 .hero-sub { color: var(--muted); font-size: .92rem; margin-top: 4px; }
 .hero-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 
+.trend { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.trend-ring { flex: 0 0 auto; }
+.trend-info { flex: 1 1 220px; min-width: 200px; }
+.trend-delta { font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+
 .ring { display: block; }
 .ring-pct { font-weight: 700; letter-spacing: -.03em; }
 .ring-pct-sign { font-size: .5em; }
@@ -281,6 +286,29 @@ textarea { resize: vertical; padding-right: 12px; }
   opacity: .85;
 }
 
+/* -------------------------------- teller ------------------------------ */
+
+.meter-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.meter-amount { font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em; }
+.meter-goal { color: var(--muted); font-size: .88rem; flex: 1; }
+.meter-pct { font-size: 1.1rem; font-weight: 700; }
+
+.meter-buttons { display: flex; gap: 8px; margin-top: 14px; }
+.btn-add {
+  flex: 1;
+  padding: 16px 8px;
+  font-size: 1rem;
+  font-weight: 650;
+  background: color-mix(in srgb, var(--accent) 16%, var(--card-2));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.btn-add:hover { background: color-mix(in srgb, var(--accent) 28%, var(--card-2)); }
+
+.meter-tweak { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.meter-manual { position: relative; display: flex; align-items: center; width: 110px; }
+.meter-manual input { padding: 6px 34px 6px 10px; font-size: .85rem; }
+.meter-manual .measure-unit { right: 10px; font-size: .75rem; }
+
 /* ------------------------------ breakdown ----------------------------- */
 
 .breakdown { display: flex; flex-direction: column; gap: 10px; }
@@ -374,6 +402,7 @@ textarea { resize: vertical; padding-right: 12px; }
 .field-label { font-size: .82rem; color: var(--muted); font-weight: 600; }
 .field-input { position: relative; display: flex; align-items: center; }
 .field-unit { position: absolute; right: 12px; color: var(--muted); font-size: .78rem; pointer-events: none; }
+.field-hint { color: var(--muted); font-size: .75rem; }
 
 .switch { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; cursor: pointer; }
 .switch input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: 0 0 auto; }
@@ -398,7 +427,25 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .preview th, .preview td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
 .preview th { color: var(--muted); font-weight: 600; }
 
+.scheiding { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
+.sync-status { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.uitleg { margin-top: 14px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.uitleg summary { cursor: pointer; font-weight: 600; font-size: .9rem; }
+.uitleg[open] summary { margin-bottom: 10px; }
+.uitleg code { background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: .85em; }
+.sql {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  overflow-x: auto;
+  font-size: .72rem;
+  line-height: 1.45;
+  margin: 12px 0 0;
+}
+
 .explain { margin: 0; padding-left: 20px; color: var(--muted); font-size: .88rem; display: flex; flex-direction: column; gap: 7px; }
+ol.explain { list-style: decimal; }
 .explain em { color: var(--text); font-style: normal; font-weight: 600; }
 
 /* -------------------------------- toast ------------------------------- */
@@ -432,6 +479,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .hero-ring svg { width: 150px; height: 150px; }
   .hero-info { text-align: center; }
   .hero-chips { justify-content: center; }
+  .trend { gap: 12px; justify-content: center; }
+  .trend-info { text-align: center; }
   .seg { min-width: 0; font-size: .8rem; padding: 10px 4px; }
   .bd-row { grid-template-columns: 1fr 44px; grid-template-areas: "name pct" "bar bar" "counts counts"; }
   .stat-value { font-size: 1.3rem; }
