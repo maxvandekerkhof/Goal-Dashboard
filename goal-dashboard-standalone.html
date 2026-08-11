@@ -411,6 +411,7 @@ textarea { resize: vertical; padding-right: 12px; }
 .field-label { font-size: .82rem; color: var(--muted); font-weight: 600; }
 .field-input { position: relative; display: flex; align-items: center; }
 .field-unit { position: absolute; right: 12px; color: var(--muted); font-size: .78rem; pointer-events: none; }
+.field-hint { color: var(--muted); font-size: .75rem; }
 
 .switch { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; cursor: pointer; }
 .switch input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: 0 0 auto; }
@@ -2055,9 +2056,23 @@ ol.explain { list-style: decimal; }
     listeners.forEach(function (fn) { fn(); });
   }
 
+  /**
+   * Supabase toont op de Data API-pagina een "API URL" mét /rest/v1/ erachter,
+   * terwijl wij de kale project-URL nodig hebben. Die staarten halen we er zelf
+   * af, zodat het niet uitmaakt wat je plakt.
+   */
+  function normaliseerUrl(url) {
+    var s = String(url || '').trim();
+    if (!s) return '';
+    if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+    s = s.replace(/\/+$/, '');
+    s = s.replace(/\/(rest|auth|realtime|storage|functions)\/v\d+$/i, '');
+    return s.replace(/\/+$/, '');
+  }
+
   function setConfig(url, anonKey) {
     var c = config();
-    c.url = String(url || '').trim().replace(/\/+$/, '');
+    c.url = normaliseerUrl(url);
     c.anonKey = String(anonKey || '').trim();
     c.fout = '';
     saveConfig();
@@ -3034,7 +3049,9 @@ ol.explain { list-style: decimal; }
 
     html += '<div class="form-grid">' +
       '<label class="field"><span class="field-label">Project-URL</span>' +
-      '<input type="url" id="sync-url" placeholder="https://xxxx.supabase.co" value="' + esc(c.url) + '"></label>' +
+      '<input type="url" id="sync-url" placeholder="https://xxxx.supabase.co" value="' + esc(c.url) + '">' +
+      '<span class="field-hint">Plak gerust de hele API-URL; een staart als /rest/v1 haalt de app er zelf af.</span>' +
+      '</label>' +
       '<label class="field"><span class="field-label">Publishable key (of anon key)</span>' +
       '<input type="text" id="sync-key" placeholder="sb_publishable_… of eyJhbGciOi…" value="' +
       esc(c.anonKey) + '"></label>' +

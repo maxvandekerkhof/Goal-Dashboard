@@ -402,6 +402,7 @@ textarea { resize: vertical; padding-right: 12px; }
 .field-label { font-size: .82rem; color: var(--muted); font-weight: 600; }
 .field-input { position: relative; display: flex; align-items: center; }
 .field-unit { position: absolute; right: 12px; color: var(--muted); font-size: .78rem; pointer-events: none; }
+.field-hint { color: var(--muted); font-size: .75rem; }
 
 .switch { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; cursor: pointer; }
 .switch input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: 0 0 auto; }

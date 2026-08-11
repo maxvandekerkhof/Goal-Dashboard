@@ -52,9 +52,23 @@
     listeners.forEach(function (fn) { fn(); });
   }
 
+  /**
+   * Supabase toont op de Data API-pagina een "API URL" mét /rest/v1/ erachter,
+   * terwijl wij de kale project-URL nodig hebben. Die staarten halen we er zelf
+   * af, zodat het niet uitmaakt wat je plakt.
+   */
+  function normaliseerUrl(url) {
+    var s = String(url || '').trim();
+    if (!s) return '';
+    if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+    s = s.replace(/\/+$/, '');
+    s = s.replace(/\/(rest|auth|realtime|storage|functions)\/v\d+$/i, '');
+    return s.replace(/\/+$/, '');
+  }
+
   function setConfig(url, anonKey) {
     var c = config();
-    c.url = String(url || '').trim().replace(/\/+$/, '');
+    c.url = normaliseerUrl(url);
     c.anonKey = String(anonKey || '').trim();
     c.fout = '';
     saveConfig();

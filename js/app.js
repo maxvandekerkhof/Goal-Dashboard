@@ -569,7 +569,9 @@
 
     html += '<div class="form-grid">' +
       '<label class="field"><span class="field-label">Project-URL</span>' +
-      '<input type="url" id="sync-url" placeholder="https://xxxx.supabase.co" value="' + esc(c.url) + '"></label>' +
+      '<input type="url" id="sync-url" placeholder="https://xxxx.supabase.co" value="' + esc(c.url) + '">' +
+      '<span class="field-hint">Plak gerust de hele API-URL; een staart als /rest/v1 haalt de app er zelf af.</span>' +
+      '</label>' +
       '<label class="field"><span class="field-label">Publishable key (of anon key)</span>' +
       '<input type="text" id="sync-key" placeholder="sb_publishable_… of eyJhbGciOi…" value="' +
       esc(c.anonKey) + '"></label>' +
