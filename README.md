@@ -223,6 +223,9 @@ Gebruik daarom **Instellingen → Je data**:
 - Klik in de week- of maandweergave op een dag om hem meteen in te vullen.
 - **Neem gisteren over** kopieert de antwoorden van gisteren, handig op vaste dagen.
 - Het icoon rechtsboven wisselt tussen donker en licht.
+- Ben je ingelogd voor synchronisatie, dan staat er een **⟳** naast: die synchroniseert
+  vanaf elke pagina, zonder eerst naar de instellingen te gaan. Hij draait terwijl hij
+  bezig is, en de tooltip vertelt wanneer er voor het laatst is bijgewerkt.
 
 ## Structuur
 

@@ -80,6 +80,21 @@ p { margin: 0; }
   padding-bottom: 4px;
 }
 
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
+
+#btn-sync { font-size: 1.15rem; }
+#btn-sync:disabled { cursor: progress; opacity: .8; }
+.btn-sync-bezig { animation: draai 1s linear infinite; }
+
+@keyframes draai {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-sync-bezig { animation: none; opacity: .6; }
+}
+
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-mark { font-size: 1.5rem; }
 .brand-sub { font-size: .78rem; color: var(--muted); }

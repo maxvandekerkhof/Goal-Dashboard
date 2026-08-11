@@ -89,6 +89,21 @@ p { margin: 0; }
   padding-bottom: 4px;
 }
 
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
+
+#btn-sync { font-size: 1.15rem; }
+#btn-sync:disabled { cursor: progress; opacity: .8; }
+.btn-sync-bezig { animation: draai 1s linear infinite; }
+
+@keyframes draai {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-sync-bezig { animation: none; opacity: .6; }
+}
+
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-mark { font-size: 1.5rem; }
 .brand-sub { font-size: .78rem; color: var(--muted); }
@@ -519,7 +534,10 @@ ol.explain { list-style: decimal; }
           <p class="brand-sub">Sport &amp; voeding</p>
         </div>
       </div>
-      <button id="btn-theme" class="btn btn-icon" title="Licht/donker wisselen" aria-label="Licht of donker thema">◐</button>
+      <div class="topbar-actions">
+        <button id="btn-sync" class="btn btn-icon" hidden title="Nu synchroniseren" aria-label="Nu synchroniseren">⟳</button>
+        <button id="btn-theme" class="btn btn-icon" title="Licht/donker wisselen" aria-label="Licht of donker thema">◐</button>
+      </div>
     </div>
 
     <nav class="tabs" role="tablist" aria-label="Periode">
@@ -3268,9 +3286,23 @@ ol.explain { list-style: decimal; }
 
   /* ------------------------------- render ----------------------------- */
 
+  /** Synchronisatieknop in de kopbalk: op elke pagina bereikbaar. */
+  function renderSyncButton() {
+    var knop = $('#btn-sync');
+    if (!knop || !GD.sync) return;
+    var st = GD.sync.status();
+    knop.hidden = !(st.geconfigureerd && st.ingelogd);
+    knop.classList.toggle('btn-sync-bezig', st.bezig);
+    knop.disabled = st.bezig;
+    knop.title = st.bezig
+      ? 'Bezig met synchroniseren…'
+      : 'Nu synchroniseren — laatst bijgewerkt ' + tijdstip(st.laatst);
+  }
+
   function render() {
     var s = store.settings();
     document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
+    renderSyncButton();
 
     $$('.tab').forEach(function (t) {
       var active = t.dataset.view === ui.view;
@@ -3542,6 +3574,19 @@ ol.explain { list-style: decimal; }
         return;
       }
 
+      var syncBtn = e.target.closest('#btn-sync');
+      if (syncBtn) {
+        renderSyncButton();
+        GD.sync.syncNow().then(function (r) {
+          if (r) meldSync(r);
+          render();
+        }).catch(function (err) {
+          toast(err.message, 'bad');
+          render();
+        });
+        return;
+      }
+
       var themeBtn = e.target.closest('#btn-theme');
       if (themeBtn) {
         store.setSetting('theme', store.settings().theme === 'light' ? 'dark' : 'light');
@@ -3640,7 +3685,9 @@ ol.explain { list-style: decimal; }
       // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
       GD.sync.onApplied(function () { render(); });
       GD.sync.onChange(function () {
+        // De knop in de kopbalk staat op elke pagina en volgt de status.
         if (ui.view === 'instellingen') render();
+        else renderSyncButton();
       });
       GD.sync.init();
     }
