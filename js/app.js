@@ -726,9 +726,23 @@
 
   /* ------------------------------- render ----------------------------- */
 
+  /** Synchronisatieknop in de kopbalk: op elke pagina bereikbaar. */
+  function renderSyncButton() {
+    var knop = $('#btn-sync');
+    if (!knop || !GD.sync) return;
+    var st = GD.sync.status();
+    knop.hidden = !(st.geconfigureerd && st.ingelogd);
+    knop.classList.toggle('btn-sync-bezig', st.bezig);
+    knop.disabled = st.bezig;
+    knop.title = st.bezig
+      ? 'Bezig met synchroniseren…'
+      : 'Nu synchroniseren — laatst bijgewerkt ' + tijdstip(st.laatst);
+  }
+
   function render() {
     var s = store.settings();
     document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
+    renderSyncButton();
 
     $$('.tab').forEach(function (t) {
       var active = t.dataset.view === ui.view;
@@ -1000,6 +1014,19 @@
         return;
       }
 
+      var syncBtn = e.target.closest('#btn-sync');
+      if (syncBtn) {
+        renderSyncButton();
+        GD.sync.syncNow().then(function (r) {
+          if (r) meldSync(r);
+          render();
+        }).catch(function (err) {
+          toast(err.message, 'bad');
+          render();
+        });
+        return;
+      }
+
       var themeBtn = e.target.closest('#btn-theme');
       if (themeBtn) {
         store.setSetting('theme', store.settings().theme === 'light' ? 'dark' : 'light');
@@ -1098,7 +1125,9 @@
       // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
       GD.sync.onApplied(function () { render(); });
       GD.sync.onChange(function () {
+        // De knop in de kopbalk staat op elke pagina en volgt de status.
         if (ui.view === 'instellingen') render();
+        else renderSyncButton();
       });
       GD.sync.init();
     }
