@@ -11,8 +11,7 @@
 
   var ui = {
     view: 'dag',
-    anchor: D.today(),
-    pendingCSV: null
+    anchor: D.today()
   };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -250,6 +249,8 @@
       '<div class="goals">' + goalRows + '</div>' +
       '</section>';
 
+    html += liftsSection(date, day);
+
     /* Notitie */
     html += '<section class="card">' +
       '<h2>Notitie</h2>' +
@@ -332,13 +333,16 @@
     // Pas dimmen zodra duidelijk is dát er niet getraind is; zolang "gesport"
     // nog leeg staat blijft de rij gewoon bruikbaar.
     var dimmed = goal.onlyIfTrained && !day.trained && !!day.trainedValue;
+    // Progressive overload volgt uit je oefeningen zodra die ingevuld zijn;
+    // handmatig aanklikken zou dan toch overschreven worden.
+    var vergrendeld = goal.key === 'overload' && item.auto;
 
-    var opts = goal.options.map(function (o) {
+    var opts = goal.options.filter(function (o) { return !o.hidden; }).map(function (o) {
       var active = item.value === o.v;
       var isAuto = active && item.auto;
       return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
         ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
-        (disabled ? ' disabled' : '') +
+        (disabled || vergrendeld ? ' disabled' : '') +
         ' style="' + (active ? '--seg-color:' + GD.scoreColor(o.score === null ? null : o.score * 100) + ';' : '') + '">' +
         esc(o.label) + (isAuto ? '<span class="auto-dot" title="automatisch bepaald">auto</span>' : '') +
         '</button>';
@@ -354,13 +358,183 @@
       status = '<span class="chip chip-off">' + esc(item.reason) + '</span>';
     }
 
+    var voet = '';
+    if (vergrendeld) {
+      var res = GD.lifts.dagResultaat(day.date);
+      voet = '<p class="hint hint-tight">' + (res.vergeleken
+        ? res.vooruit + ' van de ' + res.vergeleken + ' vergeleken ' +
+          (res.vergeleken === 1 ? 'oefening ging' : 'oefeningen gingen') + ' vooruit.'
+        : 'Je vult deze oefeningen voor het eerst in, dus er valt nog niets te vergelijken.') +
+        ' Bepaald uit je oefeningen hieronder.</p>';
+    }
+
     return '<div class="goal' + (dimmed ? ' goal-dim' : '') + (disabled ? ' goal-off' : '') + '">' +
       '<div class="goal-head">' +
       '<span class="goal-name"><span class="goal-icon">' + goal.icon + '</span>' + esc(goal.label) + '</span>' +
       status +
       '</div>' +
       '<div class="segmented">' + opts + '</div>' +
+      voet +
       '</div>';
+  }
+
+  /* ----------------------------- oefeningen --------------------------- */
+
+  var LIFT_STATUS = {
+    vooruit: { label: '↑ vooruit', pct: 100 },
+    gelijk: { label: '= gelijk', pct: 45 },
+    terug: { label: '↓ terug', pct: 0 },
+    nieuw: { label: 'startpunt', pct: null }
+  };
+
+  /** "40 kg × 8" of "12 reps" bij oefeningen zonder gewicht. */
+  function liftText(oef, l) {
+    if (!l) return '–';
+    if (oef && oef.type === 'reps') return l.reps + ' reps';
+    return fmt(l.kg, l.kg % 1 ? 1 : 0) + ' kg × ' + l.reps;
+  }
+
+  /* De eenheid staat rechts in het veld; een placeholder zou hem verdubbelen. */
+  function liftInput(oid, zijde, veld, waarde, eenheid, stap) {
+    return '<label class="lift-field">' +
+      '<input type="number" inputmode="decimal" step="' + stap + '" min="0"' +
+      ' data-lift="' + veld + '" data-oef="' + esc(oid) + '" data-zijde="' + esc(zijde) + '"' +
+      ' value="' + esc(waarde) + '" aria-label="' + esc(eenheid) + '">' +
+      '<span class="measure-unit">' + esc(eenheid) + '</span>' +
+      '</label>';
+  }
+
+  /** Eén kant van een oefening: invulvelden plus je start en vorige keer. */
+  function liftSide(date, oef, zijde, regel) {
+    var st = regel ? LIFT_STATUS[regel.status] : null;
+    var ctx = GD.lifts.context(date, oef.id, zijde.key);
+    var alleenReps = oef.type === 'reps';
+
+    var velden = (alleenReps ? '' :
+      liftInput(oef.id, zijde.key, 'kg', GD.lifts.ruweWaarde(date, oef.id, zijde.key, 'kg'), 'kg', '0.5') +
+      '<span class="lift-x">×</span>') +
+      liftInput(oef.id, zijde.key, 'reps', GD.lifts.ruweWaarde(date, oef.id, zijde.key, 'reps'), 'reps', '1');
+
+    var geschiedenis = [];
+    if (ctx.start) {
+      geschiedenis.push('Start ' + esc(liftText(oef, ctx.start)) +
+        (ctx.start.datum === date ? '' : ' <span class="lift-date">' + esc(D.formatShort(ctx.start.datum)) + '</span>'));
+    }
+    if (ctx.vorige) {
+      geschiedenis.push('Vorige ' + esc(liftText(oef, ctx.vorige)) +
+        ' <span class="lift-date">' + esc(D.formatShort(ctx.vorige.datum)) + '</span>');
+    }
+    if (!geschiedenis.length) geschiedenis.push('Nog geen eerdere sessie — dit wordt je startpunt.');
+
+    return '<div class="lift-side">' +
+      (zijde.key ? '<span class="lift-arm" title="' + esc(zijde.label) + '">' + esc(zijde.kort) + '</span>' : '') +
+      '<div class="lift-body">' +
+      '<div class="lift-inputs">' + velden +
+      (st ? '<span class="chip lift-status"' +
+        (st.pct === null ? '' : ' style="color:' + GD.scoreColor(st.pct) + '"') + '>' +
+        esc(st.label) + '</span>' : '') +
+      '</div>' +
+      '<p class="lift-hist">' + geschiedenis.join(' · ') + '</p>' +
+      '</div></div>';
+  }
+
+  function liftRow(date, oid, res) {
+    var oef = GD.lifts.byId(oid);
+    if (!oef) return '';
+    var sides = GD.lifts.zijden(oef).map(function (z) {
+      var regel = null;
+      res.regels.forEach(function (r) {
+        if (r.id === oid && r.zijde.key === z.key) regel = r;
+      });
+      return liftSide(date, oef, z, regel);
+    }).join('');
+
+    return '<div class="lift">' +
+      '<div class="lift-head">' +
+      '<span class="lift-name">' + esc(oef.naam) + '</span>' +
+      '<button class="btn btn-ghost btn-sm" data-action="lift-clear" data-oef="' + esc(oid) + '"' +
+      ' title="Deze oefening voor vandaag wissen">wissen</button>' +
+      '</div>' + sides + '</div>';
+  }
+
+  /**
+   * De oefeningen van de dag. Hieruit rolt automatisch het doel
+   * "Progressive overload", dus dit is de plek waar je die score maakt.
+   */
+  function liftsSection(date, day) {
+    var L = GD.lifts;
+    var schemas = L.schemas();
+    var res = L.dagResultaat(date);
+    var ids = L.dagRegels(date);
+    var sid = L.dagSchema(date);
+
+    // Op een rustdag of een dag zonder training alleen tonen als er wél iets staat.
+    var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag';
+    if (rust && !ids.length) {
+      return '<section class="card card-quiet">' +
+        '<div class="card-head"><h2>🏋️ Oefeningen</h2></div>' +
+        '<p class="hint">Geen training vandaag, dus niets bij te houden.</p>' +
+        '</section>';
+    }
+
+    if (!schemas.length) {
+      return '<section class="card">' +
+        '<div class="card-head"><h2>🏋️ Oefeningen</h2></div>' +
+        '<p class="hint">Zet je trainingsschema\'s klaar, dan kun je hier per oefening je gewicht ' +
+        'en reps invullen. De app onthoudt je startpunt en je vorige keer, en bepaalt daarmee zelf ' +
+        'of je progressive overload hebt gehaald.</p>' +
+        '<div class="row-actions">' +
+        '<button class="btn btn-primary" data-action="startschemas">Push &amp; Pull klaarzetten</button>' +
+        '</div></section>';
+    }
+
+    var keuze = schemas.map(function (s) {
+      return '<button class="seg' + (s.id === sid ? ' seg-active' : '') + '"' +
+        ' data-action="lift-schema" data-schema="' + esc(s.id) + '"' +
+        (s.id === sid ? ' style="--seg-color:var(--accent)"' : '') + '>' +
+        esc(s.naam) + '</button>';
+    }).join('');
+
+    var status;
+    if (res.vergeleken) {
+      var pct = (res.vooruit / res.vergeleken) * 100;
+      status = '<span class="chip" style="color:' + GD.scoreColor(pct) + '">' +
+        res.vooruit + ' van de ' + res.vergeleken + ' vooruit</span>';
+    } else if (res.regels.length) {
+      status = '<span class="chip chip-off">startpunt</span>';
+    } else {
+      status = '<span class="chip chip-off">nog leeg</span>';
+    }
+
+    var rijen = ids.map(function (oid) { return liftRow(date, oid, res); }).join('');
+    if (!rijen) {
+      rijen = '<p class="hint">Kies hierboven het schema dat je vandaag doet.</p>';
+    }
+
+    var namen = L.oefeningen().map(function (o) {
+      return '<option value="' + esc(o.naam) + '"></option>';
+    }).join('');
+
+    var toevoegen = sid
+      ? '<div class="lift-add">' +
+        '<input type="text" id="lift-nieuw" list="lift-namen" placeholder="Oefening erbij">' +
+        '<datalist id="lift-namen">' + namen + '</datalist>' +
+        '<button class="btn btn-sm" data-action="lift-add" data-schema="' + esc(sid) + '">Toevoegen</button>' +
+        '</div>'
+      : '';
+
+    var uitleg = res.vergeleken
+      ? 'Vooruit telt zodra gewicht én reps gelijk of hoger zijn en er minstens één omhoog gaat. ' +
+        'Gaat de één omhoog en de ander omlaag, dan beslist gewicht × reps.'
+      : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
+
+    return '<section class="card">' +
+      '<div class="card-head"><h2>🏋️ Oefeningen</h2>' + status + '</div>' +
+      '<div class="segmented schema-keuze">' + keuze + '</div>' +
+      '<div class="lifts">' + rijen + '</div>' +
+      toevoegen +
+      '<p class="hint">' + uitleg + '</p>' +
+      '</section>';
   }
 
   /* ------------------------------- week ------------------------------- */
@@ -422,6 +596,81 @@
 
   /* ---------------------------- instellingen -------------------------- */
 
+  /** Eén oefening in een schema, met alles wat je eraan kunt verzetten. */
+  function schemaOefening(s, oid, i, laatste) {
+    var o = GD.lifts.byId(oid);
+    if (!o) return '';
+    var aantal = GD.lifts.zijden(o).reduce(function (n, z) {
+      return n + GD.lifts.historie(oid, z.key).length;
+    }, 0);
+
+    return '<li class="schema-oef">' +
+      '<input type="text" class="schema-naam" data-oef-naam="' + esc(oid) + '"' +
+      ' value="' + esc(o.naam) + '" aria-label="Naam van de oefening">' +
+      '<select data-oef-type="' + esc(oid) + '" aria-label="Soort oefening">' +
+      opt('gewicht', 'Gewicht × reps', o.type === 'reps' ? 'reps' : 'gewicht') +
+      opt('reps', 'Alleen reps', o.type === 'reps' ? 'reps' : 'gewicht') +
+      '</select>' +
+      '<label class="schema-arm" title="Rechts en links apart bijhouden">' +
+      '<input type="checkbox" data-oef-arm="' + esc(oid) + '"' + (o.perArm ? ' checked' : '') + '>' +
+      '<span>per arm</span></label>' +
+      '<span class="schema-tel" title="Aantal ingevulde sessies">' + aantal + '×</span>' +
+      '<span class="schema-knoppen">' +
+      '<button class="btn btn-ghost btn-sm" data-action="oef-up" data-schema="' + esc(s.id) + '"' +
+      ' data-oef="' + esc(oid) + '"' + (i === 0 ? ' disabled' : '') + ' aria-label="Omhoog">↑</button>' +
+      '<button class="btn btn-ghost btn-sm" data-action="oef-down" data-schema="' + esc(s.id) + '"' +
+      ' data-oef="' + esc(oid) + '"' + (laatste ? ' disabled' : '') + ' aria-label="Omlaag">↓</button>' +
+      '<button class="btn btn-ghost btn-sm" data-action="oef-reset" data-oef="' + esc(oid) + '"' +
+      ' title="Startpunt opnieuw vanaf vandaag">↺</button>' +
+      '<button class="btn btn-ghost btn-sm" data-action="oef-remove" data-schema="' + esc(s.id) + '"' +
+      ' data-oef="' + esc(oid) + '" title="Uit dit schema halen (je historie blijft)">✕</button>' +
+      '</span></li>';
+  }
+
+  function schemaSection() {
+    var lijst = GD.lifts.schemas();
+
+    var blokken = lijst.map(function (s) {
+      var ids = s.oefeningen || [];
+      var rijen = ids.map(function (oid, i) {
+        return schemaOefening(s, oid, i, i === ids.length - 1);
+      }).join('');
+
+      return '<div class="schema">' +
+        '<div class="schema-head">' +
+        '<input type="text" class="schema-titel" data-schema-naam="' + esc(s.id) + '"' +
+        ' value="' + esc(s.naam) + '" aria-label="Naam van het schema">' +
+        '<button class="btn btn-danger btn-sm" data-action="schema-del" data-schema="' + esc(s.id) + '">Verwijderen</button>' +
+        '</div>' +
+        (rijen ? '<ul class="schema-lijst">' + rijen + '</ul>'
+          : '<p class="hint">Nog geen oefeningen in dit schema.</p>') +
+        '<div class="lift-add">' +
+        '<input type="text" data-oef-nieuw="' + esc(s.id) + '" list="alle-oefeningen" placeholder="Oefening toevoegen">' +
+        '<button class="btn btn-sm" data-action="oef-add" data-schema="' + esc(s.id) + '">Toevoegen</button>' +
+        '</div></div>';
+    }).join('');
+
+    var namen = GD.lifts.oefeningen().map(function (o) {
+      return '<option value="' + esc(o.naam) + '"></option>';
+    }).join('');
+
+    return '<section class="card"><h2>Trainingsschema\'s</h2>' +
+      '<p class="hint">Per training kies je op de dagpagina één schema en vul je per oefening je ' +
+      'beste set in. De app onthoudt je startpunt en je vorige keer, en bepaalt daaruit zelf of je ' +
+      'progressive overload hebt gehaald.</p>' +
+      '<datalist id="alle-oefeningen">' + namen + '</datalist>' +
+      (blokken ? '<div class="schemas">' + blokken + '</div>' : '') +
+      '<div class="lift-add">' +
+      '<input type="text" id="schema-nieuw" placeholder="Nieuw schema, bv. Benen">' +
+      '<button class="btn btn-sm" data-action="schema-add">Schema toevoegen</button>' +
+      (lijst.length ? '' :
+        '<button class="btn btn-primary btn-sm" data-action="startschemas">Push &amp; Pull klaarzetten</button>') +
+      '</div>' +
+      '<p class="hint">Een oefening uit een schema halen laat je ingevulde sessies staan. ' +
+      'Met ↺ begin je opnieuw met tellen, bijvoorbeeld na een blessure of een deload.</p>' +
+      '</section>';
+  }
+
   function renderSettings() {
     var s = store.settings();
     var dates = store.allDates();
@@ -465,6 +714,8 @@
         : '') +
       '</section>';
 
+    html += schemaSection();
+
     html += '<section class="card"><h2>Scoreregels</h2><div class="form-grid">' +
       settingNumber('goedeDagDrempel', 'Drempel goede dag', '% voor streak', s.goedeDagDrempel, '5') +
       '</div>' +
@@ -487,20 +738,6 @@
       '<p class="hint">Hoe zwaar telt elk doel mee in je dagscore? Op 0 telt het doel helemaal niet mee.</p>' +
       '<div class="weights">' + weightRows + '</div>' +
       '<div class="card-foot"><button class="btn btn-ghost btn-sm" data-action="reset-weights">Standaardgewichten herstellen</button></div>' +
-      '</section>';
-
-    /* CSV / MyFitnessPal */
-    html += '<section class="card"><h2>MyFitnessPal / CSV importeren</h2>' +
-      '<p class="hint">MyFitnessPal biedt geen open API meer, dus dit gaat via hun CSV-export: ' +
-      'open MyFitnessPal in de browser → <em>Reports</em> → <em>Nutrition</em> → periode kiezen → <em>Export</em>. ' +
-      'Kolommen voor datum, calorieën en eiwit worden automatisch herkend; meerdere maaltijdregels per dag worden opgeteld. ' +
-      'Elke andere CSV met die kolommen werkt ook.</p>' +
-      '<div class="row-actions">' +
-      '<button class="btn" data-action="pick-csv">CSV-bestand kiezen</button>' +
-      '<label class="check"><input type="checkbox" id="csv-overwrite"> Bestaande waarden overschrijven</label>' +
-      '<label class="check"><input type="checkbox" id="csv-dayfirst" checked> Datums als dag-maand-jaar lezen</label>' +
-      '</div>' +
-      '<div id="csv-preview">' + csvPreviewHTML() + '</div>' +
       '</section>';
 
     html += syncSection();
@@ -699,31 +936,6 @@
       '<span class="switch-hint">' + esc(hint) + '</span></span></label>';
   }
 
-  function csvPreviewHTML() {
-    var p = ui.pendingCSV;
-    if (!p) return '';
-    if (!p.ok) return '<p class="alert alert-bad">' + esc(p.error) + '</p>';
-    var sample = p.dates.slice(0, 5).map(function (d) {
-      var row = p.days[d];
-      return '<tr><td>' + esc(D.formatShort(d)) + '</td><td>' +
-        (row.kcal !== null ? fmt(row.kcal) + ' kcal' : '–') + '</td><td>' +
-        (row.protein !== null ? fmt(row.protein) + ' g' : '–') + '</td></tr>';
-    }).join('');
-
-    return '<div class="alert alert-ok">' +
-      '<p><strong>' + p.dates.length + ' dag' + (p.dates.length === 1 ? '' : 'en') + '</strong> gevonden ' +
-      '(' + esc(D.formatShort(p.dates[0])) + ' t/m ' + esc(D.formatShort(p.dates[p.dates.length - 1])) + ') ' +
-      'in kolommen: ' + esc(p.columns.date) +
-      (p.columns.calories ? ', ' + esc(p.columns.calories) : '') +
-      (p.columns.protein ? ', ' + esc(p.columns.protein) : '') + '.' +
-      (p.skipped ? ' ' + p.skipped + ' regel(s) zonder geldige datum overgeslagen.' : '') + '</p>' +
-      '<table class="preview"><thead><tr><th>Datum</th><th>Calorieën</th><th>Eiwit</th></tr></thead><tbody>' +
-      sample + '</tbody></table>' +
-      '<div class="row-actions"><button class="btn btn-primary" data-action="apply-csv">Importeren</button>' +
-      '<button class="btn btn-ghost" data-action="cancel-csv">Annuleren</button></div>' +
-      '</div>';
-  }
-
   /* ------------------------------- render ----------------------------- */
 
   /** Synchronisatieknop in de kopbalk: op elke pagina bereikbaar. */
@@ -801,6 +1013,10 @@
     var copy = JSON.parse(JSON.stringify(prev));
     delete copy.date;
     delete copy.notitie;
+    // Je oefeningen zijn de training van gisteren; overnemen zou een sessie
+    // verzinnen die je niet gedaan hebt.
+    delete copy.oefeningen;
+    delete copy.schema;
     // Tellers beginnen elke dag op nul; gisteren overnemen zou vals staan.
     GD.GOALS.forEach(function (g) {
       if (g.type === 'meter') delete copy[g.field];
@@ -844,6 +1060,76 @@
       var g2 = GD.goalByKey(el.dataset.goal);
       store.setField(ui.anchor, g2.field, null);
       render();
+      return;
+    }
+    if (action === 'lift-schema') {
+      var huidigSchema = GD.lifts.dagSchema(ui.anchor);
+      var gekozen = el.dataset.schema;
+      GD.lifts.setDagSchema(ui.anchor, huidigSchema === gekozen ? null : gekozen);
+      render();
+      return;
+    }
+    if (action === 'lift-add') {
+      var veld = $('#lift-nieuw');
+      var naamNieuw = veld ? veld.value.trim() : '';
+      if (!naamNieuw) { toast('Vul eerst een naam in.', 'bad'); return; }
+      GD.lifts.addToSchema(el.dataset.schema, GD.lifts.addOefening(naamNieuw));
+      toast(naamNieuw + ' toegevoegd.');
+      render();
+      return;
+    }
+    if (action === 'lift-clear') {
+      GD.lifts.wisOefening(ui.anchor, el.dataset.oef);
+      render();
+      return;
+    }
+    if (action === 'startschemas') {
+      var n = GD.lifts.startschemasToevoegen();
+      toast(n + ' schema\'s klaargezet.');
+      render();
+      return;
+    }
+    if (action === 'schema-add') {
+      var sVeld = $('#schema-nieuw');
+      var sNaam = sVeld ? sVeld.value.trim() : '';
+      if (!sNaam) { toast('Vul eerst een naam in.', 'bad'); return; }
+      GD.lifts.addSchema(sNaam);
+      render();
+      return;
+    }
+    if (action === 'schema-del') {
+      var schema = GD.lifts.schemaById(el.dataset.schema);
+      if (schema && confirm('Schema "' + schema.naam + '" verwijderen? Je ingevulde sessies blijven staan.')) {
+        GD.lifts.deleteSchema(el.dataset.schema);
+        render();
+      }
+      return;
+    }
+    if (action === 'oef-add') {
+      var oVeld = $('[data-oef-nieuw="' + el.dataset.schema + '"]');
+      var oNaam = oVeld ? oVeld.value.trim() : '';
+      if (!oNaam) { toast('Vul eerst een naam in.', 'bad'); return; }
+      GD.lifts.addToSchema(el.dataset.schema, GD.lifts.addOefening(oNaam));
+      render();
+      return;
+    }
+    if (action === 'oef-up' || action === 'oef-down') {
+      GD.lifts.moveInSchema(el.dataset.schema, el.dataset.oef, action === 'oef-up' ? -1 : 1);
+      render();
+      return;
+    }
+    if (action === 'oef-remove') {
+      GD.lifts.removeFromSchema(el.dataset.schema, el.dataset.oef);
+      render();
+      return;
+    }
+    if (action === 'oef-reset') {
+      if (confirm('Opnieuw beginnen met tellen voor "' + GD.lifts.naam(el.dataset.oef) +
+        '"? Je eerstvolgende sessie wordt je nieuwe startpunt.')) {
+        GD.lifts.resetStart(el.dataset.oef, D.today());
+        toast('Startpunt opnieuw gezet.');
+        render();
+      }
       return;
     }
     if (action === 'copy-yesterday') { copyYesterday(); return; }
@@ -944,9 +1230,11 @@
     }
     if (action === 'sync-logout') {
       if (confirm('Uitloggen? Je gegevens op dit apparaat blijven gewoon staan.')) {
-        GD.sync.signOut();
-        toast('Uitgelogd.');
-        render();
+        // signOut trekt de sessie ook bij Supabase in, dus even wachten.
+        GD.sync.signOut().then(function () {
+          toast('Uitgelogd.');
+          render();
+        });
       }
       return;
     }
@@ -969,16 +1257,6 @@
       return;
     }
     if (action === 'pick-json') { $('#file-json').click(); return; }
-    if (action === 'pick-csv') { $('#file-csv').click(); return; }
-    if (action === 'cancel-csv') { ui.pendingCSV = null; render(); return; }
-    if (action === 'apply-csv') {
-      var overwrite = $('#csv-overwrite') && $('#csv-overwrite').checked;
-      var res = GD.mfp.apply(ui.pendingCSV, overwrite);
-      ui.pendingCSV = null;
-      render();
-      toast(res.written + ' dag(en) bijgewerkt' + (res.skipped ? ', ' + res.skipped + ' waarde(n) behouden' : '') + '.');
-      return;
-    }
     if (action === 'wipe') {
       if (confirm('Weet je het zeker? Alle ingevulde dagen en instellingen worden gewist.') &&
           confirm('Echt alles wissen? Dit kan niet ongedaan worden gemaakt.')) {
@@ -1037,6 +1315,36 @@
     /* Meetwaarden en notitie */
     document.addEventListener('change', function (e) {
       var t = e.target;
+      if (t.dataset && t.dataset.lift) {
+        GD.lifts.setVeld(ui.anchor, t.dataset.oef, t.dataset.zijde || '',
+          t.dataset.lift, t.value);
+        // Wie oefeningen invult heeft getraind; dat hoef je niet ook nog te melden.
+        var e2 = store.entry(ui.anchor);
+        if (e2 && e2.oefeningen && !e2.gesport) store.setField(ui.anchor, 'gesport', 'ja');
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.schemaNaam) {
+        GD.lifts.updateSchema(t.dataset.schemaNaam, { naam: t.value.trim() || 'Naamloos' });
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.oefNaam) {
+        var nieuweNaam = t.value.trim();
+        if (nieuweNaam) GD.lifts.updateOefening(t.dataset.oefNaam, { naam: nieuweNaam });
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.oefType) {
+        GD.lifts.updateOefening(t.dataset.oefType, { type: t.value });
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.oefArm) {
+        GD.lifts.updateOefening(t.dataset.oefArm, { perArm: t.checked });
+        render();
+        return;
+      }
       if (t.dataset && t.dataset.field) {
         var val = t.value;
         if (t.type === 'number') {
@@ -1075,21 +1383,6 @@
       }
     });
 
-    $('#file-csv').addEventListener('change', function (e) {
-      var file = e.target.files && e.target.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function () {
-        var dayFirst = $('#csv-dayfirst') ? $('#csv-dayfirst').checked : true;
-        ui.pendingCSV = GD.mfp.parse(String(reader.result), { dayFirst: dayFirst });
-        render();
-        if (!ui.pendingCSV.ok) toast('Import mislukt.', 'bad');
-      };
-      reader.onerror = function () { toast('Kon het bestand niet lezen.', 'bad'); };
-      reader.readAsText(file);
-      e.target.value = '';
-    });
-
     $('#file-json').addEventListener('change', function (e) {
       var file = e.target.files && e.target.files[0];
       if (!file) return;
@@ -1107,6 +1400,21 @@
       };
       reader.readAsText(file);
       e.target.value = '';
+    });
+
+    /* Enter in een toevoegveld doet hetzelfde als de knop ernaast. */
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      var t = e.target;
+      if (!t.dataset) return;
+      var knop = null;
+      if (t.id === 'lift-nieuw' || t.id === 'schema-nieuw' || t.dataset.oefNieuw) {
+        knop = t.parentNode.querySelector('[data-action]');
+      }
+      if (knop) {
+        e.preventDefault();
+        handleAction(knop.dataset.action, knop);
+      }
     });
 
     document.addEventListener('keydown', function (e) {

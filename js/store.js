@@ -166,6 +166,10 @@
           });
         }
       }
+      // Lijsten moeten lijsten blijven, ook als er ooit iets raars binnenkomt.
+      ['oefeningen', 'schemas'].forEach(function (k) {
+        if (!Array.isArray(s.settings[k])) s.settings[k] = [];
+      });
       if (typeof data.settingsTs === 'number') s.settingsTs = data.settingsTs;
       if (data.entries && typeof data.entries === 'object') {
         Object.keys(data.entries).forEach(function (date) {
@@ -184,6 +188,8 @@
   }
 
   var saveTimer = null;
+  /* Telt elke wijziging; de oefeningen-historie hangt haar cache hieraan op. */
+  var rev = 0;
 
   function writeNow() {
     if (saveTimer) {
@@ -200,6 +206,7 @@
   }
 
   function save() {
+    rev++;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(writeNow, 120);
   }
@@ -282,6 +289,7 @@
   }
 
   function reset() {
+    rev++;
     state = emptyState();
     try { global.localStorage.removeItem(GD.STORAGE_KEY); } catch (e) { /* leeg */ }
   }
@@ -327,6 +335,7 @@
     importJSON: importJSON,
     entryTs: entryTs,
     stamp: stamp,
+    rev: function () { return rev; },
     onChange: onChange,
     changed: changed,
     /* Rechtstreekse toegang voor de synchronisatie. */

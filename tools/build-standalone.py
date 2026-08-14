@@ -23,6 +23,13 @@ def main() -> int:
         "<style>\n" + css + "\n  </style>",
     )
 
+    # In dit ene bestand staat alle code inline, dus moet de beveiligingsregel
+    # dat toestaan. De rest van de regel blijft even streng.
+    if "script-src 'self'" not in html:
+        print("Content-Security-Policy niet gevonden in index.html.", file=sys.stderr)
+        return 1
+    html = html.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'")
+
     def inline(match: "re.Match[str]") -> str:
         code = (ROOT / match.group(1)).read_text(encoding="utf-8")
         return "<script>\n" + code + "\n  </script>"

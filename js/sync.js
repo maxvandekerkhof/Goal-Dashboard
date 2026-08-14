@@ -61,6 +61,11 @@
     var s = String(url || '').trim();
     if (!s) return '';
     if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+    // Zonder https reist je toegangstoken onversleuteld over de lijn. Alleen
+    // een testserver op de eigen machine mag http blijven.
+    if (/^http:\/\//i.test(s) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(s)) {
+      s = s.replace(/^http:\/\//i, 'https://');
+    }
     s = s.replace(/\/+$/, '');
     s = s.replace(/\/(rest|auth|realtime|storage|functions)\/v\d+$/i, '');
     return s.replace(/\/+$/, '');
@@ -268,8 +273,27 @@
     bewaarSessie(await res.json());
   }
 
-  function signOut() {
+  /**
+   * Uitloggen trekt de sessie ook bij Supabase in. Zonder die aanroep blijft de
+   * refresh token daar geldig tot hij vanzelf verloopt, en heeft uitloggen geen
+   * effect als iemand die token eerder van het apparaat had gehaald.
+   * Lukt het niet (geen internet), dan wissen we hem hier alsnog.
+   */
+  async function signOut() {
     var c = config();
+    var hadSessie = !!(c.session && c.session.access_token);
+    if (hadSessie) {
+      try {
+        // scope=local: alleen deze sessie vervalt, je blijft op je andere
+        // apparaat gewoon ingelogd.
+        await fetch(c.url + '/auth/v1/logout?scope=local', {
+          method: 'POST',
+          headers: apiHeaders(true)
+        });
+      } catch (e) {
+        console.warn('Sessie kon niet bij de server ingetrokken worden', e);
+      }
+    }
     c.session = null;
     c.laatst = null;
     c.fout = '';
@@ -361,7 +385,11 @@
       var st = store.raw();
       var uid = c.session.user_id;
 
-      var res = await rest('dagen?select=datum,data,verwijderd,bijgewerkt');
+      // Het filter op user_id is een tweede slot naast de row level security in
+      // Supabase: valt daar ooit een policy weg, dan vragen we nog steeds
+      // alleen onze eigen rijen op.
+      var res = await rest('dagen?select=datum,data,verwijderd,bijgewerkt&user_id=eq.' +
+        encodeURIComponent(uid));
       var extern = await res.json();
 
       var externOp = {};
@@ -446,7 +474,8 @@
   /** Instellingen zijn één geheel: de nieuwste versie wint. */
   async function syncInstellingen(uid) {
     var st = store.raw();
-    var res = await rest('instellingen?select=data,bijgewerkt');
+    var res = await rest('instellingen?select=data,bijgewerkt&user_id=eq.' +
+      encodeURIComponent(uid));
     var rijen = await res.json();
     var extern = rijen[0];
     var externTs = extern ? tijd(extern.bijgewerkt) : 0;

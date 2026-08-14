@@ -31,20 +31,23 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 | Post-workout maaltijd | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Water | teller met +25 cl / +50 cl / +1 L | ×1 |
 | Gesport | Ja / Nee / Rustdag | ×2 |
-| Progressive overload | Ja / Deels / Nee | ×1,5 |
+| Progressive overload | volgt uit je oefeningen, zie onder | ×1,5 |
 | Eiwitdoel behaald | Ja / Nee | ×2 |
 | Caloriedoel behaald | Ja / Nee | ×1,5 |
 
 Daarnaast kun je per dag je gewicht, eiwitten (g) en calorieën (kcal) invullen, plus een
-korte notitie. Alle gewichten zijn aanpasbaar in **Instellingen**; op 0 telt een doel
-helemaal niet mee.
+korte notitie. Zodra de grammen en kilocalorieën er staan, bepaalt de app "Eiwitdoel
+behaald" en "Caloriedoel behaald" zelf aan de hand van je doelen; handmatig aanklikken
+heeft altijd voorrang. Alle gewichten zijn aanpasbaar in **Instellingen**; op 0 telt een
+doel helemaal niet mee.
 
 ## Hoe de score werkt
 
 Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
 
 - _Ja (eiwitrijk)_ = 100% van de punten, _Ja_ = 60%, _Nee_ = 0%.
-- Bij progressive overload telt _Deels_ voor de helft.
+- Bij progressive overload telt _Deels_ voor de helft. Die waarde bepaalt de app zelf uit je
+  ingevulde oefeningen; zie [Oefeningen en progressive overload](#oefeningen-en-progressive-overload).
 - **Rustdag** haalt "gesport" uit de berekening — een rustdag verpest je score dus niet.
 - **Progressive overload** en de **post-workout maaltijd** tellen alleen mee op dagen dat
   je écht getraind hebt.
@@ -54,6 +57,41 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
   vóór je allereerste invoer tellen nooit mee — toen gebruikte je het dashboard nog niet.
 - **Gewicht** telt niet mee in je dagscore — het is een uitkomst, geen gedrag dat je op
   één dag kunt halen. Het krijgt een eigen percentage, zie hieronder.
+
+## Oefeningen en progressive overload
+
+Op de dagweergave kies je één **trainingsschema** (Push, Pull, …) en vul je per oefening je
+**beste set** in: gewicht en reps. Klein eronder staat waar je begon en wat je vorige keer
+deed, zodat je meteen weet wat je moet verslaan.
+
+```
+Incline bench press
+  [40] kg × [10] reps                          ↑ vooruit
+  Start 40 kg × 6  ·  Vorige 40 kg × 8  12 aug
+```
+
+De "vorige keer" is de laatste sessie waarin díe oefening voorkomt — niet gisteren. Train je
+maandag push en woensdag pull, dan vergelijkt hij je bankdrukken gewoon met vorige maandag.
+
+**Wanneer telt het als vooruit?** Als gewicht én reps gelijk of hoger zijn en er minstens
+één omhoog gaat. Gaat de één omhoog en de ander omlaag (40 kg × 10 → 45 kg × 6), dan beslist
+**gewicht × reps**.
+
+Daaruit volgt automatisch het doel *Progressive overload*: alle vergeleken oefeningen
+vooruit = **Ja**, een deel = **Deels**, geen enkele = **Nee**. De knoppen bij dat doel staan
+daarom op slot zodra je oefeningen hebt ingevuld. Een oefening die je voor het eerst doet
+valt nergens mee te vergelijken en telt die dag niet mee — je startpunt kan geen misser zijn.
+
+Twee soorten oefeningen, in te stellen per oefening:
+
+- **Alleen reps** voor pull-ups, leg raises en alles zonder extra gewicht.
+- **Per arm** voor lateral raises en tricep overhead: rechts en links krijgen elk hun eigen
+  invulvelden, eigen historie en eigen oordeel. Blijft links achter, dan zie je dat.
+
+In **Instellingen → Trainingsschema's** beheer je je schema's: oefeningen toevoegen, van
+volgorde wisselen, uit een schema halen (je ingevulde sessies blijven staan) en met **↺**
+opnieuw beginnen met tellen, bijvoorbeeld na een blessure of een deload. Staat er nog niets,
+dan zet één knop **Push** en **Pull** voor je klaar.
 
 ## Waterteller
 
@@ -96,26 +134,6 @@ kaart dat de vergelijking gevoelig is voor toeval.
 
 Week- en maandpercentages tellen punten over alle dagen bij elkaar op. Een week met veel
 rustdagen wordt dus niet afgestraft, omdat op zo'n dag ook minder punten haalbaar waren.
-
-## MyFitnessPal koppelen
-
-MyFitnessPal heeft **geen open publieke API meer**, dus een live koppeling is niet
-mogelijk. Wat wel werkt is hun CSV-export:
-
-1. Open MyFitnessPal in de browser → **Reports** → **Nutrition**.
-2. Kies je periode en klik op **Export**.
-3. In het dashboard: **Instellingen → MyFitnessPal / CSV importeren → CSV-bestand kiezen**.
-
-De kolommen voor datum, calorieën en eiwit worden automatisch herkend, meerdere
-maaltijdregels per dag worden bij elkaar opgeteld, en je krijgt eerst een voorbeeld te
-zien voordat er iets wordt weggeschreven. Standaard blijven handmatig ingevulde waarden
-staan; vink _Bestaande waarden overschrijven_ aan als de export voorrang moet krijgen.
-
-Elke andere CSV met een datum-, calorie- en eiwitkolom werkt net zo goed — handig als je
-een andere app gebruikt.
-
-Zodra kcal en eiwitten bekend zijn, worden "Eiwitdoel behaald" en "Caloriedoel behaald"
-automatisch bepaald aan de hand van je doelen. Handmatig aanklikken heeft altijd voorrang.
 
 ## Synchroniseren tussen telefoon en laptop
 
@@ -203,6 +221,28 @@ create policy "eigen instellingen" on public.instellingen
   ergens een klok flink verkeerd, dan kan een oudere wijziging winnen.
 - De back-up uit *Je data* blijft gewoon werken en is een prima extra vangnet.
 
+### Veiligheid
+
+- **Alleen de publishable/anon key hoort in de app.** De *secret*- of *service_role*-sleutel
+  negeert row level security volledig: wie hem heeft, leest en wist alles in het project.
+  Die hoort nergens in een browser, in deze repo, of in een gesprek. Is er ooit een
+  weggelekt, trek hem dan in onder *Settings → API Keys* en reset het databasewachtwoord
+  onder *Settings → Database*.
+- **Zet *Allow new users to sign up* uit** zodra je eigen account bestaat (stap 5). Omdat
+  *Confirm email* uit staat, is aanmelden anders vrij: bij jouw gegevens komt niemand — dat
+  blokkeert row level security — maar een vreemde kan je gratis project wel vol laten lopen.
+- **Kies een lang, uniek wachtwoord.** Supabase eist er maar zes tekens, en dit wachtwoord
+  is het enige slot op je gewichts- en voedingsgegevens.
+- De app **laadt niets van buiten** — geen CDN, geen fonts, geen statistieken — en praat
+  alleen met jouw eigen Supabase-project. Dat staat vastgelegd in de
+  `Content-Security-Policy` in `index.html`. Draai je Supabase op een eigen domein in plaats
+  van `*.supabase.co`, vul dat adres dan aan bij `connect-src`.
+- **Uitloggen trekt de sessie ook bij Supabase in**, dus een token dat ooit van je apparaat
+  is gehaald werkt daarna niet meer. Je andere apparaat blijft wel ingelogd.
+- Publiceer je via GitHub Pages, dan **delen al je Pages-projecten één adres**
+  (`gebruikersnaam.github.io`). Alles wat daar staat kan bij de opgeslagen gegevens van deze
+  app. Zet er dus geen code van anderen naast, of geef het dashboard een eigen (sub)domein.
+
 ## Je data
 
 Alles staat in `localStorage` van de browser waarin je het gebruikt. Zonder de koppeling
@@ -234,9 +274,9 @@ index.html          pagina en scriptvolgorde
 css/style.css       stijl, donker en licht thema
 js/config.js        doeldefinities, standaardinstellingen, kleurschaal 0 -> 100
 js/store.js         opslag (localStorage), import/export, datum-helpers
+js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
 js/score.js         scoreberekening per dag en per periode, streaks
 js/charts.js        SVG-ring, balken, kalender en gewichtsgrafiek
-js/mfp.js           CSV-parser voor MyFitnessPal-exports
 js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
 
