@@ -21,6 +21,14 @@
    */
   function resolveValue(entry, goal, settings) {
     if (!entry) return { value: null, auto: false };
+
+    // Progressive overload volgt uit de ingevulde oefeningen. Staan die er niet
+    // (zoals bij dagen van vóór deze functie), dan geldt je eigen antwoord nog.
+    if (goal.key === 'overload' && GD.lifts && entry.date) {
+      var lift = GD.lifts.dagResultaat(entry.date);
+      if (lift.waarde) return { value: lift.waarde, auto: true, lifts: lift };
+    }
+
     var explicit = entry[goal.key];
     if (explicit !== null && explicit !== undefined && explicit !== '') {
       return { value: explicit, auto: false };
@@ -163,7 +171,7 @@
           item.reason = 'niet ingevuld';
         }
       } else if (opt.score === null) {
-        item.reason = 'rustdag';
+        item.reason = opt.reason || 'rustdag';
       } else {
         item.score = opt.score;
         item.included = true;

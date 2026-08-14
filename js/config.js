@@ -47,7 +47,7 @@
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
         { v: 'nee', label: 'Nee', short: 'Nee', score: 0 },
-        { v: 'rustdag', label: 'Rustdag', short: 'Rust', score: null }
+        { v: 'rustdag', label: 'Rustdag', short: 'Rust', score: null, reason: 'rustdag' }
       ]
     },
     {
@@ -59,7 +59,11 @@
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
         { v: 'deels', label: 'Deels', short: 'Deels', score: 0.5 },
-        { v: 'nee', label: 'Nee', short: 'Nee', score: 0 }
+        { v: 'nee', label: 'Nee', short: 'Nee', score: 0 },
+        // Alleen automatisch: je eerste sessie van een oefening valt nergens
+        // mee te vergelijken, dus die telt niet mee in de dagscore.
+        { v: 'nieuw', label: 'Eerste keer', short: 'Nieuw', score: null,
+          reason: 'eerste keer', hidden: true }
       ]
     },
     {
@@ -106,6 +110,8 @@
     gewichtDoel: null,        // kg, optioneel streefgewicht (lijn in de grafiek)
     gewichtRichting: 'aankomen', // 'aankomen' | 'afvallen' | 'behouden' | 'uit'
     gewichtTempo: 0.25,       // kg per week; bij 'behouden' is dit de marge
+    oefeningen: [],           // [{id, naam, type:'gewicht'|'reps', perArm, startDatum}]
+    schemas: [],              // [{id, naam, oefeningen:[oefening-id]}]
     goedeDagDrempel: 70,      // % vanaf wanneer een dag als "goed" telt (streak)
     countMissingAsZero: true, // lege dagen in het verleden tellen als 0%
     autoMacro: true,          // eiwit/kcal doel automatisch afleiden uit ingevulde waarden

@@ -31,7 +31,7 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 | Post-workout maaltijd | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Water | teller met +25 cl / +50 cl / +1 L | ×1 |
 | Gesport | Ja / Nee / Rustdag | ×2 |
-| Progressive overload | Ja / Deels / Nee | ×1,5 |
+| Progressive overload | volgt uit je oefeningen, zie onder | ×1,5 |
 | Eiwitdoel behaald | Ja / Nee | ×2 |
 | Caloriedoel behaald | Ja / Nee | ×1,5 |
 
@@ -44,7 +44,8 @@ helemaal niet mee.
 Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
 
 - _Ja (eiwitrijk)_ = 100% van de punten, _Ja_ = 60%, _Nee_ = 0%.
-- Bij progressive overload telt _Deels_ voor de helft.
+- Bij progressive overload telt _Deels_ voor de helft. Die waarde bepaalt de app zelf uit je
+  ingevulde oefeningen; zie [Oefeningen en progressive overload](#oefeningen-en-progressive-overload).
 - **Rustdag** haalt "gesport" uit de berekening — een rustdag verpest je score dus niet.
 - **Progressive overload** en de **post-workout maaltijd** tellen alleen mee op dagen dat
   je écht getraind hebt.
@@ -54,6 +55,41 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
   vóór je allereerste invoer tellen nooit mee — toen gebruikte je het dashboard nog niet.
 - **Gewicht** telt niet mee in je dagscore — het is een uitkomst, geen gedrag dat je op
   één dag kunt halen. Het krijgt een eigen percentage, zie hieronder.
+
+## Oefeningen en progressive overload
+
+Op de dagweergave kies je één **trainingsschema** (Push, Pull, …) en vul je per oefening je
+**beste set** in: gewicht en reps. Klein eronder staat waar je begon en wat je vorige keer
+deed, zodat je meteen weet wat je moet verslaan.
+
+```
+Incline bench press
+  [40] kg × [10] reps                          ↑ vooruit
+  Start 40 kg × 6  ·  Vorige 40 kg × 8  12 aug
+```
+
+De "vorige keer" is de laatste sessie waarin díe oefening voorkomt — niet gisteren. Train je
+maandag push en woensdag pull, dan vergelijkt hij je bankdrukken gewoon met vorige maandag.
+
+**Wanneer telt het als vooruit?** Als gewicht én reps gelijk of hoger zijn en er minstens
+één omhoog gaat. Gaat de één omhoog en de ander omlaag (40 kg × 10 → 45 kg × 6), dan beslist
+**gewicht × reps**.
+
+Daaruit volgt automatisch het doel *Progressive overload*: alle vergeleken oefeningen
+vooruit = **Ja**, een deel = **Deels**, geen enkele = **Nee**. De knoppen bij dat doel staan
+daarom op slot zodra je oefeningen hebt ingevuld. Een oefening die je voor het eerst doet
+valt nergens mee te vergelijken en telt die dag niet mee — je startpunt kan geen misser zijn.
+
+Twee soorten oefeningen, in te stellen per oefening:
+
+- **Alleen reps** voor pull-ups, leg raises en alles zonder extra gewicht.
+- **Per arm** voor lateral raises en tricep overhead: rechts en links krijgen elk hun eigen
+  invulvelden, eigen historie en eigen oordeel. Blijft links achter, dan zie je dat.
+
+In **Instellingen → Trainingsschema's** beheer je je schema's: oefeningen toevoegen, van
+volgorde wisselen, uit een schema halen (je ingevulde sessies blijven staan) en met **↺**
+opnieuw beginnen met tellen, bijvoorbeeld na een blessure of een deload. Staat er nog niets,
+dan zet één knop **Push** en **Pull** voor je klaar.
 
 ## Waterteller
 
@@ -256,6 +292,7 @@ index.html          pagina en scriptvolgorde
 css/style.css       stijl, donker en licht thema
 js/config.js        doeldefinities, standaardinstellingen, kleurschaal 0 -> 100
 js/store.js         opslag (localStorage), import/export, datum-helpers
+js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
 js/score.js         scoreberekening per dag en per periode, streaks
 js/charts.js        SVG-ring, balken, kalender en gewichtsgrafiek
 js/mfp.js           CSV-parser voor MyFitnessPal-exports
