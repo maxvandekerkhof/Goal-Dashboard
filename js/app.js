@@ -12,8 +12,7 @@
   var ui = {
     view: 'dag',
     anchor: D.today(),
-    pendingCSV: null,
-    herinneringBezig: false
+    pendingCSV: null
   };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -757,8 +756,6 @@
       '</section>';
 
     html += syncSection();
-    zorgVoorHerinnering();
-    html += herinneringSection();
 
     /* Data */
     html += '<section class="card"><h2>Je data</h2>' +
@@ -934,129 +931,6 @@
     '',
     'create policy "eigen instellingen" on public.instellingen',
     '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
-  ].join('\n');
-
-  /* ------------------------- herinnering per mail ------------------------- */
-
-  /**
-   * Je voorkeuren staan in de cloud, niet in deze browser: de functie die
-   * mailt moet ze kunnen lezen terwijl jouw telefoon uit staat. Bij het
-   * openen van Instellingen halen we ze één keer op.
-   */
-  function zorgVoorHerinnering() {
-    var H = GD.herinnering;
-    // Na een fout niet blijven proberen; daar staat een knop voor.
-    if (!H.beschikbaar() || H.huidig() || H.laatsteFout() || ui.herinneringBezig) return;
-    ui.herinneringBezig = true;
-    H.laad().then(function () {
-      ui.herinneringBezig = false;
-      if (ui.view === 'instellingen') render();
-    });
-  }
-
-  function herinneringSection() {
-    var H = GD.herinnering;
-    var html = '<section class="card"><h2>Herinnering per e-mail</h2>' +
-      '<p class="hint">Staat er de volgende ochtend nog iets leeg van de dag ervoor, dan krijg je ' +
-      'één mailtje met wat je mist. Is alles ingevuld, dan hoor je niets — anders leer je de mail ' +
-      'te negeren.</p>';
-
-    if (!H.beschikbaar()) {
-      return html + '<p class="hint">Stel hierboven eerst het synchroniseren in en log in. ' +
-        'De mail komt uit je eigen Supabase-project, en dat moet weten voor wie hij kijkt.</p>' +
-        '</section>';
-    }
-
-    if (H.laatsteFout()) {
-      return html + '<p class="alert alert-bad">' + esc(H.laatsteFout()) + '</p>' +
-        '<div class="row-actions"><button class="btn btn-sm" data-action="herinnering-laad">Opnieuw proberen</button></div>' +
-        herinneringUitleg() + '</section>';
-    }
-
-    var h = H.huidig();
-    if (!h) return html + '<p class="hint">Bezig met ophalen…</p></section>';
-
-    var uren = '';
-    for (var u = 5; u <= 23; u++) {
-      uren += opt(String(u), (u < 10 ? '0' + u : u) + ':00', String(h.uur));
-    }
-
-    html += '<label class="check"><input type="checkbox" id="her-aan"' + (h.aan ? ' checked' : '') + '> ' +
-      'Stuur mij een mail als er nog iets openstaat</label>' +
-      '<div class="form-grid">' +
-      '<label class="field"><span class="field-label">Hoe laat</span>' +
-      '<select id="her-uur">' + uren + '</select>' +
-      '<span class="field-hint">Nederlandse tijd; de zomertijd gaat vanzelf mee.</span></label>' +
-      '<label class="field"><span class="field-label">Naar welk adres</span>' +
-      '<input type="email" id="her-naar" inputmode="email" autocomplete="email" placeholder="jij@voorbeeld.nl" value="' +
-      esc(h.naar || '') + '"></label>' +
-      '</div>' +
-      '<div class="row-actions">' +
-      '<button class="btn btn-primary" data-action="herinnering-save">Bewaren</button>' +
-      '<button class="btn" data-action="herinnering-test">Stuur nu een test</button>' +
-      '</div>';
-
-    if (h.laatst) {
-      html += '<div class="sync-status"><span class="chip">laatst gemaild op ' +
-        esc(D.formatShort(h.laatst)) + '</span></div>';
-    }
-
-    return html + herinneringUitleg() + '</section>';
-  }
-
-  function herinneringUitleg() {
-    return '<details class="uitleg"><summary>Hoe zet ik dit klaar?</summary>' +
-      '<p class="hint">Eenmalig werk in je Supabase-project. De sleutels hieronder blijven daar staan ' +
-      'en komen nooit in de app of op GitHub terecht.</p>' +
-      '<ol class="explain">' +
-      '<li>Maak een gratis account op <strong>resend.com</strong> en meld je aan met precies het ' +
-      'adres waar de herinnering heen moet: zonder eigen domein mag Resend alleen naar dat ene adres ' +
-      'sturen. Kopieer daarna een <em>API key</em>.</li>' +
-      '<li>Open in Supabase de <strong>SQL Editor</strong> en draai het blok hieronder. Vul eerst je ' +
-      'eigen project-URL in en verzin een cron-sleutel (een lange willekeurige tekst).</li>' +
-      '<li>Ga naar <strong>Edge Functions</strong>, maak een functie met de naam <code>dagcheck</code> ' +
-      'en plak daar de inhoud van <code>supabase/functions/dagcheck/index.ts</code> uit deze repo in. ' +
-      'Zet <em>Verify JWT</em> <strong>uit</strong>: de functie controleert zelf of de cron-sleutel of ' +
-      'je eigen inlog klopt.</li>' +
-      '<li>Zet onder <strong>Edge Functions → Secrets</strong> de waarden ' +
-      '<code>RESEND_SLEUTEL</code> (je sleutel uit stap 1) en <code>CRON_SLEUTEL</code> (dezelfde tekst ' +
-      'als in de SQL). Optioneel: <code>MAIL_VAN</code> en <code>APP_URL</code>.</li>' +
-      '<li>Kom hier terug, zet de herinnering aan, bewaar, en klik op <em>Stuur nu een test</em>.</li>' +
-      '</ol>' +
-      '<pre class="sql">' + esc(SQL_HERINNERING) + '</pre>' +
-      '<div class="row-actions"><button class="btn btn-sm" data-action="herinnering-copy-sql">SQL kopiëren</button></div>' +
-      '</details>';
-  }
-
-  var SQL_HERINNERING = [
-    'create table if not exists public.herinneringen (',
-    '  user_id uuid primary key references auth.users on delete cascade,',
-    '  aan boolean not null default false,',
-    '  uur smallint not null default 9 check (uur between 0 and 23),',
-    '  naar text,',
-    '  laatst_verstuurd date,',
-    '  bijgewerkt timestamptz not null default now()',
-    ');',
-    '',
-    'alter table public.herinneringen enable row level security;',
-    '',
-    'create policy "eigen herinnering" on public.herinneringen',
-    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
-    '',
-    '-- Elk uur wakker worden; de functie kijkt zelf voor wie het dan tijd is.',
-    'create extension if not exists pg_cron;',
-    'create extension if not exists pg_net;',
-    '',
-    'select cron.schedule(\'goaldash-dagcheck\', \'0 * * * *\', $$',
-    '  select net.http_post(',
-    '    url := \'https://JOUW-PROJECT.supabase.co/functions/v1/dagcheck\',',
-    '    headers := jsonb_build_object(',
-    '      \'Content-Type\', \'application/json\',',
-    '      \'x-cron-sleutel\', \'JOUW-CRON-SLEUTEL\'',
-    '    ),',
-    '    body := \'{}\'::jsonb',
-    '  );',
-    '$$);'
   ].join('\n');
 
   function opt(v, label, current) {
@@ -1397,7 +1271,6 @@
     if (action === 'sync-logout') {
       if (confirm('Uitloggen? Je gegevens op dit apparaat blijven gewoon staan.')) {
         // signOut trekt de sessie ook bij Supabase in, dus even wachten.
-        GD.herinnering.vergeet();
         GD.sync.signOut().then(function () {
           toast('Uitgelogd.');
           render();
@@ -1405,38 +1278,8 @@
       }
       return;
     }
-    if (action === 'herinnering-laad') {
-      GD.herinnering.vergeet();
-      render();
-      return;
-    }
-    if (action === 'herinnering-save' || action === 'herinnering-test') {
-      var waarden = {
-        aan: $('#her-aan').checked,
-        uur: $('#her-uur').value,
-        naar: $('#her-naar').value
-      };
-      var testen = action === 'herinnering-test';
-      el.disabled = true;
-      // Eerst bewaren, ook bij een test: de functie leest je adres uit de tabel.
-      GD.herinnering.bewaar(waarden).then(function () {
-        if (!testen) return null;
-        return GD.herinnering.test();
-      }).then(function (uitkomst) {
-        if (!testen) {
-          toast(waarden.aan ? 'Herinnering staat aan.' : 'Herinnering staat uit.');
-        } else {
-          toast('Testmail verstuurd naar ' + uitkomst.naar + '.');
-        }
-        render();
-      }).catch(function (e) {
-        toast(e.message, 'bad');
-        el.disabled = false;
-      });
-      return;
-    }
-    if (action === 'herinnering-copy-sql' || action === 'sync-copy-sql') {
-      var kopie = action === 'sync-copy-sql' ? SQL_SETUP : SQL_HERINNERING;
+    if (action === 'sync-copy-sql') {
+      var kopie = SQL_SETUP;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(kopie).then(function () {
           toast('SQL gekopieerd.');

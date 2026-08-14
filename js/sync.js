@@ -121,8 +121,6 @@
       'Je sessie is verlopen. Log opnieuw in.'],
     [/relation .* does not exist|could not find the table/i,
       'De tabellen bestaan nog niet. Draai eerst het SQL-blok in de Supabase SQL Editor.'],
-    [/function was not found|failed to find function/i,
-      'De functie dagcheck staat nog niet in je project. Zet hem klaar onder Edge Functions.'],
     [/row-level security|permission denied/i,
       'Geen toegang tot je rijen. Controleer of het SQL-blok volledig is uitgevoerd.'],
     [/signups not allowed for otp/i,
@@ -365,26 +363,6 @@
     return res;
   }
 
-  /**
-   * Roept een Edge Function van je eigen project aan, met je eigen sessie.
-   * De functie kijkt zelf wie je bent; hij krijgt geen sleutel van ons mee
-   * die meer mag dan jij.
-   */
-  async function functie(naam, body) {
-    var c = config();
-    if (!isConfigured()) throw new Error('Vul eerst je project-URL en sleutel in.');
-    if (c.session && c.session.verloopt && Date.now() > c.session.verloopt - 60000) {
-      await ververs();
-    }
-    var res = await haal(c.url + '/functions/v1/' + naam, {
-      method: 'POST',
-      headers: apiHeaders(true),
-      body: JSON.stringify(body || {})
-    });
-    if (!res.ok) throw new Error(await leesFout(res, 'De functie gaf een fout'));
-    return res.json();
-  }
-
   function tijd(waarde) {
     if (!waarde) return 0;
     var n = typeof waarde === 'number' ? waarde : Date.parse(waarde);
@@ -577,8 +555,6 @@
     verifyCode: verifyCode,
     signOut: signOut,
     syncNow: syncNow,
-    rest: rest,
-    functie: functie,
     handleRedirect: handleRedirect,
     status: status,
     onChange: onChange,
