@@ -2,6 +2,16 @@
 <html lang="nl" data-theme="dark">
 <head>
   <meta charset="utf-8">
+  <!--
+    De app laadt niets van buiten en praat alleen met je eigen Supabase-project.
+    Dat leggen we hier vast, zodat de browser vreemde scripts weigert en er ook
+    bij een fout in de code geen gegevens naar een ander adres kunnen.
+    'unsafe-inline' bij style is nodig voor de style="width:..%"-attributen in
+    de balken. Gebruik je een eigen domein voor Supabase, vul dat dan aan bij
+    connect-src.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://*.supabase.in; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Dagelijks, wekelijks en maandelijks overzicht van je sport- en voedingsdoelen, met een gekleurd percentage van donkerrood naar donkergroen.">
   <meta name="theme-color" content="#11141a">
@@ -1625,9 +1635,12 @@ ol.explain { list-style: decimal; }
   var GD = global.GD;
   var D = GD.date;
 
+  /* Alles wat de gebruiker intypt gaat hier doorheen voordat het in de pagina
+     komt. Ook de enkele quote hoort erbij: de app zet attributen nu tussen
+     dubbele quotes, maar dat mag later wijzigen zonder gat te slaan. */
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   /** Ronde voortgangsmeter */
@@ -2083,6 +2096,11 @@ ol.explain { list-style: decimal; }
     var s = String(url || '').trim();
     if (!s) return '';
     if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+    // Zonder https reist je toegangstoken onversleuteld over de lijn. Alleen
+    // een testserver op de eigen machine mag http blijven.
+    if (/^http:\/\//i.test(s) && !/^http:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(s)) {
+      s = s.replace(/^http:\/\//i, 'https://');
+    }
     s = s.replace(/\/+$/, '');
     s = s.replace(/\/(rest|auth|realtime|storage|functions)\/v\d+$/i, '');
     return s.replace(/\/+$/, '');
@@ -2290,8 +2308,27 @@ ol.explain { list-style: decimal; }
     bewaarSessie(await res.json());
   }
 
-  function signOut() {
+  /**
+   * Uitloggen trekt de sessie ook bij Supabase in. Zonder die aanroep blijft de
+   * refresh token daar geldig tot hij vanzelf verloopt, en heeft uitloggen geen
+   * effect als iemand die token eerder van het apparaat had gehaald.
+   * Lukt het niet (geen internet), dan wissen we hem hier alsnog.
+   */
+  async function signOut() {
     var c = config();
+    var hadSessie = !!(c.session && c.session.access_token);
+    if (hadSessie) {
+      try {
+        // scope=local: alleen deze sessie vervalt, je blijft op je andere
+        // apparaat gewoon ingelogd.
+        await fetch(c.url + '/auth/v1/logout?scope=local', {
+          method: 'POST',
+          headers: apiHeaders(true)
+        });
+      } catch (e) {
+        console.warn('Sessie kon niet bij de server ingetrokken worden', e);
+      }
+    }
     c.session = null;
     c.laatst = null;
     c.fout = '';
@@ -2383,7 +2420,11 @@ ol.explain { list-style: decimal; }
       var st = store.raw();
       var uid = c.session.user_id;
 
-      var res = await rest('dagen?select=datum,data,verwijderd,bijgewerkt');
+      // Het filter op user_id is een tweede slot naast de row level security in
+      // Supabase: valt daar ooit een policy weg, dan vragen we nog steeds
+      // alleen onze eigen rijen op.
+      var res = await rest('dagen?select=datum,data,verwijderd,bijgewerkt&user_id=eq.' +
+        encodeURIComponent(uid));
       var extern = await res.json();
 
       var externOp = {};
@@ -2468,7 +2509,8 @@ ol.explain { list-style: decimal; }
   /** Instellingen zijn één geheel: de nieuwste versie wint. */
   async function syncInstellingen(uid) {
     var st = store.raw();
-    var res = await rest('instellingen?select=data,bijgewerkt');
+    var res = await rest('instellingen?select=data,bijgewerkt&user_id=eq.' +
+      encodeURIComponent(uid));
     var rijen = await res.json();
     var extern = rijen[0];
     var externTs = extern ? tijd(extern.bijgewerkt) : 0;
@@ -3504,9 +3546,11 @@ ol.explain { list-style: decimal; }
     }
     if (action === 'sync-logout') {
       if (confirm('Uitloggen? Je gegevens op dit apparaat blijven gewoon staan.')) {
-        GD.sync.signOut();
-        toast('Uitgelogd.');
-        render();
+        // signOut trekt de sessie ook bij Supabase in, dus even wachten.
+        GD.sync.signOut().then(function () {
+          toast('Uitgelogd.');
+          render();
+        });
       }
       return;
     }

@@ -203,6 +203,28 @@ create policy "eigen instellingen" on public.instellingen
   ergens een klok flink verkeerd, dan kan een oudere wijziging winnen.
 - De back-up uit *Je data* blijft gewoon werken en is een prima extra vangnet.
 
+### Veiligheid
+
+- **Alleen de publishable/anon key hoort in de app.** De *secret*- of *service_role*-sleutel
+  negeert row level security volledig: wie hem heeft, leest en wist alles in het project.
+  Die hoort nergens in een browser, in deze repo, of in een gesprek. Is er ooit een
+  weggelekt, trek hem dan in onder *Settings → API Keys* en reset het databasewachtwoord
+  onder *Settings → Database*.
+- **Zet *Allow new users to sign up* uit** zodra je eigen account bestaat (stap 5). Omdat
+  *Confirm email* uit staat, is aanmelden anders vrij: bij jouw gegevens komt niemand — dat
+  blokkeert row level security — maar een vreemde kan je gratis project wel vol laten lopen.
+- **Kies een lang, uniek wachtwoord.** Supabase eist er maar zes tekens, en dit wachtwoord
+  is het enige slot op je gewichts- en voedingsgegevens.
+- De app **laadt niets van buiten** — geen CDN, geen fonts, geen statistieken — en praat
+  alleen met jouw eigen Supabase-project. Dat staat vastgelegd in de
+  `Content-Security-Policy` in `index.html`. Draai je Supabase op een eigen domein in plaats
+  van `*.supabase.co`, vul dat adres dan aan bij `connect-src`.
+- **Uitloggen trekt de sessie ook bij Supabase in**, dus een token dat ooit van je apparaat
+  is gehaald werkt daarna niet meer. Je andere apparaat blijft wel ingelogd.
+- Publiceer je via GitHub Pages, dan **delen al je Pages-projecten één adres**
+  (`gebruikersnaam.github.io`). Alles wat daar staat kan bij de opgeslagen gegevens van deze
+  app. Zet er dus geen code van anderen naast, of geef het dashboard een eigen (sub)domein.
+
 ## Je data
 
 Alles staat in `localStorage` van de browser waarin je het gebruikt. Zonder de koppeling

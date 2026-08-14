@@ -2,6 +2,16 @@
 <html lang="nl" data-theme="dark">
 <head>
   <meta charset="utf-8">
+  <!--
+    De app laadt niets van buiten en praat alleen met je eigen Supabase-project.
+    Dat leggen we hier vast, zodat de browser vreemde scripts weigert en er ook
+    bij een fout in de code geen gegevens naar een ander adres kunnen.
+    'unsafe-inline' bij style is nodig voor de style="width:..%"-attributen in
+    de balken. Gebruik je een eigen domein voor Supabase, vul dat dan aan bij
+    connect-src.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://*.supabase.in; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Dagelijks, wekelijks en maandelijks overzicht van je sport- en voedingsdoelen, met een gekleurd percentage van donkerrood naar donkergroen.">
   <meta name="theme-color" content="#11141a">

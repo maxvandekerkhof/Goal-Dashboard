@@ -944,9 +944,11 @@
     }
     if (action === 'sync-logout') {
       if (confirm('Uitloggen? Je gegevens op dit apparaat blijven gewoon staan.')) {
-        GD.sync.signOut();
-        toast('Uitgelogd.');
-        render();
+        // signOut trekt de sessie ook bij Supabase in, dus even wachten.
+        GD.sync.signOut().then(function () {
+          toast('Uitgelogd.');
+          render();
+        });
       }
       return;
     }

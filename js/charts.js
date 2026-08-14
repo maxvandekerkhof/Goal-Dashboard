@@ -5,9 +5,12 @@
   var GD = global.GD;
   var D = GD.date;
 
+  /* Alles wat de gebruiker intypt gaat hier doorheen voordat het in de pagina
+     komt. Ook de enkele quote hoort erbij: de app zet attributen nu tussen
+     dubbele quotes, maar dat mag later wijzigen zonder gat te slaan. */
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   /** Ronde voortgangsmeter */
