@@ -245,7 +245,8 @@ p { margin: 0; }
   position: absolute; right: 12px; color: var(--muted); font-size: .82rem; pointer-events: none;
 }
 
-input[type="number"], input[type="text"], select, textarea {
+input[type="number"], input[type="text"], input[type="email"], input[type="url"],
+input[type="password"], select, textarea {
   width: 100%;
   font: inherit;
   color: var(--text);

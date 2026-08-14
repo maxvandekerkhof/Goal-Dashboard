@@ -264,7 +264,8 @@ p { margin: 0; }
   position: absolute; right: 12px; color: var(--muted); font-size: .82rem; pointer-events: none;
 }
 
-input[type="number"], input[type="text"], select, textarea {
+input[type="number"], input[type="text"], input[type="email"], input[type="url"],
+input[type="password"], select, textarea {
   width: 100%;
   font: inherit;
   color: var(--text);
@@ -2703,6 +2704,8 @@ ol.explain { list-style: decimal; }
       'Je sessie is verlopen. Log opnieuw in.'],
     [/relation .* does not exist|could not find the table/i,
       'De tabellen bestaan nog niet. Draai eerst het SQL-blok in de Supabase SQL Editor.'],
+    [/function was not found|failed to find function/i,
+      'De functie dagcheck staat nog niet in je project. Zet hem klaar onder Edge Functions.'],
     [/row-level security|permission denied/i,
       'Geen toegang tot je rijen. Controleer of het SQL-blok volledig is uitgevoerd.'],
     [/signups not allowed for otp/i,
@@ -2945,6 +2948,26 @@ ol.explain { list-style: decimal; }
     return res;
   }
 
+  /**
+   * Roept een Edge Function van je eigen project aan, met je eigen sessie.
+   * De functie kijkt zelf wie je bent; hij krijgt geen sleutel van ons mee
+   * die meer mag dan jij.
+   */
+  async function functie(naam, body) {
+    var c = config();
+    if (!isConfigured()) throw new Error('Vul eerst je project-URL en sleutel in.');
+    if (c.session && c.session.verloopt && Date.now() > c.session.verloopt - 60000) {
+      await ververs();
+    }
+    var res = await haal(c.url + '/functions/v1/' + naam, {
+      method: 'POST',
+      headers: apiHeaders(true),
+      body: JSON.stringify(body || {})
+    });
+    if (!res.ok) throw new Error(await leesFout(res, 'De functie gaf een fout'));
+    return res.json();
+  }
+
   function tijd(waarde) {
     if (!waarde) return 0;
     var n = typeof waarde === 'number' ? waarde : Date.parse(waarde);
@@ -3137,11 +3160,150 @@ ol.explain { list-style: decimal; }
     verifyCode: verifyCode,
     signOut: signOut,
     syncNow: syncNow,
+    rest: rest,
+    functie: functie,
     handleRedirect: handleRedirect,
     status: status,
     onChange: onChange,
     onApplied: function (fn) { appliedListeners.push(fn); },
     init: init
+  };
+})(window);
+
+  </script>
+  <script>
+/* Goal Dashboard - herinnering per e-mail
+ *
+ * De app kan zelf geen mail sturen: hij draait alleen in je browser, en die
+ * staat 's ochtends dicht. Het kijken en versturen doet een functie in je
+ * eigen Supabase-project (supabase/functions/dagcheck). Dit bestand gaat
+ * alleen over de knoppen: aan of uit, hoe laat, en naar welk adres.
+ *
+ * Die voorkeuren staan in de tabel `herinneringen`, achter dezelfde
+ * beveiliging als je dagen: alleen jouw ingelogde account ziet jouw rij.
+ */
+(function (global) {
+  'use strict';
+
+  var GD = global.GD;
+
+  var VELDEN = 'aan,uur,naar,laatst_verstuurd';
+
+  /* Wat we het laatst uit de cloud haalden. null = nog niet gekeken. */
+  var cache = null;
+  var fout = '';
+
+  function uid() {
+    var c = GD.sync.config();
+    return c.session && c.session.user_id ? c.session.user_id : '';
+  }
+
+  /** Zonder synchronisatie is er niets om een herinnering aan op te hangen. */
+  function beschikbaar() {
+    return GD.sync.isConfigured() && GD.sync.signedIn() && !!uid();
+  }
+
+  function standaard() {
+    return { aan: false, uur: 9, naar: GD.sync.email() || '', laatst: null };
+  }
+
+  function huidig() { return cache; }
+  function laatsteFout() { return fout; }
+
+  function vergeet() {
+    cache = null;
+    fout = '';
+  }
+
+  /** Haalt je rij op; bestaat die nog niet, dan krijg je de standaardwaarden. */
+  async function laad() {
+    if (!beschikbaar()) {
+      vergeet();
+      return null;
+    }
+    try {
+      var res = await GD.sync.rest('herinneringen?select=' + VELDEN + '&user_id=eq.' +
+        encodeURIComponent(uid()));
+      var rijen = await res.json();
+      var r = rijen && rijen[0];
+      cache = r
+        ? {
+          aan: !!r.aan,
+          uur: typeof r.uur === 'number' ? r.uur : 9,
+          naar: r.naar || GD.sync.email() || '',
+          laatst: r.laatst_verstuurd || null
+        }
+        : standaard();
+      fout = '';
+    } catch (e) {
+      cache = null;
+      fout = e.message;
+    }
+    return cache;
+  }
+
+  function geldigAdres(adres) {
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(adres || '').trim());
+  }
+
+  async function bewaar(waarden) {
+    if (!beschikbaar()) throw new Error('Log eerst in bij Synchroniseren.');
+    var uur = Math.round(Number(waarden.uur));
+    if (!isFinite(uur) || uur < 0 || uur > 23) {
+      throw new Error('Kies een tijdstip tussen 0 en 23 uur.');
+    }
+    var adres = String(waarden.naar || '').trim();
+    if (waarden.aan && !geldigAdres(adres)) {
+      throw new Error('Vul het e-mailadres in waar de herinnering heen mag.');
+    }
+
+    await GD.sync.rest('herinneringen', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify([{
+        user_id: uid(),
+        aan: !!waarden.aan,
+        uur: uur,
+        naar: adres || null,
+        bijgewerkt: new Date().toISOString()
+      }])
+    });
+
+    cache = {
+      aan: !!waarden.aan,
+      uur: uur,
+      naar: adres,
+      laatst: cache ? cache.laatst : null
+    };
+    fout = '';
+    return cache;
+  }
+
+  /**
+   * Stuurt nu een mail, ook als er niets openstaat. Zo weet je meteen of de
+   * hele keten werkt in plaats van dat je een dag moet wachten.
+   */
+  async function test() {
+    if (!beschikbaar()) throw new Error('Log eerst in bij Synchroniseren.');
+    var uitkomst = await GD.sync.functie('dagcheck', { test: true });
+    if (uitkomst && uitkomst.fout) throw new Error(uitkomst.fout);
+    if (uitkomst && !uitkomst.verstuurd) {
+      throw new Error(uitkomst.reden === 'geen adres'
+        ? 'Er staat nog geen e-mailadres bij je herinnering.'
+        : 'Er ging niets uit: ' + (uitkomst.reden || 'onbekende reden') + '.');
+    }
+    return uitkomst;
+  }
+
+  GD.herinnering = {
+    beschikbaar: beschikbaar,
+    huidig: huidig,
+    laatsteFout: laatsteFout,
+    standaard: standaard,
+    laad: laad,
+    bewaar: bewaar,
+    test: test,
+    vergeet: vergeet
   };
 })(window);
 
@@ -3161,7 +3323,8 @@ ol.explain { list-style: decimal; }
   var ui = {
     view: 'dag',
     anchor: D.today(),
-    pendingCSV: null
+    pendingCSV: null,
+    herinneringBezig: false
   };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -3905,6 +4068,8 @@ ol.explain { list-style: decimal; }
       '</section>';
 
     html += syncSection();
+    zorgVoorHerinnering();
+    html += herinneringSection();
 
     /* Data */
     html += '<section class="card"><h2>Je data</h2>' +
@@ -4080,6 +4245,129 @@ ol.explain { list-style: decimal; }
     '',
     'create policy "eigen instellingen" on public.instellingen',
     '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+  ].join('\n');
+
+  /* ------------------------- herinnering per mail ------------------------- */
+
+  /**
+   * Je voorkeuren staan in de cloud, niet in deze browser: de functie die
+   * mailt moet ze kunnen lezen terwijl jouw telefoon uit staat. Bij het
+   * openen van Instellingen halen we ze één keer op.
+   */
+  function zorgVoorHerinnering() {
+    var H = GD.herinnering;
+    // Na een fout niet blijven proberen; daar staat een knop voor.
+    if (!H.beschikbaar() || H.huidig() || H.laatsteFout() || ui.herinneringBezig) return;
+    ui.herinneringBezig = true;
+    H.laad().then(function () {
+      ui.herinneringBezig = false;
+      if (ui.view === 'instellingen') render();
+    });
+  }
+
+  function herinneringSection() {
+    var H = GD.herinnering;
+    var html = '<section class="card"><h2>Herinnering per e-mail</h2>' +
+      '<p class="hint">Staat er de volgende ochtend nog iets leeg van de dag ervoor, dan krijg je ' +
+      'één mailtje met wat je mist. Is alles ingevuld, dan hoor je niets — anders leer je de mail ' +
+      'te negeren.</p>';
+
+    if (!H.beschikbaar()) {
+      return html + '<p class="hint">Stel hierboven eerst het synchroniseren in en log in. ' +
+        'De mail komt uit je eigen Supabase-project, en dat moet weten voor wie hij kijkt.</p>' +
+        '</section>';
+    }
+
+    if (H.laatsteFout()) {
+      return html + '<p class="alert alert-bad">' + esc(H.laatsteFout()) + '</p>' +
+        '<div class="row-actions"><button class="btn btn-sm" data-action="herinnering-laad">Opnieuw proberen</button></div>' +
+        herinneringUitleg() + '</section>';
+    }
+
+    var h = H.huidig();
+    if (!h) return html + '<p class="hint">Bezig met ophalen…</p></section>';
+
+    var uren = '';
+    for (var u = 5; u <= 23; u++) {
+      uren += opt(String(u), (u < 10 ? '0' + u : u) + ':00', String(h.uur));
+    }
+
+    html += '<label class="check"><input type="checkbox" id="her-aan"' + (h.aan ? ' checked' : '') + '> ' +
+      'Stuur mij een mail als er nog iets openstaat</label>' +
+      '<div class="form-grid">' +
+      '<label class="field"><span class="field-label">Hoe laat</span>' +
+      '<select id="her-uur">' + uren + '</select>' +
+      '<span class="field-hint">Nederlandse tijd; de zomertijd gaat vanzelf mee.</span></label>' +
+      '<label class="field"><span class="field-label">Naar welk adres</span>' +
+      '<input type="email" id="her-naar" inputmode="email" autocomplete="email" placeholder="jij@voorbeeld.nl" value="' +
+      esc(h.naar || '') + '"></label>' +
+      '</div>' +
+      '<div class="row-actions">' +
+      '<button class="btn btn-primary" data-action="herinnering-save">Bewaren</button>' +
+      '<button class="btn" data-action="herinnering-test">Stuur nu een test</button>' +
+      '</div>';
+
+    if (h.laatst) {
+      html += '<div class="sync-status"><span class="chip">laatst gemaild op ' +
+        esc(D.formatShort(h.laatst)) + '</span></div>';
+    }
+
+    return html + herinneringUitleg() + '</section>';
+  }
+
+  function herinneringUitleg() {
+    return '<details class="uitleg"><summary>Hoe zet ik dit klaar?</summary>' +
+      '<p class="hint">Eenmalig werk in je Supabase-project. De sleutels hieronder blijven daar staan ' +
+      'en komen nooit in de app of op GitHub terecht.</p>' +
+      '<ol class="explain">' +
+      '<li>Maak een gratis account op <strong>resend.com</strong> en meld je aan met precies het ' +
+      'adres waar de herinnering heen moet: zonder eigen domein mag Resend alleen naar dat ene adres ' +
+      'sturen. Kopieer daarna een <em>API key</em>.</li>' +
+      '<li>Open in Supabase de <strong>SQL Editor</strong> en draai het blok hieronder. Vul eerst je ' +
+      'eigen project-URL in en verzin een cron-sleutel (een lange willekeurige tekst).</li>' +
+      '<li>Ga naar <strong>Edge Functions</strong>, maak een functie met de naam <code>dagcheck</code> ' +
+      'en plak daar de inhoud van <code>supabase/functions/dagcheck/index.ts</code> uit deze repo in. ' +
+      'Zet <em>Verify JWT</em> <strong>uit</strong>: de functie controleert zelf of de cron-sleutel of ' +
+      'je eigen inlog klopt.</li>' +
+      '<li>Zet onder <strong>Edge Functions → Secrets</strong> de waarden ' +
+      '<code>RESEND_SLEUTEL</code> (je sleutel uit stap 1) en <code>CRON_SLEUTEL</code> (dezelfde tekst ' +
+      'als in de SQL). Optioneel: <code>MAIL_VAN</code> en <code>APP_URL</code>.</li>' +
+      '<li>Kom hier terug, zet de herinnering aan, bewaar, en klik op <em>Stuur nu een test</em>.</li>' +
+      '</ol>' +
+      '<pre class="sql">' + esc(SQL_HERINNERING) + '</pre>' +
+      '<div class="row-actions"><button class="btn btn-sm" data-action="herinnering-copy-sql">SQL kopiëren</button></div>' +
+      '</details>';
+  }
+
+  var SQL_HERINNERING = [
+    'create table if not exists public.herinneringen (',
+    '  user_id uuid primary key references auth.users on delete cascade,',
+    '  aan boolean not null default false,',
+    '  uur smallint not null default 9 check (uur between 0 and 23),',
+    '  naar text,',
+    '  laatst_verstuurd date,',
+    '  bijgewerkt timestamptz not null default now()',
+    ');',
+    '',
+    'alter table public.herinneringen enable row level security;',
+    '',
+    'create policy "eigen herinnering" on public.herinneringen',
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
+    '',
+    '-- Elk uur wakker worden; de functie kijkt zelf voor wie het dan tijd is.',
+    'create extension if not exists pg_cron;',
+    'create extension if not exists pg_net;',
+    '',
+    'select cron.schedule(\'goaldash-dagcheck\', \'0 * * * *\', $$',
+    '  select net.http_post(',
+    '    url := \'https://JOUW-PROJECT.supabase.co/functions/v1/dagcheck\',',
+    '    headers := jsonb_build_object(',
+    '      \'Content-Type\', \'application/json\',',
+    '      \'x-cron-sleutel\', \'JOUW-CRON-SLEUTEL\'',
+    '    ),',
+    '    body := \'{}\'::jsonb',
+    '  );',
+    '$$);'
   ].join('\n');
 
   function opt(v, label, current) {
@@ -4420,6 +4708,7 @@ ol.explain { list-style: decimal; }
     if (action === 'sync-logout') {
       if (confirm('Uitloggen? Je gegevens op dit apparaat blijven gewoon staan.')) {
         // signOut trekt de sessie ook bij Supabase in, dus even wachten.
+        GD.herinnering.vergeet();
         GD.sync.signOut().then(function () {
           toast('Uitgelogd.');
           render();
@@ -4427,8 +4716,38 @@ ol.explain { list-style: decimal; }
       }
       return;
     }
-    if (action === 'sync-copy-sql') {
-      var kopie = SQL_SETUP;
+    if (action === 'herinnering-laad') {
+      GD.herinnering.vergeet();
+      render();
+      return;
+    }
+    if (action === 'herinnering-save' || action === 'herinnering-test') {
+      var waarden = {
+        aan: $('#her-aan').checked,
+        uur: $('#her-uur').value,
+        naar: $('#her-naar').value
+      };
+      var testen = action === 'herinnering-test';
+      el.disabled = true;
+      // Eerst bewaren, ook bij een test: de functie leest je adres uit de tabel.
+      GD.herinnering.bewaar(waarden).then(function () {
+        if (!testen) return null;
+        return GD.herinnering.test();
+      }).then(function (uitkomst) {
+        if (!testen) {
+          toast(waarden.aan ? 'Herinnering staat aan.' : 'Herinnering staat uit.');
+        } else {
+          toast('Testmail verstuurd naar ' + uitkomst.naar + '.');
+        }
+        render();
+      }).catch(function (e) {
+        toast(e.message, 'bad');
+        el.disabled = false;
+      });
+      return;
+    }
+    if (action === 'herinnering-copy-sql' || action === 'sync-copy-sql') {
+      var kopie = action === 'sync-copy-sql' ? SQL_SETUP : SQL_HERINNERING;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(kopie).then(function () {
           toast('SQL gekopieerd.');

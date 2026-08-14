@@ -261,6 +261,54 @@ create policy "eigen instellingen" on public.instellingen
   (`gebruikersnaam.github.io`). Alles wat daar staat kan bij de opgeslagen gegevens van deze
   app. Zet er dus geen code van anderen naast, of geef het dashboard een eigen (sub)domein.
 
+## Herinnering per e-mail
+
+Staat er de volgende ochtend nog iets leeg van de dag ervoor, dan krijg je één mailtje met
+wat je mist. Is alles ingevuld, dan hoor je niets — anders leer je de mail te negeren.
+
+De app kan dit niet zelf: hij draait alleen in je browser, en die staat 's ochtends dicht.
+Het kijken en versturen doet een functie in je eigen Supabase-project
+(`supabase/functions/dagcheck/index.ts`). `pg_cron` wekt hem elk uur; per gebruiker kijkt
+hij of het daar het gekozen uur is en of er in de dag ervoor nog velden leeg zijn. De
+tijden gaan op **Europe/Amsterdam**, dus de zomertijd loopt vanzelf mee.
+
+### Eenmalig klaarzetten
+
+Dit staat ook in de app onder *Instellingen → Herinnering per e-mail → Hoe zet ik dit
+klaar?*, met het SQL-blok erbij.
+
+1. Maak een gratis account op **resend.com** en meld je aan met precies het adres waar de
+   herinnering heen moet: zonder eigen domein mag Resend alleen naar dat ene adres sturen.
+   Kopieer een *API key*.
+2. Draai het SQL-blok uit de app in de **SQL Editor**. Dat maakt de tabel `herinneringen`
+   (met row level security, net als je dagen) en zet de uurlijkse cron klaar. Vul eerst je
+   eigen project-URL in en verzin een cron-sleutel: een lange willekeurige tekst.
+3. Maak onder **Edge Functions** een functie `dagcheck` met de inhoud van
+   `supabase/functions/dagcheck/index.ts`. Zet *Verify JWT* **uit**: de functie controleert
+   zelf of de cron-sleutel klopt of dat je met je eigen sessie aanklopt.
+4. Zet onder **Edge Functions → Secrets** de waarden `RESEND_SLEUTEL` en `CRON_SLEUTEL`
+   (dezelfde tekst als in de SQL). Optioneel: `MAIL_VAN` (standaard
+   `Goal Dashboard <onboarding@resend.dev>`) en `APP_URL` (de link in de mail).
+5. Zet de herinnering aan in de app, bewaar, en klik op **Stuur nu een test**. Die mail
+   gaat altijd de deur uit, ook als er niets openstaat — zo weet je meteen of de hele
+   keten werkt zonder een dag te wachten.
+
+### Goed om te weten
+
+- De functie kijkt naar wat er **gesynchroniseerd** is. Vul je iets in terwijl je telefoon
+  geen bereik heeft, dan kan er 's ochtends een onterechte melding komen. De app
+  synchroniseert bij het openen, dus dat loopt vanzelf weer recht.
+- Een doel op **gewicht 0** telt niet mee, en post-workout en progressive overload alleen
+  op een dag waarop je echt getraind hebt — dezelfde regels als in je dagscore. Heb je je
+  oefeningen ingevuld, dan geldt overload als ingevuld.
+- Er gaat er **hooguit één per dag** uit: de functie schrijft na het versturen de datum in
+  `laatst_verstuurd`.
+- De doelenlijst staat in de functie **overgeschreven** uit `js/config.js`. Voeg je daar
+  een doel toe, zet het dan ook in `DOELEN` in `index.ts`.
+- `RESEND_SLEUTEL`, `CRON_SLEUTEL` en de service-role sleutel staan **in Supabase**, nooit
+  in deze repo. De service-role sleutel omzeilt alle beveiliging; een Edge Function is de
+  enige plek waar hij thuishoort.
+
 ## Je data
 
 Alles staat in `localStorage` van de browser waarin je het gebruikt. Zonder de koppeling
@@ -297,7 +345,10 @@ js/score.js         scoreberekening per dag en per periode, streaks
 js/charts.js        SVG-ring, balken, kalender en gewichtsgrafiek
 js/mfp.js           CSV-parser voor MyFitnessPal-exports
 js/sync.js          synchronisatie via de REST-API van Supabase
+js/herinnering.js   instellen van de herinnering per e-mail
 js/app.js           weergave en interactie
+
+supabase/functions/dagcheck/index.ts   draait in Supabase: kijkt en mailt
 
 tools/build-standalone.py       bouwt het losse bestand hieronder
 goal-dashboard-standalone.html  gegenereerd: alles in één bestand
