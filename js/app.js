@@ -11,8 +11,7 @@
 
   var ui = {
     view: 'dag',
-    anchor: D.today(),
-    pendingCSV: null
+    anchor: D.today()
   };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -741,20 +740,6 @@
       '<div class="card-foot"><button class="btn btn-ghost btn-sm" data-action="reset-weights">Standaardgewichten herstellen</button></div>' +
       '</section>';
 
-    /* CSV / MyFitnessPal */
-    html += '<section class="card"><h2>MyFitnessPal / CSV importeren</h2>' +
-      '<p class="hint">MyFitnessPal biedt geen open API meer, dus dit gaat via hun CSV-export: ' +
-      'open MyFitnessPal in de browser → <em>Reports</em> → <em>Nutrition</em> → periode kiezen → <em>Export</em>. ' +
-      'Kolommen voor datum, calorieën en eiwit worden automatisch herkend; meerdere maaltijdregels per dag worden opgeteld. ' +
-      'Elke andere CSV met die kolommen werkt ook.</p>' +
-      '<div class="row-actions">' +
-      '<button class="btn" data-action="pick-csv">CSV-bestand kiezen</button>' +
-      '<label class="check"><input type="checkbox" id="csv-overwrite"> Bestaande waarden overschrijven</label>' +
-      '<label class="check"><input type="checkbox" id="csv-dayfirst" checked> Datums als dag-maand-jaar lezen</label>' +
-      '</div>' +
-      '<div id="csv-preview">' + csvPreviewHTML() + '</div>' +
-      '</section>';
-
     html += syncSection();
 
     /* Data */
@@ -949,31 +934,6 @@
       '<input type="checkbox" data-setting="' + key + '"' + (checked ? ' checked' : '') + '>' +
       '<span class="switch-body"><span class="switch-label">' + esc(label) + '</span>' +
       '<span class="switch-hint">' + esc(hint) + '</span></span></label>';
-  }
-
-  function csvPreviewHTML() {
-    var p = ui.pendingCSV;
-    if (!p) return '';
-    if (!p.ok) return '<p class="alert alert-bad">' + esc(p.error) + '</p>';
-    var sample = p.dates.slice(0, 5).map(function (d) {
-      var row = p.days[d];
-      return '<tr><td>' + esc(D.formatShort(d)) + '</td><td>' +
-        (row.kcal !== null ? fmt(row.kcal) + ' kcal' : '–') + '</td><td>' +
-        (row.protein !== null ? fmt(row.protein) + ' g' : '–') + '</td></tr>';
-    }).join('');
-
-    return '<div class="alert alert-ok">' +
-      '<p><strong>' + p.dates.length + ' dag' + (p.dates.length === 1 ? '' : 'en') + '</strong> gevonden ' +
-      '(' + esc(D.formatShort(p.dates[0])) + ' t/m ' + esc(D.formatShort(p.dates[p.dates.length - 1])) + ') ' +
-      'in kolommen: ' + esc(p.columns.date) +
-      (p.columns.calories ? ', ' + esc(p.columns.calories) : '') +
-      (p.columns.protein ? ', ' + esc(p.columns.protein) : '') + '.' +
-      (p.skipped ? ' ' + p.skipped + ' regel(s) zonder geldige datum overgeslagen.' : '') + '</p>' +
-      '<table class="preview"><thead><tr><th>Datum</th><th>Calorieën</th><th>Eiwit</th></tr></thead><tbody>' +
-      sample + '</tbody></table>' +
-      '<div class="row-actions"><button class="btn btn-primary" data-action="apply-csv">Importeren</button>' +
-      '<button class="btn btn-ghost" data-action="cancel-csv">Annuleren</button></div>' +
-      '</div>';
   }
 
   /* ------------------------------- render ----------------------------- */
@@ -1297,16 +1257,6 @@
       return;
     }
     if (action === 'pick-json') { $('#file-json').click(); return; }
-    if (action === 'pick-csv') { $('#file-csv').click(); return; }
-    if (action === 'cancel-csv') { ui.pendingCSV = null; render(); return; }
-    if (action === 'apply-csv') {
-      var overwrite = $('#csv-overwrite') && $('#csv-overwrite').checked;
-      var res = GD.mfp.apply(ui.pendingCSV, overwrite);
-      ui.pendingCSV = null;
-      render();
-      toast(res.written + ' dag(en) bijgewerkt' + (res.skipped ? ', ' + res.skipped + ' waarde(n) behouden' : '') + '.');
-      return;
-    }
     if (action === 'wipe') {
       if (confirm('Weet je het zeker? Alle ingevulde dagen en instellingen worden gewist.') &&
           confirm('Echt alles wissen? Dit kan niet ongedaan worden gemaakt.')) {
@@ -1431,21 +1381,6 @@
       if (e.target.classList && e.target.classList.contains('note')) {
         store.setField(ui.anchor, 'notitie', e.target.value.trim() || null);
       }
-    });
-
-    $('#file-csv').addEventListener('change', function (e) {
-      var file = e.target.files && e.target.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function () {
-        var dayFirst = $('#csv-dayfirst') ? $('#csv-dayfirst').checked : true;
-        ui.pendingCSV = GD.mfp.parse(String(reader.result), { dayFirst: dayFirst });
-        render();
-        if (!ui.pendingCSV.ok) toast('Import mislukt.', 'bad');
-      };
-      reader.onerror = function () { toast('Kon het bestand niet lezen.', 'bad'); };
-      reader.readAsText(file);
-      e.target.value = '';
     });
 
     $('#file-json').addEventListener('change', function (e) {

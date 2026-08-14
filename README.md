@@ -36,8 +36,10 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 | Caloriedoel behaald | Ja / Nee | ×1,5 |
 
 Daarnaast kun je per dag je gewicht, eiwitten (g) en calorieën (kcal) invullen, plus een
-korte notitie. Alle gewichten zijn aanpasbaar in **Instellingen**; op 0 telt een doel
-helemaal niet mee.
+korte notitie. Zodra de grammen en kilocalorieën er staan, bepaalt de app "Eiwitdoel
+behaald" en "Caloriedoel behaald" zelf aan de hand van je doelen; handmatig aanklikken
+heeft altijd voorrang. Alle gewichten zijn aanpasbaar in **Instellingen**; op 0 telt een
+doel helemaal niet mee.
 
 ## Hoe de score werkt
 
@@ -132,26 +134,6 @@ kaart dat de vergelijking gevoelig is voor toeval.
 
 Week- en maandpercentages tellen punten over alle dagen bij elkaar op. Een week met veel
 rustdagen wordt dus niet afgestraft, omdat op zo'n dag ook minder punten haalbaar waren.
-
-## MyFitnessPal koppelen
-
-MyFitnessPal heeft **geen open publieke API meer**, dus een live koppeling is niet
-mogelijk. Wat wel werkt is hun CSV-export:
-
-1. Open MyFitnessPal in de browser → **Reports** → **Nutrition**.
-2. Kies je periode en klik op **Export**.
-3. In het dashboard: **Instellingen → MyFitnessPal / CSV importeren → CSV-bestand kiezen**.
-
-De kolommen voor datum, calorieën en eiwit worden automatisch herkend, meerdere
-maaltijdregels per dag worden bij elkaar opgeteld, en je krijgt eerst een voorbeeld te
-zien voordat er iets wordt weggeschreven. Standaard blijven handmatig ingevulde waarden
-staan; vink _Bestaande waarden overschrijven_ aan als de export voorrang moet krijgen.
-
-Elke andere CSV met een datum-, calorie- en eiwitkolom werkt net zo goed — handig als je
-een andere app gebruikt.
-
-Zodra kcal en eiwitten bekend zijn, worden "Eiwitdoel behaald" en "Caloriedoel behaald"
-automatisch bepaald aan de hand van je doelen. Handmatig aanklikken heeft altijd voorrang.
 
 ## Synchroniseren tussen telefoon en laptop
 
@@ -295,7 +277,6 @@ js/store.js         opslag (localStorage), import/export, datum-helpers
 js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
 js/score.js         scoreberekening per dag en per periode, streaks
 js/charts.js        SVG-ring, balken, kalender en gewichtsgrafiek
-js/mfp.js           CSV-parser voor MyFitnessPal-exports
 js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
 
