@@ -341,6 +341,15 @@ eiwitten). Doe je dat niet, dan kan Health kilojoules teruggeven en staat je cal
 een factor 4,184 naast zonder dat het opvalt. Controleer na de eerste keer dus of er rond
 de 2.000 à 3.000 staat, niet 10.000.
 
+Drie dingen waar het bij het bouwen misgaat:
+
+- Beide somacties heten in de variabelenbalk *Statistieken*, dus zet achter elke som een
+  *Stel variabele in* met een eigen naam (`kcal`, `eiwit`). Anders pak je de verkeerde.
+- Bij *Formatteer datum* is de notatie letterlijk `yyyy-MM-dd`. Dat is een vaste code, geen
+  Nederlands — hij wordt niet vertaald.
+- In de JSON-hoofdtekst moet bij `datum`, `kcal` en `eiwit` een variabeleblokje staan, geen
+  getypte tekst, en er mag geen los cijfer voor blijven staan.
+
 ### Wie wint bij verschil?
 
 | Situatie | Wat er gebeurt |

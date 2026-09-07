@@ -5067,12 +5067,22 @@ ol.explain { list-style: decimal; }
         veldRegel('Type', 'is Voedingsenergie'),
         veldRegel('Begindatum', 'is vandaag'),
         veldRegel('Eenheid', 'kcal'),
-        'Daaronder: <em>Bereken statistieken</em> → <em>Som</em>. Bewaar als variabele ' +
-        '<code>kcal</code>.'
+        'Daaronder: <em>Bereken statistieken</em> → <em>Som</em>, en daar weer onder ' +
+        '<em>Stel variabele in</em> met de naam <code>kcal</code>.'
       ]) +
       stap('Nog een keer, nu met type Eiwitten en eenheid g', [
-        'Weer met <em>Bereken statistieken</em> → <em>Som</em>. Bewaar als variabele ' +
-        '<code>eiwit</code>.'
+        'Weer <em>Bereken statistieken</em> → <em>Som</em>, en daaronder ' +
+        '<em>Stel variabele in</em> met de naam <code>eiwit</code>.',
+        'Die twee <em>Stel variabele in</em>-acties lijken overbodig, maar beide sommen heten ' +
+        'in de variabelenbalk <em>Statistieken</em>. Zonder eigen naam pak je gegarandeerd een ' +
+        'keer de verkeerde.'
+      ]) +
+      stap('Huidige datum → Formatteer datum', [
+        veldRegel('Datumnotatie', 'Aangepast'),
+        veldRegel('Formatteer tekenreeks', 'yyyy-MM-dd'),
+        'Die letters zijn geen Nederlands maar een vaste code; ze blijven ook op een Nederlandse ' +
+        'iPhone zo staan. Zet er daaronder <em>Stel variabele in</em> met de naam ' +
+        '<code>datum</code>.'
       ]) +
       stap('Haal inhoud van URL op — inloggen', [
         veldRegel('URL', url + '/auth/v1/token?grant_type=password'),
@@ -5088,13 +5098,20 @@ ol.explain { list-style: decimal; }
         veldRegel('URL', url + '/rest/v1/voeding?on_conflict=user_id,datum'),
         veldRegel('Methode', 'POST'),
         veldRegel('Koptekst apikey', sleutel),
-        'Koptekst <code>Authorization</code>: <code>Bearer</code> + het access_token uit stap 3.',
+        'Koptekst <code>Authorization</code>: typ <code>Bearer</code> plus een spatie en voeg ' +
+        'daarna het blokje van <em>Haal woordenboekwaarde op</em> in. Zonder die spatie ' +
+        'weigert Supabase het token.',
         veldRegel('Koptekst Prefer', 'resolution=merge-duplicates'),
         veldRegel('Koptekst Content-Type', 'application/json'),
-        'Vraag om hoofdtekst: <em>JSON</em> met <code>datum</code> (vandaag als ' +
-        '<code>jjjj-MM-dd</code>), <code>kcal</code> en <code>eiwit</code> (allebei als type ' +
-        '<em>Getal</em>), <code>bron</code> = <code>apple-health</code> en <code>bijgewerkt</code> ' +
-        '(huidige datum, ISO 8601).'
+        'Vraag om hoofdtekst: <em>JSON</em> met vier velden: <code>datum</code>, ' +
+        '<code>kcal</code> en <code>eiwit</code> (die twee als type <em>Getal</em>) en ' +
+        '<code>bron</code> met de letterlijke tekst <code>apple-health</code>. ' +
+        '<code>bijgewerkt</code> vult Supabase zelf in.',
+        'In <code>datum</code>, <code>kcal</code> en <code>eiwit</code> hoort een blauw of grijs ' +
+        '<strong>variabeleblokje</strong> te staan, geen getypte tekst. Staat er gewoon het woord ' +
+        '<em>datum</em>, dan stuur je die letters naar Supabase en weigert hij de rij. Let ook op ' +
+        'een losse <code>0</code> die vóór een blokje is blijven staan — die haalt je hele getal ' +
+        'overhoop.'
       ]) +
       stap('Draai de opdracht één keer met de hand en kijk naar het getal', [
         'Rond de 2.000 à 3.000 bij <code>kcal</code>: goed. Zie je iets van 10.000, dan staat de ' +
