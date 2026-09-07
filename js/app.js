@@ -11,7 +11,10 @@
 
   var ui = {
     view: 'dag',
-    anchor: D.today()
+    anchor: D.today(),
+    /* De oefening waarvan de grafiek openstaat. In de ui-status en niet in een
+       <details>, zodat hij een nieuwe tekenbeurt overleeft. */
+    liftGrafiek: null
   };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -177,15 +180,28 @@
       '<div class="trend">' + body + '</div></section>';
   }
 
-  function heroSection(pct, subtitle, extra) {
-    var color = GD.scoreColor(pct);
+  /**
+   * opts.tot   : vage boog in de ring — waar je vandaag nog op uit kunt komen
+   * opts.label : eigen kop in plaats van het oordeel, voor een dag die nog loopt
+   */
+  function heroSection(pct, subtitle, extra, opts) {
+    opts = opts || {};
+    // Een lopende dag krijgt geen oordeel mee: "Uitstekend" hoort pas bij een
+    // dag die af is, niet bij drie ingevulde doelen om negen uur 's ochtends.
+    // Ook de kleur wacht: rood-naar-groen zegt goed of slecht, en een dag die
+    // pas begonnen is verdient allebei niet.
+    var color = opts.label ? 'var(--text)' : GD.scoreColor(pct);
     return '<section class="card hero">' +
-      '<div class="hero-ring">' + C.ring(pct, 190, 16) + '</div>' +
+      '<div class="hero-ring">' +
+      C.ring(pct, 190, 16, { tot: opts.tot, kleur: opts.label ? 'var(--accent)' : null }) +
+      '</div>' +
       '<div class="hero-info">' +
-      '<div class="hero-label" style="color:' + color + '">' + esc(GD.scoreLabel(pct)) + '</div>' +
+      '<div class="hero-label" style="color:' + color + '">' + esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
       '<p class="hero-sub">' + subtitle + '</p>' +
       (extra || '') +
-      C.legend() +
+      // De kleurschaal hoort bij een eindcijfer; zolang de dag loopt staat de
+      // ring in één kleur en zou de balk alleen maar verwarren.
+      (opts.label ? '' : C.legend()) +
       '</div></section>';
   }
 
@@ -206,21 +222,54 @@
     }).length;
 
     var streak = S.currentStreak();
+    /* Wat staat er al vast, en wat valt er vandaag nog te halen? */
+    var ov = S.dagOverzicht(day);
+    var nietsGedaan = day.pct === null && ov.binnen === 0 && ov.kwijt === 0;
+    var loopt = ov.open > 0 && !nietsGedaan;
+    var toonPct = nietsGedaan ? null : ov.vloerPct;
+
     var extra = '<div class="hero-chips">' +
       '<span class="chip">' + answered + '/' + relevant + ' ingevuld</span>' +
+      (loopt && ov.binnen + ov.kwijt > 0
+        ? '<span class="chip" style="color:' + GD.scoreColor(day.pct) + '">' +
+          Math.round(day.pct) + '% raak tot nu toe</span>'
+        : '') +
       '<span class="chip">🔥 ' + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
       (day.restDay ? '<span class="chip">😴 rustdag</span>' : '') +
-      '</div>';
+      '</div>' +
+      (ov.open > 0 && !isFuture
+        ? '<p class="hint hint-tight">De vage ring is waar je vandaag nog op uit kunt komen.</p>'
+        : '');
 
-    var sub = isFuture
-      ? 'Deze dag ligt nog in de toekomst.'
-      : (day.pct === null
-        ? 'Nog niets ingevuld voor deze dag.'
-        : 'Je haalde <strong>' + fmt(day.points, 1) + '</strong> van de <strong>' + fmt(day.max, 1) + '</strong> punten die vandaag telden.');
+    var sub;
+    if (isFuture) {
+      sub = 'Deze dag ligt nog in de toekomst.';
+    } else if (nietsGedaan) {
+      sub = 'Nog niets ingevuld voor deze dag.';
+    } else if (loopt) {
+      // Niet het percentage van wat je al invulde, maar van de hele dag:
+      // anders staat de ring vol terwijl de dag nog open ligt.
+      sub = 'Je hebt <strong>' + fmt(ov.binnen, 1) + '</strong> van de <strong>' +
+        fmt(ov.totaal, 1) + '</strong> punten van vandaag binnen. Er staat nog <strong>' +
+        fmt(ov.open, 1) + '</strong> open' +
+        (ov.kwijt >= 0.05 ? ' en <strong>' + fmt(ov.kwijt, 1) + '</strong> is niet meer te halen' : '') + '.';
+    } else {
+      sub = 'Je haalde <strong>' + fmt(day.points, 1) + '</strong> van de <strong>' +
+        fmt(day.max, 1) + '</strong> punten die vandaag telden.';
+    }
 
-    var html = heroSection(day.pct, sub, extra);
+    var html = '';
+    if (isToday && GD.review && GD.review.vensterOpen(new Date()) && !GD.review.gezien(date)) {
+      html += reviewSection(date, { dagkaart: true });
+    }
+
+    html += heroSection(toonPct, sub, extra, {
+      tot: ov.open > 0 ? ov.plafondPct : null,
+      label: loopt ? 'Tussenstand' : null
+    });
 
     /* Meetwaarden */
+    var gm = S.gewichtMelding(date);
     html += '<section class="card">' +
       '<h2>Meetwaarden</h2>' +
       '<div class="measure-grid">' +
@@ -228,6 +277,9 @@
       measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel)) +
       measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel)) +
       '</div>' +
+      (gm.status === 'uit' || isFuture ? '' :
+        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
+        '><span class="meldregel-icoon">⚖️</span>' + esc(gm.tekst) + '</p>') +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
       '</section>';
 
@@ -438,6 +490,80 @@
       '</div></div>';
   }
 
+  /**
+   * Geschatte 1RM volgens Epley. Daarmee telt 40 kg × 10 als vooruitgang op
+   * 40 kg × 8, zonder dat de grafiek twee lijnen nodig heeft. Boven de tien
+   * herhalingen wordt de schatting optimistisch, maar het gaat hier om het
+   * verloop van je eigen oefening, niet om het absolute getal.
+   */
+  function geschat1RM(kg, reps) {
+    return kg * (1 + reps / 30);
+  }
+
+  /** Het hele verloop van één oefening, met de beste sessie gemarkeerd. */
+  function liftGrafiek(oef) {
+    var zijden = GD.lifts.zijden(oef);
+    var alles = [];
+    zijden.forEach(function (z) {
+      alles = alles.concat(GD.lifts.historie(oef.id, z.key));
+    });
+    if (!alles.length) {
+      return '<div class="lift-grafiek"><p class="empty">Nog geen sessies ingevuld voor deze oefening.</p></div>';
+    }
+
+    // Eén schaal voor de hele oefening: bij pull-ups en leg raises staat er
+    // geen gewicht, dan volgt de lijn je herhalingen.
+    var opReps = oef.type === 'reps' || !alles.some(function (r) { return r.kg > 0; });
+
+    var reeksen = zijden.map(function (z) {
+      var punten = GD.lifts.historie(oef.id, z.key).map(function (r) {
+        return {
+          datum: r.datum,
+          v: opReps ? r.reps : geschat1RM(r.kg, r.reps),
+          label: liftText(oef, r)
+        };
+      });
+      var beste = null;
+      punten.forEach(function (p) { if (!beste || p.v > beste.v) beste = p; });
+      if (beste) beste.piek = true;
+      return { naam: z.label || oef.naam, punten: punten };
+    });
+
+    // Per kant samenvatten: bij een oefening per arm zou één regel over rechts
+    // en links door elkaar niets zeggen.
+    var gevuld = reeksen.filter(function (r) { return r.punten.length; });
+    var samenvatting = gevuld.map(function (r) {
+      var eerste = r.punten[0];
+      var laatste = r.punten[r.punten.length - 1];
+      var groei = eerste.v > 0 ? ((laatste.v - eerste.v) / eerste.v) * 100 : null;
+      var top = r.punten.reduce(function (best, p) {
+        return best && best.v >= p.v ? best : p;
+      }, null);
+
+      return '<div class="lg-cijfers">' +
+        (gevuld.length > 1 ? '<span class="lg-zijde">' + esc(r.naam) + '</span>' : '') +
+        '<span>' + r.punten.length + ' sessie' + (r.punten.length === 1 ? '' : 's') +
+        ' sinds ' + esc(D.formatShort(eerste.datum)) + '</span>' +
+        (groei === null ? ''
+          : '<span style="color:' + GD.scoreColor(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
+            signed(groei, 0, '%') + ' sinds je start</span>') +
+        '<span>🏆 ' + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="lift-grafiek">' +
+      C.lijnGrafiek(reeksen, {
+        leeg: 'Nog geen sessies ingevuld voor deze oefening.',
+        omschrijving: 'Verloop van ' + oef.naam
+      }) +
+      samenvatting +
+      '<p class="hint hint-tight">' + (opReps
+        ? 'De lijn volgt je herhalingen.'
+        : 'De lijn volgt je geschatte 1RM: gewicht × (1 + reps ÷ 30). Meer reps bij hetzelfde ' +
+          'gewicht telt daarmee ook als vooruitgang.') +
+      '</p></div>';
+  }
+
   function liftRow(date, oid, res) {
     var oef = GD.lifts.byId(oid);
     if (!oef) return '';
@@ -449,12 +575,21 @@
       return liftSide(date, oef, z, regel);
     }).join('');
 
+    var open = ui.liftGrafiek === oid;
+
     return '<div class="lift">' +
       '<div class="lift-head">' +
       '<span class="lift-name">' + esc(oef.naam) + '</span>' +
+      '<span class="lift-knoppen">' +
+      '<button class="btn btn-ghost btn-sm' + (open ? ' btn-aan' : '') + '"' +
+      ' data-action="lift-grafiek" data-oef="' + esc(oid) + '"' +
+      ' aria-expanded="' + (open ? 'true' : 'false') + '"' +
+      ' title="Verloop van deze oefening">📈</button>' +
       '<button class="btn btn-ghost btn-sm" data-action="lift-clear" data-oef="' + esc(oid) + '"' +
       ' title="Deze oefening voor vandaag wissen">wissen</button>' +
-      '</div>' + sides + '</div>';
+      '</span>' +
+      '</div>' + sides +
+      (open ? liftGrafiek(oef) : '') + '</div>';
   }
 
   /**
@@ -537,6 +672,111 @@
       '</section>';
   }
 
+  /* --------------------------- weekafsluiting -------------------------- */
+
+  var RV_SOORT = {
+    'op-schema': 'goed',
+    goed: 'goed',
+    traag: 'let-op',
+    snel: 'let-op',
+    onder: 'let-op',
+    'te-weinig-gegeten': 'let-op',
+    'te-veel-gegeten': 'let-op',
+    verkeerd: 'slecht'
+  };
+
+  function rvSoort(status) { return RV_SOORT[status] || 'neutraal'; }
+
+  function reviewBlok(icoon, kop, tekst, soort) {
+    return '<div class="rv-blok rv-' + soort + '">' +
+      '<div class="rv-kop"><span class="rv-icoon">' + icoon + '</span>' + esc(kop) + '</div>' +
+      '<p class="rv-tekst">' + esc(tekst) + '</p>' +
+      '</div>';
+  }
+
+  function rvCijfer(waarde, label, kleur) {
+    return '<div class="rv-cijfer">' +
+      '<div class="rv-waarde"' + (kleur ? ' style="color:' + kleur + '"' : '') + '>' + waarde + '</div>' +
+      '<div class="rv-label">' + esc(label) + '</div></div>';
+  }
+
+  var RICHTING_TEKEN = { aankomen: '+', afvallen: '−', behouden: '±' };
+
+  /**
+   * De weekafsluiting: op vrijdagavond bovenaan de dag, en altijd te vinden
+   * in het weekoverzicht. Bewust maandag t/m vrijdag — het weekend is de vrije
+   * ruimte en hoort niet in het rapport.
+   */
+  function reviewSection(datum, opties) {
+    opties = opties || {};
+    var r = GD.review.maak(datum);
+
+    var kop = '<div class="card-head"><h2>📋 Weekafsluiting · ' + esc(r.label) + '</h2>' +
+      '<span class="chip">ma t/m vr · ' + esc(r.periode) + '</span></div>';
+
+    if (!r.ingevuld) {
+      return '<section class="card review">' + kop +
+        '<p class="hero-sub">Er staat nog niets ingevuld tussen ' + esc(r.periode) + '.</p>' +
+        '</section>';
+    }
+
+    var cijfers = '<div class="rv-cijfers">' +
+      rvCijfer(Math.round(r.pct) + '<span class="unit">%</span>', 'weekscore', GD.scoreColor(r.pct)) +
+      rvCijfer(r.goedeDagen + '<span class="unit">/' + r.geweest + '</span>', 'goede dagen') +
+      rvCijfer(r.trainDagen + '<span class="unit">×</span>', 'getraind') +
+      rvCijfer(r.kcalDagen + '<span class="unit">/' + r.geweest + '</span>', 'dagen calorieën',
+        GD.scoreColor(r.geweest ? (r.kcalDagen / r.geweest) * 100 : null)) +
+      '</div>';
+
+    var g = r.gewicht;
+    var gTekst;
+    if (g.richting === 'uit') {
+      gTekst = 'Je houdt geen gewichtsdoel bij, dus hier valt niets te vergelijken.';
+    } else if (g.delta === null) {
+      gTekst = 'Te weinig weegmomenten om deze week met de vorige te vergelijken: ' +
+        g.metingen + ' deze week, ' + g.vorigeMetingen + ' vorige week.';
+    } else {
+      // Twee decimalen: op één decimaal lijken twee weekgemiddelden die 50 gram
+      // schelen precies gelijk, en dan lijkt de melding eronder onzin.
+      gTekst = 'Gemiddeld ' + fmt(g.avg, 2) + ' kg tegenover ' + fmt(g.vorigeAvg, 2) +
+        ' kg vorige week, dus ' + GD.review.kgTekst(g.delta) + '. Je tempo is ' +
+        (RICHTING_TEKEN[g.richting] || '') + fmt(g.doelDelta, 2) + ' kg per week.';
+    }
+
+    var blokken = '<div class="rv-blokken">' +
+      reviewBlok('🔥', r.eten.kop || 'Eten en gewicht', r.eten.tekst, rvSoort(r.eten.status)) +
+      reviewBlok('⚖️', 'Gewicht', gTekst, rvSoort(g.status)) +
+      reviewBlok('🍗', 'Eiwit', r.eiwit.tekst, rvSoort(r.eiwit.status)) +
+      (r.beste
+        ? reviewBlok('🏆', 'Sterkste punt',
+          r.beste.goal.label + ' — ' + Math.round(r.beste.pct) + '% deze week.', 'goed')
+        : '') +
+      (r.zwakste
+        ? reviewBlok('📉', 'Zwakste punt',
+          r.zwakste.goal.label + ' — ' + Math.round(r.zwakste.pct) +
+          '%. Daar liggen je punten voor volgende week.',
+          r.zwakste.pct >= 70 ? 'goed' : 'let-op')
+        : '') +
+      '</div>';
+
+    var knoppen = opties.dagkaart
+      ? '<div class="row-actions">' +
+        '<button class="btn" data-action="review-week">Hele week bekijken</button>' +
+        '<button class="btn btn-ghost" data-action="review-verberg">Verbergen tot volgende week</button>' +
+        '</div>'
+      : '';
+
+    var voet = '<p class="hint">Dit gaat over maandag tot en met vrijdag; je weekend blijft ' +
+      'erbuiten.' +
+      (r.eten.bijstellen
+        ? ' Het calorieadvies rekent met de vuistregel dat één kilo lichaamsgewicht ongeveer ' +
+          GD.review.KCAL_PER_KG + ' kcal is: genoeg om te zien of je moet bijsturen, te grof om ' +
+          'op de kilo nauwkeurig te rekenen.'
+        : '') + '</p>';
+
+    return '<section class="card review">' + kop + cijfers + blokken + knoppen + voet + '</section>';
+  }
+
   /* ------------------------------- week ------------------------------- */
 
   function renderWeek() {
@@ -551,6 +791,7 @@
           ? ', lege dagen tellen als 0%.' : '.');
 
     var html = heroSection(period.pct, sub);
+    html += reviewSection(dates[0], {});
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
     html += '<section class="card"><h2>Per dag</h2>' + C.dayBars(period.days) +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
@@ -762,7 +1003,9 @@
       '<li>Je score is <em>behaalde punten ÷ haalbare punten</em>, met de gewichten hierboven.</li>' +
       '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
-      '<li>Voor vandaag tellen alleen de doelen die je al hebt ingevuld, zodat je score meegroeit met de dag. ' +
+      '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
+      'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
+      'vandaag nog op uit kunt komen. Zo staat de ring niet vol na drie ingevulde doelen. ' +
       'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
       '<li><em>Water</em> scoort naar rato: 2,25 van de 3 liter is 75%. Zolang de dag loopt telt de teller ' +
       'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
@@ -1080,6 +1323,22 @@
     }
     if (action === 'lift-clear') {
       GD.lifts.wisOefening(ui.anchor, el.dataset.oef);
+      render();
+      return;
+    }
+    if (action === 'lift-grafiek') {
+      ui.liftGrafiek = ui.liftGrafiek === el.dataset.oef ? null : el.dataset.oef;
+      render();
+      return;
+    }
+    if (action === 'review-week') {
+      ui.view = 'week';
+      render();
+      return;
+    }
+    if (action === 'review-verberg') {
+      GD.review.markeerGezien(ui.anchor);
+      toast('Weekafsluiting staat in het weekoverzicht.');
       render();
       return;
     }

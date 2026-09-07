@@ -51,8 +51,12 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
 - **Rustdag** haalt "gesport" uit de berekening — een rustdag verpest je score dus niet.
 - **Progressive overload** en de **post-workout maaltijd** tellen alleen mee op dagen dat
   je écht getraind hebt.
-- Voor **vandaag** tellen alleen de doelen die je al hebt ingevuld, zodat je percentage
-  meegroeit met de dag. Bij **afgelopen dagen** telt niet-ingevuld als niet gedaan.
+- Zolang **vandaag** loopt zie je een **tussenstand**: de punten die je al binnen hebt,
+  gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen is waar je nog
+  op uit kunt komen, en de chip *"… % raak tot nu toe"* zegt hoe goed je de ingevulde doelen
+  deed. De ring staat dan in één kleur — rood-naar-groen is een oordeel, en een halve dag
+  verdient dat nog niet. Bij **afgelopen dagen** telt niet-ingevuld als niet gedaan en komt
+  het oordeel (*Prima*, *Uitstekend*, …) terug.
 - Lege dagen in het verleden tellen als 0% (uit te zetten in Instellingen). Dagen van
   vóór je allereerste invoer tellen nooit mee — toen gebruikte je het dashboard nog niet.
 - **Gewicht** telt niet mee in je dagscore — het is een uitkomst, geen gedrag dat je op
@@ -87,6 +91,18 @@ Twee soorten oefeningen, in te stellen per oefening:
 - **Alleen reps** voor pull-ups, leg raises en alles zonder extra gewicht.
 - **Per arm** voor lateral raises en tricep overhead: rechts en links krijgen elk hun eigen
   invulvelden, eigen historie en eigen oordeel. Blijft links achter, dan zie je dat.
+
+### Grafiek per oefening
+
+Naast elke oefening staat een **📈**-knop. Die klapt het hele verloop van díe oefening uit:
+elke ingevulde sessie als punt, je beste sessie met een ring eromheen, en eronder in het
+kort hoeveel sessies je hebt, hoeveel procent je sinds je startpunt bent opgeschoven en wat
+je record is.
+
+De lijn volgt je **geschatte 1RM** — `gewicht × (1 + reps ÷ 30)` — zodat 40 kg × 10 boven
+40 kg × 8 uitkomt en je niet twee lijnen naast elkaar hoeft te lezen. Bij oefeningen zonder
+gewicht (pull-ups, leg raises) volgt de lijn gewoon je herhalingen. Houd je een oefening per
+arm bij, dan krijgen rechts en links elk hun eigen lijn.
 
 In **Instellingen → Trainingsschema's** beheer je je schema's: oefeningen toevoegen, van
 volgorde wisselen, uit een schema halen (je ingevulde sessies blijven staan) en met **↺**
@@ -134,6 +150,58 @@ kaart dat de vergelijking gevoelig is voor toeval.
 
 Week- en maandpercentages tellen punten over alle dagen bij elkaar op. Een week met veel
 rustdagen wordt dus niet afgestraft, omdat op zo'n dag ook minder punten haalbaar waren.
+
+### Eén regel op de dagkaart
+
+Onder je meetwaarden staat de korte versie van hetzelfde verhaal:
+
+```
+⚖️ +0,30 kg deze week — op schema (doel +0,25 per week).
+```
+
+Dat vergelijkt de **laatste zeven dagen met de zeven dagen daarvóór** — een rollend venster,
+geen kalenderweek, zodat de regel ook op een dinsdag ergens op slaat. Een halve tot
+anderhalve keer je tempo telt als *op schema*; daaronder is het *trager dan je tempo*,
+daarboven *sneller* (met de opmerking dat dat vooral vet oplevert). Weeg je te weinig, dan
+zegt de regel dat in plaats van een cijfer te verzinnen.
+
+## Weekafsluiting
+
+Bovenaan de **weekweergave** staat een rapport van je werkweek, en op **vrijdag vanaf 17:00
+tot zaterdag 12:00** verschijnt datzelfde rapport ook bovenaan je dagpagina. Daar kun je het
+wegklikken met *Verbergen tot volgende week*; in het weekoverzicht blijft het gewoon staan.
+
+De afsluiting gaat over **maandag tot en met vrijdag**. Het weekend blijft er bewust buiten:
+dat is de vrije ruimte, en die hoort niet in een rapportcijfer.
+
+Je krijgt vier cijfers (weekscore, goede dagen, keer getraind, en op hoeveel dagen je je
+calorieën écht hebt ingevuld) en daaronder een paar blokken met een oordeel: eten tegenover
+gewicht, je gewichtstrend, je eiwitten, en je sterkste en zwakste doel van die week.
+
+### Eten tegenover gewicht
+
+Dit is het blok waar het om draait. Losse cijfers zeggen weinig — 2300 kcal is pas een
+probleem als je ook niet aankomt, en +0,8 kg pas als je dat niet wilde. De app legt ze naast
+elkaar en trekt er één conclusie uit:
+
+| Wat de weegschaal doet | Wat je at | Wat je te horen krijgt |
+| --- | --- | --- |
+| Op tempo | maakt niet uit | Niets veranderen. Haalde je je caloriedoel daarbij níet, dan is dat doel te streng afgesteld en krijg je een passender getal. |
+| Te weinig aangekomen | onder je doel | Er ging simpelweg te weinig in: haal eerst je eigen doel, en hoeveel kcal per dag dat scheelt. |
+| Te weinig aangekomen | doel gehaald | Dan is je doel zelf te laag voor je verbruik — met een voorstel voor een nieuw doel. |
+| Te snel aangekomen | boven je doel | Dat is vooral vetaanzet; terug naar je doel is genoeg. |
+| Te snel aangekomen | rond je doel | Je doel staat te hoog — met een voorstel voor een nieuw doel. |
+
+Bij **afvallen** en **op gewicht blijven** werkt hetzelfde blok, met de richting omgedraaid.
+
+Het bijstelladvies rekent met de vuistregel dat één kilo lichaamsgewicht ongeveer **7700
+kcal** is: goed genoeg om te zien of je moet bijsturen, te grof om op de kilo nauwkeurig te
+rekenen. Het advies is daarom afgerond op 50 kcal en gaat nooit verder dan 500 kcal per dag
+— een grotere sprong op basis van één week meten is nooit verstandig.
+
+Twee dingen kan de app niet: **met minder dan drie ingevulde caloriedagen** zegt hij dat, in
+plaats van een advies te verzinnen op basis van gokwerk. En zonder gewicht in deze én de
+vorige week is er niets te vergelijken; dan vraagt hij je een paar ochtenden te wegen.
 
 ## Synchroniseren tussen telefoon en laptop
 
@@ -262,6 +330,7 @@ Gebruik daarom **Instellingen → Je data**:
   terug naar vandaag.
 - Klik in de week- of maandweergave op een dag om hem meteen in te vullen.
 - **Neem gisteren over** kopieert de antwoorden van gisteren, handig op vaste dagen.
+- **📈** naast een oefening klapt de grafiek van díe oefening uit.
 - Het icoon rechtsboven wisselt tussen donker en licht.
 - Ben je ingelogd voor synchronisatie, dan staat er een **⟳** naast: die synchroniseert
   vanaf elke pagina, zonder eerst naar de instellingen te gaan. Hij draait terwijl hij
@@ -275,8 +344,9 @@ css/style.css       stijl, donker en licht thema
 js/config.js        doeldefinities, standaardinstellingen, kleurschaal 0 -> 100
 js/store.js         opslag (localStorage), import/export, datum-helpers
 js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
-js/score.js         scoreberekening per dag en per periode, streaks
-js/charts.js        SVG-ring, balken, kalender en gewichtsgrafiek
+js/score.js         scoreberekening per dag en per periode, streaks, gewichtstrend
+js/charts.js        SVG-ring, balken, kalender, gewichts- en oefeninggrafiek
+js/review.js        weekafsluiting: eten tegenover gewicht, adviezen
 js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
 

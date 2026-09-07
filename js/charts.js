@@ -13,22 +13,47 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  /** Ronde voortgangsmeter */
-  function ring(pct, size, stroke) {
+  /**
+   * Ronde voortgangsmeter.
+   *
+   * opts.tot  : tweede, vage boog tot dit percentage. Daarmee laat een dag die
+   *             nog loopt zien wat er nog te halen valt, in plaats van alleen
+   *             wat er al binnen is — anders leest een ring die vol staat na
+   *             drie doelen als een volle dag.
+   * opts.kleur: eigen kleur in plaats van de score-schaal. Voor een dag die nog
+   *             loopt: rood-naar-groen is een oordeel, en een halve dag verdient
+   *             nog geen oordeel.
+   */
+  function ring(pct, size, stroke, opts) {
     size = size || 160;
     stroke = stroke || 14;
+    opts = opts || {};
     var r = (size - stroke) / 2;
     var c = 2 * Math.PI * r;
     var has = pct !== null && pct !== undefined && !isNaN(pct);
     var value = has ? GD.clamp(pct, 0, 100) : 0;
     var dash = (value / 100) * c;
-    var color = GD.scoreColor(has ? pct : null);
+    var color = opts.kleur || GD.scoreColor(has ? pct : null);
     var label = has ? Math.round(pct) + '<tspan class="ring-pct-sign">%</tspan>' : '–';
+
+    var tot = opts.tot === null || opts.tot === undefined || isNaN(opts.tot)
+      ? null : GD.clamp(opts.tot, 0, 100);
+    var open = '';
+    var omschrijving = 'Score ' + (has ? Math.round(pct) + ' procent' : 'onbekend');
+    if (tot !== null && tot > value + 0.5) {
+      var dashTot = (tot / 100) * c;
+      open = '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none"' +
+        ' stroke="' + (opts.kleur || GD.scoreColor(tot)) + '" class="ring-open" stroke-width="' + stroke + '"' +
+        ' stroke-linecap="round" stroke-dasharray="' + dashTot + ' ' + (c - dashTot) + '"' +
+        ' transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/>';
+      omschrijving += ', vandaag nog tot ' + Math.round(tot) + ' procent te halen';
+    }
 
     return '' +
       '<svg class="ring" viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size +
-      '" role="img" aria-label="Score ' + (has ? Math.round(pct) + ' procent' : 'onbekend') + '">' +
+      '" role="img" aria-label="' + esc(omschrijving) + '">' +
       '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--track)" stroke-width="' + stroke + '"/>' +
+      open +
       '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '"' +
       ' stroke-width="' + stroke + '" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + (c - dash) + '"' +
       ' transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/>' +
@@ -115,6 +140,96 @@
       '</svg>';
   }
 
+  /**
+   * Lijngrafiek met één of twee reeksen, voor het verloop van een oefening.
+   *
+   * reeksen: [{ naam, punten: [{ datum, v, label, piek }] }]
+   * opts   : { eenheid, leeg }
+   *
+   * De y-as begint niet op nul: bij gewichten gaat het om het verschil van
+   * week tot week, en dat verdwijnt in het niets als je vanaf nul tekent.
+   */
+  function lijnGrafiek(reeksen, opts) {
+    opts = opts || {};
+    var W = 640, H = 200, padL = 44, padR = 12, padT = 16, padB = 26;
+
+    var gevuld = reeksen.filter(function (r) { return r.punten && r.punten.length; });
+    var alle = [];
+    gevuld.forEach(function (r) {
+      r.punten.forEach(function (p) { alle.push(p); });
+    });
+
+    if (!alle.length) return '<p class="empty">' + esc(opts.leeg || 'Nog niets ingevuld.') + '</p>';
+    if (alle.length === 1) {
+      return '<p class="empty">Eén sessie: <strong>' + esc(alle[0].label) + '</strong> op ' +
+        esc(D.formatShort(alle[0].datum)) + '. Vul deze oefening nog een keer in, dan tekent de app een lijn.</p>';
+    }
+
+    var vals = alle.map(function (p) { return p.v; });
+    var min = Math.min.apply(null, vals);
+    var max = Math.max.apply(null, vals);
+    var span = max - min || Math.max(1, max * 0.1);
+    min -= span * 0.15;
+    max += span * 0.15;
+
+    var datums = alle.map(function (p) { return D.parse(p.datum).getTime(); });
+    var t0 = Math.min.apply(null, datums);
+    var t1 = Math.max.apply(null, datums);
+    var tSpan = (t1 - t0) || 1;
+
+    function x(datum) {
+      return padL + ((D.parse(datum).getTime() - t0) / tSpan) * (W - padL - padR);
+    }
+    function y(v) {
+      return padT + (1 - (v - min) / (max - min)) * (H - padT - padB);
+    }
+
+    var lijnen = gevuld.map(function (r, i) {
+      var pad = r.punten.map(function (p, j) {
+        return (j === 0 ? 'M' : 'L') + x(p.datum).toFixed(1) + ' ' + y(p.v).toFixed(1);
+      }).join(' ');
+      var stippen = r.punten.map(function (p) {
+        return '<circle cx="' + x(p.datum).toFixed(1) + '" cy="' + y(p.v).toFixed(1) + '"' +
+          ' r="' + (p.piek ? 5 : 3) + '" class="lc-dot' + (p.piek ? ' lc-pr' : '') + '">' +
+          '<title>' + esc(D.formatShort(p.datum) + ': ' + p.label + (p.piek ? ' (beste)' : '')) +
+          '</title></circle>';
+      }).join('');
+      return '<g class="lc-serie lc-serie-' + i + '">' +
+        (r.punten.length > 1 ? '<path d="' + pad + '" class="lc-line"/>' : '') +
+        stippen + '</g>';
+    }).join('');
+
+    var gridVals = [min + (max - min) * 0.15, (min + max) / 2, max - (max - min) * 0.15];
+    var grid = gridVals.map(function (v) {
+      return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '" class="wc-grid"/>' +
+        '<text x="' + (padL - 8) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end" class="wc-axis">' +
+        esc(afronden(v)) + '</text>';
+    }).join('');
+
+    var eersteDatum = alle.reduce(function (a, p) { return p.datum < a ? p.datum : a; }, alle[0].datum);
+    var laatsteDatum = alle.reduce(function (a, p) { return p.datum > a ? p.datum : a; }, alle[0].datum);
+    var xLabels = '<text x="' + padL + '" y="' + (H - 6) + '" class="wc-axis">' + esc(D.formatShort(eersteDatum)) + '</text>' +
+      '<text x="' + (W - padR) + '" y="' + (H - 6) + '" text-anchor="end" class="wc-axis">' +
+      esc(D.formatShort(laatsteDatum)) + '</text>';
+
+    var uitleg = gevuld.length > 1
+      ? '<div class="lc-legenda">' + gevuld.map(function (r, i) {
+        return '<span class="lc-merk lc-serie-' + i + '"></span>' + esc(r.naam);
+      }).join('') + '</div>'
+      : '';
+
+    return '<svg class="lijn-grafiek" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+      esc(opts.omschrijving || 'Verloop van deze oefening') + '">' +
+      grid + lijnen + xLabels +
+      '</svg>' + uitleg;
+  }
+
+  /** Astekst zonder overbodige decimaal: 47,5 blijft 47,5 en 12 blijft 12. */
+  function afronden(v) {
+    var afgerond = Math.round(v * 10) / 10;
+    return (afgerond % 1 === 0 ? String(afgerond) : afgerond.toFixed(1)).replace('.', ',');
+  }
+
   /** Staafjes per dag (weekoverzicht) */
   function dayBars(days, onClickAttr) {
     return '<div class="daybars">' + days.map(function (d) {
@@ -183,6 +298,7 @@
     ring: ring,
     bar: bar,
     weightChart: weightChart,
+    lijnGrafiek: lijnGrafiek,
     dayBars: dayBars,
     calendar: calendar,
     legend: legend,
