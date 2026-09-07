@@ -336,6 +336,10 @@ Zet de koppeling aan onder **Instellingen → Voeding uit Apple Health**. Daar s
 SQL-blok voor de tabel en de complete stappenlijst voor de Shortcut, met jouw eigen
 project-URL er al in ingevuld.
 
+Controleer na de eerste keer of het getal klopt: rond de 2.000 à 3.000 kcal is goed, maar
+zie je iets van 10.000, dan levert Health kilojoules aan en moet er in de Shortcut een
+deling door 4,184 tussen.
+
 ### Wie wint bij verschil?
 
 | Situatie | Wat er gebeurt |

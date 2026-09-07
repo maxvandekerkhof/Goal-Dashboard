@@ -1288,6 +1288,12 @@
         '<code>eiwit</code>, <code>bron</code> = <code>apple-health</code> en <code>bijgewerkt</code> ' +
         '(huidige datum, ISO 8601).'
       ]) +
+      stap('Draai de opdracht één keer met de hand en kijk naar het getal', [
+        'Rond de 2.000 à 3.000 bij <code>kcal</code>: goed. Zie je iets van 10.000, dan geeft ' +
+        'Health kilojoules door — zet er dan een <em>Reken uit</em>-stap tussen die deelt door ' +
+        '4,184. Controleer daarna in Supabase onder <em>Table Editor → voeding</em> of er een ' +
+        'rij bij staat.'
+      ]) +
       stap('Automatisering', [
         'Tabblad <em>Automatisering</em> → <em>Tijdstip</em> → 23:30 → <em>Direct uitvoeren</em>. ' +
         'Dan draait hij elke avond vanzelf.'
