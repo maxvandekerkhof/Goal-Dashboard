@@ -274,8 +274,10 @@
       '<h2>Meetwaarden</h2>' +
       '<div class="measure-grid">' +
       measureField('gewicht', 'Gewicht', 'kg', entry.gewicht, '0.1', 'bv. 82,4') +
-      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel)) +
-      measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel)) +
+      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel),
+        voedingVoet(date, 'eiwitGram', 'g')) +
+      measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel),
+        voedingVoet(date, 'kcal', 'kcal')) +
       '</div>' +
       (gm.status === 'uit' || isFuture ? '' :
         '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
@@ -314,7 +316,7 @@
     return html;
   }
 
-  function measureField(field, label, unit, value, step, placeholder) {
+  function measureField(field, label, unit, value, step, placeholder, voet) {
     return '<label class="measure">' +
       '<span class="measure-label">' + esc(label) + '</span>' +
       '<span class="measure-input">' +
@@ -322,7 +324,26 @@
       ' value="' + (value === undefined || value === null ? '' : esc(value)) + '"' +
       ' placeholder="' + esc(placeholder) + '">' +
       '<span class="measure-unit">' + esc(unit) + '</span>' +
-      '</span></label>';
+      '</span>' + (voet || '') + '</label>';
+  }
+
+  /**
+   * Waar komt dit getal vandaan? Alleen zichtbaar als de koppeling met Apple
+   * Health aanstaat — anders is het ruis onder een veld dat je zelf invult.
+   */
+  function voedingVoet(datum, veld, eenheid) {
+    if (!GD.voeding) return '';
+    var st = GD.voeding.status(datum, veld);
+    if (!st.aan) return '';
+    if (st.health !== null && st.afwijkend) {
+      return '<span class="bron bron-anders">Health: ' + fmt(st.health) + ' ' + esc(eenheid) +
+        ' <button class="btn-mini" data-action="voeding-overnemen" data-veld="' + veld + '">' +
+        'overnemen</button></span>';
+    }
+    if (st.bron === 'health') {
+      return '<span class="bron bron-auto">↻ uit Apple Health</span>';
+    }
+    return '';
   }
 
   /** Waterteller: snelknoppen, voortgangsbalk en correctiemogelijkheid. */
@@ -982,6 +1003,7 @@
       '</section>';
 
     html += syncSection();
+    html += healthSection();
 
     /* Data */
     html += '<section class="card"><h2>Je data</h2>' +
@@ -1161,6 +1183,127 @@
     '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
   ].join('\n');
 
+  var VOEDING_SQL = [
+    'create table if not exists public.voeding (',
+    '  user_id uuid not null default auth.uid() references auth.users on delete cascade,',
+    '  datum date not null,',
+    '  kcal numeric,',
+    '  eiwit numeric,',
+    '  bron text,',
+    '  bijgewerkt timestamptz not null default now(),',
+    '  primary key (user_id, datum)',
+    ');',
+    '',
+    'alter table public.voeding enable row level security;',
+    '',
+    'create policy "eigen voeding" on public.voeding',
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+  ].join('\n');
+
+  /** Eén stap in de handleiding voor de Shortcut. */
+  function stap(kop, regels) {
+    return '<li><strong>' + esc(kop) + '</strong>' +
+      (regels.length ? '<div class="stap-regels">' + regels.map(function (r) {
+        return '<div>' + r + '</div>';
+      }).join('') + '</div>' : '') + '</li>';
+  }
+
+  function veldRegel(naam, waarde) {
+    return esc(naam) + ': <code>' + esc(waarde) + '</code>';
+  }
+
+  function healthSection() {
+    var s = store.settings();
+    var st = GD.sync.status();
+    var c = GD.sync.config();
+    var ov = GD.voeding.overzicht();
+    var url = c.url || 'https://jouwproject.supabase.co';
+    var sleutel = c.anonKey || 'je publishable key';
+
+    var html = '<section class="card"><h2>Voeding uit Apple Health</h2>' +
+      '<p class="hint">MyFitnessPal schrijft je calorieën en eiwitten naar Apple Health. ' +
+      'Een Shortcut op je iPhone leest daar elke avond de dagtotalen uit en zet ze in je eigen ' +
+      'Supabase-project; dit dashboard haalt ze bij het synchroniseren op en vult je meetwaarden ' +
+      'in. Daarmee gaan ook <em>Eiwitdoel behaald</em> en <em>Caloriedoel behaald</em> vanzelf. ' +
+      'Tik je zelf een getal in, dan blijft dat staan: jouw invoer wint.</p>' +
+      toggle('voedingSync', 'Voeding ophalen uit Apple Health',
+        'Leest de tabel voeding uit je Supabase-project mee bij elke synchronisatie.',
+        s.voedingSync);
+
+    if (s.voedingSync) {
+      if (!st.geconfigureerd || !st.ingelogd) {
+        html += '<p class="alert alert-bad">Zet eerst het synchroniseren hierboven aan en log in — ' +
+          'deze koppeling loopt via hetzelfde project.</p>';
+      } else if (st.voedingFout) {
+        html += '<p class="alert alert-bad">' + esc(st.voedingFout) +
+          '<br>Waarschijnlijk bestaat de tabel <code>voeding</code> nog niet. Draai het SQL-blok ' +
+          'hieronder in Supabase.</p>';
+      } else if (ov.dagen) {
+        html += '<div class="sync-status">' +
+          '<span class="chip">✓ ' + ov.dagen + ' dag' + (ov.dagen === 1 ? '' : 'en') + ' ontvangen</span>' +
+          (ov.bijgewerkt ? '<span class="chip">laatst bijgewerkt: ' + esc(tijdstip(ov.bijgewerkt)) + '</span>' : '') +
+          (ov.laatste ? '<span class="chip">t/m ' + esc(D.formatShort(ov.laatste)) + '</span>' : '') +
+          '</div>';
+      } else {
+        html += '<p class="hint">Nog niets ontvangen. Draai de Shortcut één keer met de hand en ' +
+          'klik daarna op <em>Nu synchroniseren</em>.</p>';
+      }
+    }
+
+    html += '<details class="uitleg"><summary>Hoe zet ik dit klaar?</summary>' +
+      '<p class="hint">Eenmalig: een tabel in Supabase en een Shortcut op je telefoon. ' +
+      'Zet in MyFitnessPal eerst de Apple Health-koppeling aan, zodat je voeding daar terechtkomt.</p>' +
+      '<p class="hint"><strong>1. De tabel.</strong> Open in Supabase de SQL Editor, plak dit blok ' +
+      'en klik op <em>Run</em>. Alleen jij kunt bij je eigen rijen, net als bij je dagen.</p>' +
+      '<pre class="sql">' + esc(VOEDING_SQL) + '</pre>' +
+      '<div class="row-actions"><button class="btn btn-sm" data-action="voeding-copy-sql">SQL kopiëren</button></div>' +
+      '<p class="hint"><strong>2. De Shortcut.</strong> Open de app Opdrachten (Shortcuts) op je ' +
+      'iPhone en maak een nieuwe opdracht met deze stappen:</p>' +
+      '<ol class="explain stappen">' +
+      stap('Zoek gezondheidsmonsters', [
+        veldRegel('Type', 'Voedingsenergie'),
+        veldRegel('Periode', 'Vandaag'),
+        'Daaronder: <em>Statistieken berekenen</em> → <em>Som</em>. Bewaar als variabele ' +
+        '<code>kcal</code>.'
+      ]) +
+      stap('Zelfde twee stappen nog een keer, maar dan met type Eiwit', [
+        'Bewaar als variabele <code>eiwit</code>.'
+      ]) +
+      stap('Haal inhoud van URL op — inloggen', [
+        veldRegel('URL', url + '/auth/v1/token?grant_type=password'),
+        veldRegel('Methode', 'POST'),
+        veldRegel('Koptekst apikey', sleutel),
+        veldRegel('Koptekst Content-Type', 'application/json'),
+        'Body (JSON): <code>email</code> en <code>password</code> van je dashboard-account.',
+        'Daaronder: <em>Verkrijg woordenboekwaarde</em> → sleutel <code>access_token</code>.'
+      ]) +
+      stap('Haal inhoud van URL op — wegschrijven', [
+        veldRegel('URL', url + '/rest/v1/voeding?on_conflict=user_id,datum'),
+        veldRegel('Methode', 'POST'),
+        veldRegel('Koptekst apikey', sleutel),
+        'Koptekst <code>Authorization</code>: <code>Bearer</code> + het access_token uit stap 3.',
+        veldRegel('Koptekst Prefer', 'resolution=merge-duplicates'),
+        veldRegel('Koptekst Content-Type', 'application/json'),
+        'Body (JSON): <code>datum</code> (vandaag als <code>jjjj-MM-dd</code>), <code>kcal</code>, ' +
+        '<code>eiwit</code>, <code>bron</code> = <code>apple-health</code> en <code>bijgewerkt</code> ' +
+        '(huidige datum, ISO 8601).'
+      ]) +
+      stap('Automatisering', [
+        'Tabblad <em>Automatisering</em> → <em>Tijdstip</em> → 23:30 → <em>Direct uitvoeren</em>. ' +
+        'Dan draait hij elke avond vanzelf.'
+      ]) +
+      '</ol>' +
+      '<p class="hint">Je wachtwoord staat daarmee in die Shortcut, op je eigen telefoon. Dat is de ' +
+      'prijs voor een koppeling zonder eigen app; wil je hem intrekken, wijzig dan je wachtwoord — ' +
+      'dan stopt alleen de Shortcut ermee. Log je in de Shortcut in met hetzelfde account als in ' +
+      'dit dashboard.</p>' +
+      '<p class="hint">Wil je ook nog laat ingevoerde maaltijden meenemen? Herhaal stap 1, 2 en 4 ' +
+      'met periode <em>Gisteren</em> en de datum van gisteren.</p>' +
+      '</details></section>';
+
+    return html;
+  }
+
   function opt(v, label, current) {
     return '<option value="' + v + '"' + (current === v ? ' selected' : '') + '>' + esc(label) + '</option>';
   }
@@ -1243,10 +1386,11 @@
   }
 
   function meldSync(r) {
-    if (!r.opgehaald && !r.verstuurd) { toast('Alles liep al gelijk.'); return; }
     var delen = [];
     if (r.opgehaald) delen.push(r.opgehaald + ' dag(en) opgehaald');
     if (r.verstuurd) delen.push(r.verstuurd + ' verstuurd');
+    if (r.voeding) delen.push(r.voeding + ' × voeding uit Apple Health');
+    if (!delen.length) { toast('Alles liep al gelijk.'); return; }
     toast(delen.join(', ') + '.');
   }
 
@@ -1510,6 +1654,25 @@
       }
       return;
     }
+    if (action === 'voeding-overnemen') {
+      if (GD.voeding.overnemen(ui.anchor, el.dataset.veld)) {
+        toast('Waarde uit Apple Health overgenomen.');
+        render();
+      }
+      return;
+    }
+    if (action === 'voeding-copy-sql') {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(VOEDING_SQL).then(function () {
+          toast('SQL gekopieerd.');
+        }).catch(function () {
+          toast('Kopiëren mislukt, selecteer de tekst handmatig.', 'bad');
+        });
+      } else {
+        toast('Kopiëren kan hier niet, selecteer de tekst handmatig.', 'bad');
+      }
+      return;
+    }
     if (action === 'export') {
       download('goal-dashboard-' + D.today() + '.json', store.exportJSON());
       toast('Back-up gedownload.');
@@ -1611,6 +1774,10 @@
           store.setField(ui.anchor, t.dataset.field, n);
         } else {
           store.setField(ui.anchor, t.dataset.field, val.trim() || null);
+        }
+        // Zelf ingetikt: de koppeling met Apple Health laat dit veld voortaan met rust.
+        if (GD.voeding && (t.dataset.field === 'kcal' || t.dataset.field === 'eiwitGram')) {
+          GD.voeding.handmatig(ui.anchor, t.dataset.field);
         }
         if (t.type === 'number') render();
         return;

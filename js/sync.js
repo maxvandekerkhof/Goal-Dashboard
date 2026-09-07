@@ -23,6 +23,7 @@
   var pushTimer = null;
   var listeners = [];
   var appliedListeners = [];
+  var voedingFout = '';
 
   /* ----------------------------- instellingen ----------------------------- */
 
@@ -445,8 +446,9 @@
       }
 
       var instellingen = await syncInstellingen(uid);
+      var voeding = await syncVoeding(uid);
 
-      if (opgehaald || instellingen === 'opgehaald') {
+      if (opgehaald || voeding || instellingen === 'opgehaald') {
         appliedListeners.forEach(function (fn) {
           try { fn(); } catch (e) { console.error(e); }
         });
@@ -459,7 +461,8 @@
       return {
         opgehaald: opgehaald,
         verstuurd: teSturen.length,
-        instellingen: instellingen
+        instellingen: instellingen,
+        voeding: voeding
       };
     } catch (e) {
       config().fout = e.message || String(e);
@@ -500,6 +503,38 @@
     return 'gelijk';
   }
 
+  /**
+   * Calorieën en eiwitten die de koppeling met Apple Health heeft klaargezet.
+   *
+   * Staat in een eigen tabel, want een dagrij wordt bij het synchroniseren in
+   * zijn geheel vervangen — een koppeling die alleen voeding kent zou daarmee
+   * de rest van je dag wissen. Gaat er hier iets mis (tabel bestaat nog niet,
+   * SQL nog niet gedraaid), dan mag dat de rest van de synchronisatie niet
+   * tegenhouden: je dagen zijn belangrijker dan deze extra's.
+   */
+  async function syncVoeding(uid) {
+    if (!store.settings().voedingSync || !GD.voeding) return 0;
+    var vanaf = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
+    try {
+      var res = await rest('voeding?select=datum,kcal,eiwit,bron,bijgewerkt&user_id=eq.' +
+        encodeURIComponent(uid) + '&datum=gte.' + vanaf);
+      var rijen = await res.json();
+      var map = {};
+      rijen.forEach(function (r) {
+        if (!r || !r.datum) return;
+        map[r.datum] = {
+          kcal: r.kcal, eiwit: r.eiwit, bron: r.bron, bijgewerkt: r.bijgewerkt
+        };
+      });
+      store.putVoeding(map);
+      voedingFout = '';
+      return GD.voeding.toepassen();
+    } catch (e) {
+      voedingFout = e.message || String(e);
+      return 0;
+    }
+  }
+
   /* ------------------------------ automatisch ----------------------------- */
 
   /** Na een wijziging even wachten en dan wegschrijven, niet bij elke tik. */
@@ -519,6 +554,7 @@
       email: email(),
       laatst: c.laatst,
       fout: c.fout,
+      voedingFout: voedingFout,
       bezig: bezig
     };
   }

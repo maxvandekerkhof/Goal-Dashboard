@@ -111,7 +111,10 @@
       settingsTs: 0,
       entries: {},
       // Gewiste dagen onthouden we, anders zet een synchronisatie ze terug.
-      tombstones: {}
+      tombstones: {},
+      // Spiegel van wat de koppeling met Apple Health aanlevert. Alleen lezen:
+      // deze kant schrijft er nooit in, dus hij kan ook niets overschrijven.
+      voeding: {}
     };
   }
 
@@ -174,6 +177,14 @@
       if (data.entries && typeof data.entries === 'object') {
         Object.keys(data.entries).forEach(function (date) {
           if (/^\d{4}-\d{2}-\d{2}$/.test(date)) s.entries[date] = data.entries[date];
+        });
+      }
+      if (data.voeding && typeof data.voeding === 'object') {
+        Object.keys(data.voeding).forEach(function (date) {
+          var rij = data.voeding[date];
+          if (/^\d{4}-\d{2}-\d{2}$/.test(date) && rij && typeof rij === 'object') {
+            s.voeding[date] = rij;
+          }
         });
       }
       if (data.tombstones && typeof data.tombstones === 'object') {
@@ -270,9 +281,11 @@
     changed();
   }
 
+  /* Velden op *Bron zeggen alleen wáár een waarde vandaan kwam. Een dag met
+     alleen zo'n merkteken is nog steeds een lege dag. */
   function isEmptyEntry(e) {
     return !Object.keys(e).some(function (k) {
-      return k !== 'date' && k !== '_ts' &&
+      return k !== 'date' && k !== '_ts' && !/Bron$/.test(k) &&
         e[k] !== null && e[k] !== undefined && e[k] !== '';
     });
   }
@@ -335,6 +348,14 @@
     importJSON: importJSON,
     entryTs: entryTs,
     stamp: stamp,
+    /* Voeding uit Apple Health: binnengekomen waarden, per datum. */
+    voeding: function (datum) { return load().voeding[datum] || null; },
+    alleVoeding: function () { return load().voeding; },
+    putVoeding: function (map) {
+      // Geen changed(): dit is opgehaalde data, geen wijziging om terug te sturen.
+      load().voeding = map;
+      save();
+    },
     rev: function () { return rev; },
     onChange: onChange,
     changed: changed,

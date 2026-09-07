@@ -277,6 +277,33 @@ input[type="password"], select, textarea {
   padding: 10px 12px;
   outline: none;
 }
+/* Herkomst van een meetwaarde: automatisch of zelf ingetikt. */
+.bron {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.bron-auto { color: color-mix(in srgb, var(--accent) 75%, var(--text)); }
+.btn-mini {
+  appearance: none;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 650;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  padding: 0;
+  cursor: pointer;
+}
+
+.stappen > li { margin-bottom: 4px; }
+.stap-regels { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+.stap-regels code { background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: .92em; word-break: break-all; }
+
 .meldregel {
   display: flex;
   align-items: baseline;
@@ -836,6 +863,7 @@ ol.explain { list-style: decimal; }
     gewichtTempo: 0.25,       // kg per week; bij 'behouden' is dit de marge
     oefeningen: [],           // [{id, naam, type:'gewicht'|'reps', perArm, startDatum}]
     schemas: [],              // [{id, naam, oefeningen:[oefening-id]}]
+    voedingSync: false,       // calorieën en eiwitten ophalen uit de tabel voeding
     weekafsluitingGezien: '', // maandag van de week waarvan je de afsluiting wegklikte
     goedeDagDrempel: 70,      // % vanaf wanneer een dag als "goed" telt (streak)
     countMissingAsZero: true, // lege dagen in het verleden tellen als 0%
@@ -1044,7 +1072,10 @@ ol.explain { list-style: decimal; }
       settingsTs: 0,
       entries: {},
       // Gewiste dagen onthouden we, anders zet een synchronisatie ze terug.
-      tombstones: {}
+      tombstones: {},
+      // Spiegel van wat de koppeling met Apple Health aanlevert. Alleen lezen:
+      // deze kant schrijft er nooit in, dus hij kan ook niets overschrijven.
+      voeding: {}
     };
   }
 
@@ -1107,6 +1138,14 @@ ol.explain { list-style: decimal; }
       if (data.entries && typeof data.entries === 'object') {
         Object.keys(data.entries).forEach(function (date) {
           if (/^\d{4}-\d{2}-\d{2}$/.test(date)) s.entries[date] = data.entries[date];
+        });
+      }
+      if (data.voeding && typeof data.voeding === 'object') {
+        Object.keys(data.voeding).forEach(function (date) {
+          var rij = data.voeding[date];
+          if (/^\d{4}-\d{2}-\d{2}$/.test(date) && rij && typeof rij === 'object') {
+            s.voeding[date] = rij;
+          }
         });
       }
       if (data.tombstones && typeof data.tombstones === 'object') {
@@ -1203,9 +1242,11 @@ ol.explain { list-style: decimal; }
     changed();
   }
 
+  /* Velden op *Bron zeggen alleen wáár een waarde vandaan kwam. Een dag met
+     alleen zo'n merkteken is nog steeds een lege dag. */
   function isEmptyEntry(e) {
     return !Object.keys(e).some(function (k) {
-      return k !== 'date' && k !== '_ts' &&
+      return k !== 'date' && k !== '_ts' && !/Bron$/.test(k) &&
         e[k] !== null && e[k] !== undefined && e[k] !== '';
     });
   }
@@ -1268,6 +1309,14 @@ ol.explain { list-style: decimal; }
     importJSON: importJSON,
     entryTs: entryTs,
     stamp: stamp,
+    /* Voeding uit Apple Health: binnengekomen waarden, per datum. */
+    voeding: function (datum) { return load().voeding[datum] || null; },
+    alleVoeding: function () { return load().voeding; },
+    putVoeding: function (map) {
+      // Geen changed(): dit is opgehaalde data, geen wijziging om terug te sturen.
+      load().voeding = map;
+      save();
+    },
     rev: function () { return rev; },
     onChange: onChange,
     changed: changed,
@@ -3010,6 +3059,145 @@ ol.explain { list-style: decimal; }
 
   </script>
   <script>
+/* Goal Dashboard - calorieën en eiwitten uit Apple Health
+ *
+ * MyFitnessPal (of Lifesum, Cronometer, …) schrijft je voeding naar Apple
+ * Health. Een Shortcut op je telefoon leest daar de dagtotalen uit en zet ze in
+ * de tabel `voeding` van je eigen Supabase-project. Dit bestand haalt die
+ * waarden naar je dagen toe.
+ *
+ * Waarom een aparte tabel en niet gewoon in `dagen`? Omdat synchroniseren een
+ * dagrij in zijn geheel vervangt: een koppeling die alleen calorieën kent zou
+ * dan je water, je vinkjes en je oefeningen van die dag wissen.
+ *
+ * Wie zelf een getal intikt, wint. Dat onthouden we per veld in `kcalBron` en
+ * `eiwitGramBron`, zodat de volgende synchronisatie je eigen invoer niet
+ * terugdraait.
+ */
+(function (global) {
+  'use strict';
+
+  var GD = global.GD;
+  var store = GD.store;
+
+  var VELDEN = [
+    { veld: 'kcal', bronVeld: 'kcalBron', kolom: 'kcal', label: 'Calorieën', eenheid: 'kcal' },
+    { veld: 'eiwitGram', bronVeld: 'eiwitGramBron', kolom: 'eiwit', label: 'Eiwitten', eenheid: 'g' }
+  ];
+
+  function veldInfo(veld) {
+    for (var i = 0; i < VELDEN.length; i++) if (VELDEN[i].veld === veld) return VELDEN[i];
+    return null;
+  }
+
+  function getal(v) {
+    var n = GD.score.num(v);
+    return n === null ? null : Math.round(n);
+  }
+
+  /** Wat Health voor deze dag doorgaf, of null. */
+  function health(datum, veld) {
+    var rij = store.voeding(datum);
+    var info = veldInfo(veld);
+    if (!rij || !info) return null;
+    return getal(rij[info.kolom]);
+  }
+
+  /**
+   * Alles wat binnenkwam toepassen op je dagen.
+   * -> aantal gewijzigde velden
+   */
+  function toepassen() {
+    if (!store.settings().voedingSync) return 0;
+    var alles = store.alleVoeding();
+    var gewijzigd = 0;
+
+    Object.keys(alles).forEach(function (datum) {
+      VELDEN.forEach(function (info) {
+        var waarde = getal(alles[datum][info.kolom]);
+        if (waarde === null) return;
+
+        var e = store.entry(datum) || {};
+        var bron = e[info.bronVeld];
+        if (bron === 'hand') return;              // jij hebt hier zelf iets van gevonden
+
+        var huidig = getal(e[info.veld]);
+        if (huidig !== null && bron !== 'health') return; // stond er al vóór de koppeling
+        if (huidig === waarde && bron === 'health') return;
+
+        store.setField(datum, info.veld, waarde);
+        store.setField(datum, info.bronVeld, 'health');
+        gewijzigd++;
+      });
+    });
+    return gewijzigd;
+  }
+
+  /**
+   * Waar komt de waarde van dit veld vandaan, en wijkt Health daarvan af?
+   * -> { aan, health, bron, waarde, afwijkend }
+   */
+  function status(datum, veld) {
+    var info = veldInfo(veld);
+    var aan = !!store.settings().voedingSync;
+    var e = store.entry(datum) || {};
+    var uitHealth = aan ? health(datum, veld) : null;
+    var waarde = info ? getal(e[info.veld]) : null;
+    return {
+      aan: aan,
+      health: uitHealth,
+      bron: info ? (e[info.bronVeld] || null) : null,
+      waarde: waarde,
+      afwijkend: uitHealth !== null && waarde !== uitHealth
+    };
+  }
+
+  /** De waarde uit Health alsnog overnemen voor deze dag. */
+  function overnemen(datum, veld) {
+    var info = veldInfo(veld);
+    var waarde = health(datum, veld);
+    if (!info || waarde === null) return false;
+    store.setField(datum, info.veld, waarde);
+    store.setField(datum, info.bronVeld, 'health');
+    return true;
+  }
+
+  /** Zelf ingetikt: vanaf nu blijft Health van dit veld af. */
+  function handmatig(datum, veld) {
+    var info = veldInfo(veld);
+    if (info) store.setField(datum, info.bronVeld, 'hand');
+  }
+
+  /** Voor het instellingenscherm: hoeveel dagen en hoe recent. */
+  function overzicht() {
+    var alles = store.alleVoeding();
+    var datums = Object.keys(alles).sort();
+    var laatst = 0;
+    datums.forEach(function (d) {
+      var t = Date.parse(alles[d].bijgewerkt);
+      if (isFinite(t) && t > laatst) laatst = t;
+    });
+    return {
+      dagen: datums.length,
+      eerste: datums.length ? datums[0] : null,
+      laatste: datums.length ? datums[datums.length - 1] : null,
+      bijgewerkt: laatst
+    };
+  }
+
+  GD.voeding = {
+    VELDEN: VELDEN,
+    health: health,
+    toepassen: toepassen,
+    status: status,
+    overnemen: overnemen,
+    handmatig: handmatig,
+    overzicht: overzicht
+  };
+})(window);
+
+  </script>
+  <script>
 /* Goal Dashboard - synchronisatie via Supabase
  *
  * Opzet:
@@ -3035,6 +3223,7 @@ ol.explain { list-style: decimal; }
   var pushTimer = null;
   var listeners = [];
   var appliedListeners = [];
+  var voedingFout = '';
 
   /* ----------------------------- instellingen ----------------------------- */
 
@@ -3457,8 +3646,9 @@ ol.explain { list-style: decimal; }
       }
 
       var instellingen = await syncInstellingen(uid);
+      var voeding = await syncVoeding(uid);
 
-      if (opgehaald || instellingen === 'opgehaald') {
+      if (opgehaald || voeding || instellingen === 'opgehaald') {
         appliedListeners.forEach(function (fn) {
           try { fn(); } catch (e) { console.error(e); }
         });
@@ -3471,7 +3661,8 @@ ol.explain { list-style: decimal; }
       return {
         opgehaald: opgehaald,
         verstuurd: teSturen.length,
-        instellingen: instellingen
+        instellingen: instellingen,
+        voeding: voeding
       };
     } catch (e) {
       config().fout = e.message || String(e);
@@ -3512,6 +3703,38 @@ ol.explain { list-style: decimal; }
     return 'gelijk';
   }
 
+  /**
+   * Calorieën en eiwitten die de koppeling met Apple Health heeft klaargezet.
+   *
+   * Staat in een eigen tabel, want een dagrij wordt bij het synchroniseren in
+   * zijn geheel vervangen — een koppeling die alleen voeding kent zou daarmee
+   * de rest van je dag wissen. Gaat er hier iets mis (tabel bestaat nog niet,
+   * SQL nog niet gedraaid), dan mag dat de rest van de synchronisatie niet
+   * tegenhouden: je dagen zijn belangrijker dan deze extra's.
+   */
+  async function syncVoeding(uid) {
+    if (!store.settings().voedingSync || !GD.voeding) return 0;
+    var vanaf = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
+    try {
+      var res = await rest('voeding?select=datum,kcal,eiwit,bron,bijgewerkt&user_id=eq.' +
+        encodeURIComponent(uid) + '&datum=gte.' + vanaf);
+      var rijen = await res.json();
+      var map = {};
+      rijen.forEach(function (r) {
+        if (!r || !r.datum) return;
+        map[r.datum] = {
+          kcal: r.kcal, eiwit: r.eiwit, bron: r.bron, bijgewerkt: r.bijgewerkt
+        };
+      });
+      store.putVoeding(map);
+      voedingFout = '';
+      return GD.voeding.toepassen();
+    } catch (e) {
+      voedingFout = e.message || String(e);
+      return 0;
+    }
+  }
+
   /* ------------------------------ automatisch ----------------------------- */
 
   /** Na een wijziging even wachten en dan wegschrijven, niet bij elke tik. */
@@ -3531,6 +3754,7 @@ ol.explain { list-style: decimal; }
       email: email(),
       laatst: c.laatst,
       fout: c.fout,
+      voedingFout: voedingFout,
       bezig: bezig
     };
   }
@@ -3853,8 +4077,10 @@ ol.explain { list-style: decimal; }
       '<h2>Meetwaarden</h2>' +
       '<div class="measure-grid">' +
       measureField('gewicht', 'Gewicht', 'kg', entry.gewicht, '0.1', 'bv. 82,4') +
-      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel)) +
-      measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel)) +
+      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel),
+        voedingVoet(date, 'eiwitGram', 'g')) +
+      measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel),
+        voedingVoet(date, 'kcal', 'kcal')) +
       '</div>' +
       (gm.status === 'uit' || isFuture ? '' :
         '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
@@ -3893,7 +4119,7 @@ ol.explain { list-style: decimal; }
     return html;
   }
 
-  function measureField(field, label, unit, value, step, placeholder) {
+  function measureField(field, label, unit, value, step, placeholder, voet) {
     return '<label class="measure">' +
       '<span class="measure-label">' + esc(label) + '</span>' +
       '<span class="measure-input">' +
@@ -3901,7 +4127,26 @@ ol.explain { list-style: decimal; }
       ' value="' + (value === undefined || value === null ? '' : esc(value)) + '"' +
       ' placeholder="' + esc(placeholder) + '">' +
       '<span class="measure-unit">' + esc(unit) + '</span>' +
-      '</span></label>';
+      '</span>' + (voet || '') + '</label>';
+  }
+
+  /**
+   * Waar komt dit getal vandaan? Alleen zichtbaar als de koppeling met Apple
+   * Health aanstaat — anders is het ruis onder een veld dat je zelf invult.
+   */
+  function voedingVoet(datum, veld, eenheid) {
+    if (!GD.voeding) return '';
+    var st = GD.voeding.status(datum, veld);
+    if (!st.aan) return '';
+    if (st.health !== null && st.afwijkend) {
+      return '<span class="bron bron-anders">Health: ' + fmt(st.health) + ' ' + esc(eenheid) +
+        ' <button class="btn-mini" data-action="voeding-overnemen" data-veld="' + veld + '">' +
+        'overnemen</button></span>';
+    }
+    if (st.bron === 'health') {
+      return '<span class="bron bron-auto">↻ uit Apple Health</span>';
+    }
+    return '';
   }
 
   /** Waterteller: snelknoppen, voortgangsbalk en correctiemogelijkheid. */
@@ -4561,6 +4806,7 @@ ol.explain { list-style: decimal; }
       '</section>';
 
     html += syncSection();
+    html += healthSection();
 
     /* Data */
     html += '<section class="card"><h2>Je data</h2>' +
@@ -4740,6 +4986,127 @@ ol.explain { list-style: decimal; }
     '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
   ].join('\n');
 
+  var VOEDING_SQL = [
+    'create table if not exists public.voeding (',
+    '  user_id uuid not null default auth.uid() references auth.users on delete cascade,',
+    '  datum date not null,',
+    '  kcal numeric,',
+    '  eiwit numeric,',
+    '  bron text,',
+    '  bijgewerkt timestamptz not null default now(),',
+    '  primary key (user_id, datum)',
+    ');',
+    '',
+    'alter table public.voeding enable row level security;',
+    '',
+    'create policy "eigen voeding" on public.voeding',
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+  ].join('\n');
+
+  /** Eén stap in de handleiding voor de Shortcut. */
+  function stap(kop, regels) {
+    return '<li><strong>' + esc(kop) + '</strong>' +
+      (regels.length ? '<div class="stap-regels">' + regels.map(function (r) {
+        return '<div>' + r + '</div>';
+      }).join('') + '</div>' : '') + '</li>';
+  }
+
+  function veldRegel(naam, waarde) {
+    return esc(naam) + ': <code>' + esc(waarde) + '</code>';
+  }
+
+  function healthSection() {
+    var s = store.settings();
+    var st = GD.sync.status();
+    var c = GD.sync.config();
+    var ov = GD.voeding.overzicht();
+    var url = c.url || 'https://jouwproject.supabase.co';
+    var sleutel = c.anonKey || 'je publishable key';
+
+    var html = '<section class="card"><h2>Voeding uit Apple Health</h2>' +
+      '<p class="hint">MyFitnessPal schrijft je calorieën en eiwitten naar Apple Health. ' +
+      'Een Shortcut op je iPhone leest daar elke avond de dagtotalen uit en zet ze in je eigen ' +
+      'Supabase-project; dit dashboard haalt ze bij het synchroniseren op en vult je meetwaarden ' +
+      'in. Daarmee gaan ook <em>Eiwitdoel behaald</em> en <em>Caloriedoel behaald</em> vanzelf. ' +
+      'Tik je zelf een getal in, dan blijft dat staan: jouw invoer wint.</p>' +
+      toggle('voedingSync', 'Voeding ophalen uit Apple Health',
+        'Leest de tabel voeding uit je Supabase-project mee bij elke synchronisatie.',
+        s.voedingSync);
+
+    if (s.voedingSync) {
+      if (!st.geconfigureerd || !st.ingelogd) {
+        html += '<p class="alert alert-bad">Zet eerst het synchroniseren hierboven aan en log in — ' +
+          'deze koppeling loopt via hetzelfde project.</p>';
+      } else if (st.voedingFout) {
+        html += '<p class="alert alert-bad">' + esc(st.voedingFout) +
+          '<br>Waarschijnlijk bestaat de tabel <code>voeding</code> nog niet. Draai het SQL-blok ' +
+          'hieronder in Supabase.</p>';
+      } else if (ov.dagen) {
+        html += '<div class="sync-status">' +
+          '<span class="chip">✓ ' + ov.dagen + ' dag' + (ov.dagen === 1 ? '' : 'en') + ' ontvangen</span>' +
+          (ov.bijgewerkt ? '<span class="chip">laatst bijgewerkt: ' + esc(tijdstip(ov.bijgewerkt)) + '</span>' : '') +
+          (ov.laatste ? '<span class="chip">t/m ' + esc(D.formatShort(ov.laatste)) + '</span>' : '') +
+          '</div>';
+      } else {
+        html += '<p class="hint">Nog niets ontvangen. Draai de Shortcut één keer met de hand en ' +
+          'klik daarna op <em>Nu synchroniseren</em>.</p>';
+      }
+    }
+
+    html += '<details class="uitleg"><summary>Hoe zet ik dit klaar?</summary>' +
+      '<p class="hint">Eenmalig: een tabel in Supabase en een Shortcut op je telefoon. ' +
+      'Zet in MyFitnessPal eerst de Apple Health-koppeling aan, zodat je voeding daar terechtkomt.</p>' +
+      '<p class="hint"><strong>1. De tabel.</strong> Open in Supabase de SQL Editor, plak dit blok ' +
+      'en klik op <em>Run</em>. Alleen jij kunt bij je eigen rijen, net als bij je dagen.</p>' +
+      '<pre class="sql">' + esc(VOEDING_SQL) + '</pre>' +
+      '<div class="row-actions"><button class="btn btn-sm" data-action="voeding-copy-sql">SQL kopiëren</button></div>' +
+      '<p class="hint"><strong>2. De Shortcut.</strong> Open de app Opdrachten (Shortcuts) op je ' +
+      'iPhone en maak een nieuwe opdracht met deze stappen:</p>' +
+      '<ol class="explain stappen">' +
+      stap('Zoek gezondheidsmonsters', [
+        veldRegel('Type', 'Voedingsenergie'),
+        veldRegel('Periode', 'Vandaag'),
+        'Daaronder: <em>Statistieken berekenen</em> → <em>Som</em>. Bewaar als variabele ' +
+        '<code>kcal</code>.'
+      ]) +
+      stap('Zelfde twee stappen nog een keer, maar dan met type Eiwit', [
+        'Bewaar als variabele <code>eiwit</code>.'
+      ]) +
+      stap('Haal inhoud van URL op — inloggen', [
+        veldRegel('URL', url + '/auth/v1/token?grant_type=password'),
+        veldRegel('Methode', 'POST'),
+        veldRegel('Koptekst apikey', sleutel),
+        veldRegel('Koptekst Content-Type', 'application/json'),
+        'Body (JSON): <code>email</code> en <code>password</code> van je dashboard-account.',
+        'Daaronder: <em>Verkrijg woordenboekwaarde</em> → sleutel <code>access_token</code>.'
+      ]) +
+      stap('Haal inhoud van URL op — wegschrijven', [
+        veldRegel('URL', url + '/rest/v1/voeding?on_conflict=user_id,datum'),
+        veldRegel('Methode', 'POST'),
+        veldRegel('Koptekst apikey', sleutel),
+        'Koptekst <code>Authorization</code>: <code>Bearer</code> + het access_token uit stap 3.',
+        veldRegel('Koptekst Prefer', 'resolution=merge-duplicates'),
+        veldRegel('Koptekst Content-Type', 'application/json'),
+        'Body (JSON): <code>datum</code> (vandaag als <code>jjjj-MM-dd</code>), <code>kcal</code>, ' +
+        '<code>eiwit</code>, <code>bron</code> = <code>apple-health</code> en <code>bijgewerkt</code> ' +
+        '(huidige datum, ISO 8601).'
+      ]) +
+      stap('Automatisering', [
+        'Tabblad <em>Automatisering</em> → <em>Tijdstip</em> → 23:30 → <em>Direct uitvoeren</em>. ' +
+        'Dan draait hij elke avond vanzelf.'
+      ]) +
+      '</ol>' +
+      '<p class="hint">Je wachtwoord staat daarmee in die Shortcut, op je eigen telefoon. Dat is de ' +
+      'prijs voor een koppeling zonder eigen app; wil je hem intrekken, wijzig dan je wachtwoord — ' +
+      'dan stopt alleen de Shortcut ermee. Log je in de Shortcut in met hetzelfde account als in ' +
+      'dit dashboard.</p>' +
+      '<p class="hint">Wil je ook nog laat ingevoerde maaltijden meenemen? Herhaal stap 1, 2 en 4 ' +
+      'met periode <em>Gisteren</em> en de datum van gisteren.</p>' +
+      '</details></section>';
+
+    return html;
+  }
+
   function opt(v, label, current) {
     return '<option value="' + v + '"' + (current === v ? ' selected' : '') + '>' + esc(label) + '</option>';
   }
@@ -4822,10 +5189,11 @@ ol.explain { list-style: decimal; }
   }
 
   function meldSync(r) {
-    if (!r.opgehaald && !r.verstuurd) { toast('Alles liep al gelijk.'); return; }
     var delen = [];
     if (r.opgehaald) delen.push(r.opgehaald + ' dag(en) opgehaald');
     if (r.verstuurd) delen.push(r.verstuurd + ' verstuurd');
+    if (r.voeding) delen.push(r.voeding + ' × voeding uit Apple Health');
+    if (!delen.length) { toast('Alles liep al gelijk.'); return; }
     toast(delen.join(', ') + '.');
   }
 
@@ -5089,6 +5457,25 @@ ol.explain { list-style: decimal; }
       }
       return;
     }
+    if (action === 'voeding-overnemen') {
+      if (GD.voeding.overnemen(ui.anchor, el.dataset.veld)) {
+        toast('Waarde uit Apple Health overgenomen.');
+        render();
+      }
+      return;
+    }
+    if (action === 'voeding-copy-sql') {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(VOEDING_SQL).then(function () {
+          toast('SQL gekopieerd.');
+        }).catch(function () {
+          toast('Kopiëren mislukt, selecteer de tekst handmatig.', 'bad');
+        });
+      } else {
+        toast('Kopiëren kan hier niet, selecteer de tekst handmatig.', 'bad');
+      }
+      return;
+    }
     if (action === 'export') {
       download('goal-dashboard-' + D.today() + '.json', store.exportJSON());
       toast('Back-up gedownload.');
@@ -5190,6 +5577,10 @@ ol.explain { list-style: decimal; }
           store.setField(ui.anchor, t.dataset.field, n);
         } else {
           store.setField(ui.anchor, t.dataset.field, val.trim() || null);
+        }
+        // Zelf ingetikt: de koppeling met Apple Health laat dit veld voortaan met rust.
+        if (GD.voeding && (t.dataset.field === 'kcal' || t.dataset.field === 'eiwitGram')) {
+          GD.voeding.handmatig(ui.anchor, t.dataset.field);
         }
         if (t.type === 'number') render();
         return;

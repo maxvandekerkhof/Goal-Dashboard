@@ -38,7 +38,8 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 Daarnaast kun je per dag je gewicht, eiwitten (g) en calorieën (kcal) invullen, plus een
 korte notitie. Zodra de grammen en kilocalorieën er staan, bepaalt de app "Eiwitdoel
 behaald" en "Caloriedoel behaald" zelf aan de hand van je doelen; handmatig aanklikken
-heeft altijd voorrang. Alle gewichten zijn aanpasbaar in **Instellingen**; op 0 telt een
+heeft altijd voorrang. Die twee getallen kunnen ook automatisch binnenkomen uit
+MyFitnessPal — zie [Voeding uit Apple Health](#voeding-uit-apple-health). Alle gewichten zijn aanpasbaar in **Instellingen**; op 0 telt een
 doel helemaal niet mee.
 
 ## Hoe de score werkt
@@ -311,6 +312,52 @@ create policy "eigen instellingen" on public.instellingen
   (`gebruikersnaam.github.io`). Alles wat daar staat kan bij de opgeslagen gegevens van deze
   app. Zet er dus geen code van anderen naast, of geef het dashboard een eigen (sub)domein.
 
+## Voeding uit Apple Health
+
+Je calorieën en eiwitten kunnen ook vanzelf binnenkomen, zodat je ze niet meer overtypt.
+De keten is:
+
+```
+MyFitnessPal  ──▶  Apple Health  ──▶  Shortcut  ──▶  Supabase  ──▶  dit dashboard
+  (of Lifesum)       (op je iPhone)    (23:30)      (tabel voeding)
+```
+
+Een webpagina kan niet bij Apple Health — HealthKit is een native iOS-framework. Maar de
+Shortcuts-app kan dat wél, en die kan ook een webverzoek doen. Daarmee heb je geen eigen
+iOS-app, geen Xcode en geen developer-account nodig.
+
+**Waarom een aparte tabel?** Bij het synchroniseren wordt een dagrij in zijn geheel
+vervangen — dat is hoe "de laatste wijziging wint" werkt. Zou de koppeling rechtstreeks in
+`dagen` schrijven, dan wist een rij met alleen calorieën je water, je vinkjes en je
+oefeningen van die dag. De tabel `voeding` staat daarom los, wordt alleen door de Shortcut
+gevuld en alleen door het dashboard gelezen.
+
+Zet de koppeling aan onder **Instellingen → Voeding uit Apple Health**. Daar staat ook het
+SQL-blok voor de tabel en de complete stappenlijst voor de Shortcut, met jouw eigen
+project-URL er al in ingevuld.
+
+### Wie wint bij verschil?
+
+| Situatie | Wat er gebeurt |
+| --- | --- |
+| Veld leeg | Health vult het in, met het label *↻ uit Apple Health* |
+| Kwam uit Health en Health werkt bij | Volgt vanzelf mee (je middagstand wordt je eindstand) |
+| Jij tikt zelf een getal in | Jouw getal blijft staan, ook na synchroniseren |
+| Jij tikt iets in en Health zegt iets anders | Je ziet *Health: 2437 kcal · overnemen* en kiest zelf |
+| Stond er al iets vóór de koppeling | Blijft met rust gelaten |
+
+Dat onthouden we per veld in `kcalBron` en `eiwitGramBron`. Wis je het veld weer, dan blijft
+het leeg — tenzij die dag verder helemaal leeg is, want dan verdwijnt de hele dag en daarmee
+ook de herinnering dat je het weghaalde.
+
+Omdat `autoMacro` de vinkjes *Eiwitdoel behaald* en *Caloriedoel behaald* uit deze getallen
+afleidt, vinken die zichzelf aan zodra de cijfers binnen zijn. En de
+[weekafsluiting](#weekafsluiting) weigert advies te geven onder drie ingevulde caloriedagen —
+met deze koppeling staat die teller vanzelf vol.
+
+Gaat er iets mis met de tabel (bijvoorbeeld: het SQL-blok is nog niet gedraaid), dan blijft
+de rest van het synchroniseren gewoon werken. Je dagen zijn belangrijker dan deze extra's.
+
 ## Je data
 
 Alles staat in `localStorage` van de browser waarin je het gebruikt. Zonder de koppeling
@@ -347,6 +394,7 @@ js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-reg
 js/score.js         scoreberekening per dag en per periode, streaks, gewichtstrend
 js/charts.js        SVG-ring, balken, kalender, gewichts- en oefeninggrafiek
 js/review.js        weekafsluiting: eten tegenover gewicht, adviezen
+js/voeding.js       calorieën en eiwitten uit Apple Health toepassen
 js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
 

@@ -258,6 +258,33 @@ input[type="password"], select, textarea {
   padding: 10px 12px;
   outline: none;
 }
+/* Herkomst van een meetwaarde: automatisch of zelf ingetikt. */
+.bron {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.bron-auto { color: color-mix(in srgb, var(--accent) 75%, var(--text)); }
+.btn-mini {
+  appearance: none;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 650;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  padding: 0;
+  cursor: pointer;
+}
+
+.stappen > li { margin-bottom: 4px; }
+.stap-regels { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+.stap-regels code { background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: .92em; word-break: break-all; }
+
 .meldregel {
   display: flex;
   align-items: baseline;

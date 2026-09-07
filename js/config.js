@@ -112,6 +112,7 @@
     gewichtTempo: 0.25,       // kg per week; bij 'behouden' is dit de marge
     oefeningen: [],           // [{id, naam, type:'gewicht'|'reps', perArm, startDatum}]
     schemas: [],              // [{id, naam, oefeningen:[oefening-id]}]
+    voedingSync: false,       // calorieën en eiwitten ophalen uit de tabel voeding
     weekafsluitingGezien: '', // maandag van de week waarvan je de afsluiting wegklikte
     goedeDagDrempel: 70,      // % vanaf wanneer een dag als "goed" telt (streak)
     countMissingAsZero: true, // lege dagen in het verleden tellen als 0%
