@@ -1260,22 +1260,26 @@
       '<p class="hint"><strong>2. De Shortcut.</strong> Open de app Opdrachten (Shortcuts) op je ' +
       'iPhone en maak een nieuwe opdracht met deze stappen:</p>' +
       '<ol class="explain stappen">' +
-      stap('Zoek gezondheidsmonsters', [
-        veldRegel('Type', 'Voedingsenergie'),
-        veldRegel('Periode', 'Vandaag'),
-        'Daaronder: <em>Statistieken berekenen</em> → <em>Som</em>. Bewaar als variabele ' +
+      stap('Zoek gezondheidswaarden', [
+        veldRegel('Type', 'is Voedingsenergie'),
+        veldRegel('Begindatum', 'is vandaag'),
+        veldRegel('Eenheid', 'kcal'),
+        'Daaronder: <em>Bereken statistieken</em> → <em>Som</em>. Bewaar als variabele ' +
         '<code>kcal</code>.'
       ]) +
-      stap('Zelfde twee stappen nog een keer, maar dan met type Eiwit', [
-        'Bewaar als variabele <code>eiwit</code>.'
+      stap('Nog een keer, nu met type Eiwitten en eenheid g', [
+        'Weer met <em>Bereken statistieken</em> → <em>Som</em>. Bewaar als variabele ' +
+        '<code>eiwit</code>.'
       ]) +
       stap('Haal inhoud van URL op — inloggen', [
         veldRegel('URL', url + '/auth/v1/token?grant_type=password'),
         veldRegel('Methode', 'POST'),
         veldRegel('Koptekst apikey', sleutel),
         veldRegel('Koptekst Content-Type', 'application/json'),
-        'Body (JSON): <code>email</code> en <code>password</code> van je dashboard-account.',
-        'Daaronder: <em>Verkrijg woordenboekwaarde</em> → sleutel <code>access_token</code>.'
+        'Vraag om hoofdtekst: <em>JSON</em>, met alleen <code>email</code> en ' +
+        '<code>password</code> van je dashboard-account.',
+        'Daarna een <strong>losse actie</strong> <em>Verkrijg woordenboekwaarde</em> → sleutel ' +
+        '<code>access_token</code>. Dus niet als veld in de hoofdtekst hierboven.'
       ]) +
       stap('Haal inhoud van URL op — wegschrijven', [
         veldRegel('URL', url + '/rest/v1/voeding?on_conflict=user_id,datum'),
@@ -1284,15 +1288,15 @@
         'Koptekst <code>Authorization</code>: <code>Bearer</code> + het access_token uit stap 3.',
         veldRegel('Koptekst Prefer', 'resolution=merge-duplicates'),
         veldRegel('Koptekst Content-Type', 'application/json'),
-        'Body (JSON): <code>datum</code> (vandaag als <code>jjjj-MM-dd</code>), <code>kcal</code>, ' +
-        '<code>eiwit</code>, <code>bron</code> = <code>apple-health</code> en <code>bijgewerkt</code> ' +
+        'Vraag om hoofdtekst: <em>JSON</em> met <code>datum</code> (vandaag als ' +
+        '<code>jjjj-MM-dd</code>), <code>kcal</code> en <code>eiwit</code> (allebei als type ' +
+        '<em>Getal</em>), <code>bron</code> = <code>apple-health</code> en <code>bijgewerkt</code> ' +
         '(huidige datum, ISO 8601).'
       ]) +
       stap('Draai de opdracht één keer met de hand en kijk naar het getal', [
-        'Rond de 2.000 à 3.000 bij <code>kcal</code>: goed. Zie je iets van 10.000, dan geeft ' +
-        'Health kilojoules door — zet er dan een <em>Reken uit</em>-stap tussen die deelt door ' +
-        '4,184. Controleer daarna in Supabase onder <em>Table Editor → voeding</em> of er een ' +
-        'rij bij staat.'
+        'Rond de 2.000 à 3.000 bij <code>kcal</code>: goed. Zie je iets van 10.000, dan staat de ' +
+        'eenheid in stap 1 nog op kilojoules. Controleer daarna in Supabase onder ' +
+        '<em>Table Editor → voeding</em> of er een rij bij staat.'
       ]) +
       stap('Automatisering', [
         'Tabblad <em>Automatisering</em> → <em>Tijdstip</em> → 23:30 → <em>Direct uitvoeren</em>. ' +
