@@ -160,20 +160,29 @@ Onder je meetwaarden staat de korte versie van hetzelfde verhaal:
 ⚖️ +0,30 kg deze week — op schema (doel +0,25 per week).
 ```
 
-Dat vergelijkt de **laatste zeven dagen met de zeven dagen daarvóór** — een rollend venster,
-geen kalenderweek, zodat de regel ook op een dinsdag ergens op slaat. Een halve tot
-anderhalve keer je tempo telt als *op schema*; daaronder is het *trager dan je tempo*,
-daarboven *sneller* (met de opmerking dat dat vooral vet oplevert). Weeg je te weinig, dan
-zegt de regel dat in plaats van een cijfer te verzinnen.
+Dat vergelijkt het **gemiddelde van de laatste zeven dagen met dat van de zeven dagen
+daarvóór** — nooit je laatste weging, want één ochtend kan er door vocht of darminhoud
+makkelijk een kilo naast zitten. Het is een rollend venster en geen kalenderweek, zodat de
+regel ook op een dinsdag ergens op slaat. Een halve tot anderhalve keer je tempo telt als
+*op schema*; daaronder is het *trager dan je tempo*, daarboven *sneller*. Weeg je te weinig,
+dan zegt de regel dat in plaats van een cijfer te verzinnen.
+
+Een afwijking wordt pas als **waarschuwing** gebracht — met kleur, en met de reden erbij —
+als dezelfde vergelijking een week eerder hetzelfde zei (dag −13 t/m −7 tegen −20 t/m −14).
+Anders blijft de regel grijs staan als kale constatering, met waarom: de week ervóór was het
+nog niet zo, of er is nog geen derde week om mee te vergelijken. Op schema is meteen groen —
+daar valt niets aan bij te stellen.
 
 ## Weekafsluiting
 
-Bovenaan de **weekweergave** staat een rapport van je werkweek, en op **vrijdag vanaf 17:00
-tot zaterdag 12:00** verschijnt datzelfde rapport ook bovenaan je dagpagina. Daar kun je het
+Bovenaan de **weekweergave** staat een rapport van je werkweek, en op **zaterdag de hele dag
+en zondag tot 12:00** verschijnt datzelfde rapport ook bovenaan je dagpagina. Daar kun je het
 wegklikken met *Verbergen tot volgende week*; in het weekoverzicht blijft het gewoon staan.
 
 De afsluiting gaat over **maandag tot en met vrijdag**. Het weekend blijft er bewust buiten:
-dat is de vrije ruimte, en die hoort niet in een rapportcijfer.
+dat is de vrije ruimte, en die hoort niet in een rapportcijfer. Hij verschijnt pas op
+zaterdag en niet op vrijdagavond, omdat de voeding van vrijdag 's avonds laat uit Apple
+Health binnenkomt — op vrijdagavond zou het rapport over een onvolledige week gaan.
 
 Je krijgt vier cijfers (weekscore, goede dagen, keer getraind, en op hoeveel dagen je je
 calorieën écht hebt ingevuld) en daaronder een paar blokken met een oordeel: eten tegenover
@@ -194,6 +203,13 @@ elkaar en trekt er één conclusie uit:
 | Te snel aangekomen | rond je doel | Je doel staat te hoog — met een voorstel voor een nieuw doel. |
 
 Bij **afvallen** en **op gewicht blijven** werkt hetzelfde blok, met de richting omgedraaid.
+
+Maar: die conclusies komen er pas als de weegschaal **twee weken op rij** hetzelfde zegt.
+Daarvoor wordt je werkweek niet alleen met de vorige vergeleken, maar die vorige ook nog met
+de week dáárvoor. Zeggen ze iets verschillends, dan krijg je *Eén week — nog even aankijken*:
+wat je at, wat de weegschaal deed, en welk advies eruit zou komen als het volgende week weer
+zo is. Je caloriedoel blijft dan staan. Anders verzet je het op een halve kilo vocht en zet
+je het een week later weer terug.
 
 Het bijstelladvies rekent met de vuistregel dat één kilo lichaamsgewicht ongeveer **7700
 kcal** is: goed genoeg om te zien of je moet bijsturen, te grof om op de kilo nauwkeurig te

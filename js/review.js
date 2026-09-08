@@ -12,11 +12,12 @@
      om op de kilo nauwkeurig te rekenen. */
   var KCAL_PER_KG = 7700;
 
-  /* De week wordt op vrijdagavond afgesloten, niet op zondag: het weekend is
-     bewust de vrije ruimte en hoort niet in het rapport. */
+  /* Het rapport gaat over maandag t/m vrijdag: het weekend is bewust de vrije
+     ruimte en hoort er niet in. Maar het verschijnt pas op zaterdag, want de
+     voeding van vrijdag komt 's avonds laat uit Apple Health binnen — op
+     vrijdagavond zou de week dus nog niet compleet zijn. */
   var LAATSTE_DAG = 4;      // 0 = maandag, 4 = vrijdag
-  var VANAF_UUR = 17;       // vrijdag vanaf 17:00
-  var TOT_UUR = 12;         // zaterdag tot 12:00
+  var TOT_UUR = 12;         // zondag nog tot 12:00, als je zaterdag gemist hebt
 
   /** Maandag t/m vrijdag van de week waarin `datum` valt. */
   function dagen(datum) {
@@ -29,12 +30,12 @@
     return D.startOfWeek(datum);
   }
 
-  /** Staat de afsluiting nu op de dagpagina? Vrijdagavond t/m zaterdagochtend. */
+  /** Staat de afsluiting nu op de dagpagina? Zaterdag de hele dag, zondag tot 12:00. */
   function vensterOpen(nu) {
     var d = nu || new Date();
     var dag = d.getDay();
-    if (dag === 5) return d.getHours() >= VANAF_UUR;
-    if (dag === 6) return d.getHours() < TOT_UUR;
+    if (dag === 6) return true;
+    if (dag === 0) return d.getHours() < TOT_UUR;
     return false;
   }
 
@@ -133,6 +134,28 @@
     }
 
     var teLangzaam = kcal > 0;
+
+    /* Eén week weegschaal is zomaar een halve kilo vocht. Een caloriedoel
+       verzetten op die ene meting is precies hoe je gaat jojoën: de week erna
+       staat de schaal weer anders en verzet je het terug. Dus eerst kijken of
+       dezelfde afwijking er twee weken op rij staat. */
+    if (!gewicht.bevestigd) {
+      uit.status = 'afwachten';
+      uit.bijstellen = 0;
+      uit.kop = 'Eén week — nog even aankijken';
+      uit.tekst = 'Je at gemiddeld ' + gemTekst + ' en je gewicht deed ' +
+        kgTekst(gewicht.delta) + ', ' + (teLangzaam ? 'minder' : 'meer') + ' dan je ' +
+        (richting === 'behouden' ? 'marge' : 'tempo') + '. ' +
+        (gewicht.vorigeStatus
+          ? 'Maar de week ervóór deed je gewicht iets anders, dus dit kan schommeling zijn.'
+          : 'Er is nog geen week ervóór om dit naast te leggen.') +
+        (doel > 0
+          ? ' Je doel van ' + doelTekst + ' blijft daarom staan. Zegt volgende week hetzelfde, ' +
+            'dan wordt het advies ongeveer ' + afgerond(doel + kcal, 10) + ' kcal per dag.'
+          : ' Er verandert daarom nog niets aan je eten.');
+      return uit;
+    }
+
     uit.status = teLangzaam ? 'te-weinig-gegeten' : 'te-veel-gegeten';
 
     if (teLangzaam) {
@@ -223,22 +246,33 @@
     var period = S.scorePeriod(reeks);
     var st = period.stats;
 
-    /* Gewicht: deze werkweek tegen dezelfde dagen een week eerder. */
+    /* Gewicht: deze werkweek tegen dezelfde dagen een week eerder — en die week
+       nog eens tegen de week dáárvoor. Eén week weegschaal zegt te weinig om je
+       eten op bij te stellen; pas als beide vergelijkingen hetzelfde zeggen is
+       het een trend. */
     var nu = S.weightAvg(reeks);
     var vorig = S.weightAvg(reeks.map(function (d) { return D.addDays(d, -7); }));
+    var eerder = S.weightAvg(reeks.map(function (d) { return D.addDays(d, -14); }));
     var tempo = Math.abs(S.num(s.gewichtTempo, 0.25));
     var richting = s.gewichtRichting || 'uit';
     var gewicht = {
       richting: richting,
       avg: nu.avg, metingen: nu.count,
       vorigeAvg: vorig.avg, vorigeMetingen: vorig.count,
-      delta: null, doelDelta: tempo, status: 'te-weinig', tekst: ''
+      eerdereAvg: eerder.avg, eerdereMetingen: eerder.count,
+      delta: null, doelDelta: tempo, status: 'te-weinig', tekst: '',
+      bevestigd: false, vorigeStatus: null, vorigeDelta: null
     };
     if (richting !== 'uit' && nu.avg !== null && vorig.avg !== null) {
       gewicht.delta = nu.avg - vorig.avg;
       var oordeel = S.gewichtStatus(gewicht.delta, richting, tempo);
       gewicht.status = oordeel.status;
       gewicht.pct = oordeel.pct;
+      if (eerder.avg !== null) {
+        gewicht.vorigeDelta = vorig.avg - eerder.avg;
+        gewicht.vorigeStatus = S.gewichtStatus(gewicht.vorigeDelta, richting, tempo).status;
+      }
+      gewicht.bevestigd = gewicht.vorigeStatus === oordeel.status;
       gewicht.tekst = kgTekst(gewicht.delta) + ' tegenover vorige week (' +
         nu.count + ' en ' + vorig.count + ' weegmomenten).';
     }

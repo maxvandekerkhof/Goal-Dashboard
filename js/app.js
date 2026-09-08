@@ -724,9 +724,10 @@
   var RICHTING_TEKEN = { aankomen: '+', afvallen: '−', behouden: '±' };
 
   /**
-   * De weekafsluiting: op vrijdagavond bovenaan de dag, en altijd te vinden
-   * in het weekoverzicht. Bewust maandag t/m vrijdag — het weekend is de vrije
-   * ruimte en hoort niet in het rapport.
+   * De weekafsluiting: op zaterdag bovenaan de dag, en altijd te vinden in het
+   * weekoverzicht. Bewust maandag t/m vrijdag — het weekend is de vrije ruimte
+   * en hoort niet in het rapport. En bewust zaterdag en niet vrijdagavond: de
+   * voeding van vrijdag komt pas 's nachts uit Apple Health binnen.
    */
   function reviewSection(datum, opties) {
     opties = opties || {};
@@ -762,11 +763,23 @@
       gTekst = 'Gemiddeld ' + fmt(g.avg, 2) + ' kg tegenover ' + fmt(g.vorigeAvg, 2) +
         ' kg vorige week, dus ' + GD.review.kgTekst(g.delta) + '. Je tempo is ' +
         (RICHTING_TEKEN[g.richting] || '') + fmt(g.doelDelta, 2) + ' kg per week.';
+      if (g.status === 'op-schema') {
+        // Geen bevestiging nodig: hier valt niets bij te stellen.
+      } else if (g.bevestigd) {
+        gTekst += ' De week daarvoor deed hij ' + GD.review.kgTekst(g.vorigeDelta) +
+          ', dus dit is twee weken op rij hetzelfde beeld.';
+      } else if (g.vorigeStatus) {
+        gTekst += ' De week daarvoor deed hij ' + GD.review.kgTekst(g.vorigeDelta) +
+          ' — een ander beeld, dus dit kan schommeling zijn.';
+      } else {
+        gTekst += ' Er is nog geen week ervóór om dit naast te leggen.';
+      }
     }
 
     var blokken = '<div class="rv-blokken">' +
       reviewBlok('🔥', r.eten.kop || 'Eten en gewicht', r.eten.tekst, rvSoort(r.eten.status)) +
-      reviewBlok('⚖️', 'Gewicht', gTekst, rvSoort(g.status)) +
+      reviewBlok('⚖️', 'Gewicht', gTekst,
+        rvSoort(g.status === 'op-schema' || g.bevestigd ? g.status : 'afwachten')) +
       reviewBlok('🍗', 'Eiwit', r.eiwit.tekst, rvSoort(r.eiwit.status)) +
       (r.beste
         ? reviewBlok('🏆', 'Sterkste punt',
@@ -788,7 +801,7 @@
       : '';
 
     var voet = '<p class="hint">Dit gaat over maandag tot en met vrijdag; je weekend blijft ' +
-      'erbuiten.' +
+      'erbuiten. Hij verschijnt op zaterdag, zodat de voeding van vrijdag er nog in zit.' +
       (r.eten.bijstellen
         ? ' Het calorieadvies rekent met de vuistregel dat één kilo lichaamsgewicht ongeveer ' +
           GD.review.KCAL_PER_KG + ' kcal is: genoeg om te zien of je moet bijsturen, te grof om ' +
