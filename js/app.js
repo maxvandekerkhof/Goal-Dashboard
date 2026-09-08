@@ -11,7 +11,10 @@
 
   var ui = {
     view: 'dag',
-    anchor: D.today()
+    anchor: D.today(),
+    /* De oefening waarvan de grafiek openstaat. In de ui-status en niet in een
+       <details>, zodat hij een nieuwe tekenbeurt overleeft. */
+    liftGrafiek: null
   };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -177,15 +180,28 @@
       '<div class="trend">' + body + '</div></section>';
   }
 
-  function heroSection(pct, subtitle, extra) {
-    var color = GD.scoreColor(pct);
+  /**
+   * opts.tot   : vage boog in de ring — waar je vandaag nog op uit kunt komen
+   * opts.label : eigen kop in plaats van het oordeel, voor een dag die nog loopt
+   */
+  function heroSection(pct, subtitle, extra, opts) {
+    opts = opts || {};
+    // Een lopende dag krijgt geen oordeel mee: "Uitstekend" hoort pas bij een
+    // dag die af is, niet bij drie ingevulde doelen om negen uur 's ochtends.
+    // Ook de kleur wacht: rood-naar-groen zegt goed of slecht, en een dag die
+    // pas begonnen is verdient allebei niet.
+    var color = opts.label ? 'var(--text)' : GD.scoreColor(pct);
     return '<section class="card hero">' +
-      '<div class="hero-ring">' + C.ring(pct, 190, 16) + '</div>' +
+      '<div class="hero-ring">' +
+      C.ring(pct, 190, 16, { tot: opts.tot, kleur: opts.label ? 'var(--accent)' : null }) +
+      '</div>' +
       '<div class="hero-info">' +
-      '<div class="hero-label" style="color:' + color + '">' + esc(GD.scoreLabel(pct)) + '</div>' +
+      '<div class="hero-label" style="color:' + color + '">' + esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
       '<p class="hero-sub">' + subtitle + '</p>' +
       (extra || '') +
-      C.legend() +
+      // De kleurschaal hoort bij een eindcijfer; zolang de dag loopt staat de
+      // ring in één kleur en zou de balk alleen maar verwarren.
+      (opts.label ? '' : C.legend()) +
       '</div></section>';
   }
 
@@ -206,28 +222,66 @@
     }).length;
 
     var streak = S.currentStreak();
+    /* Wat staat er al vast, en wat valt er vandaag nog te halen? */
+    var ov = S.dagOverzicht(day);
+    var nietsGedaan = day.pct === null && ov.binnen === 0 && ov.kwijt === 0;
+    var loopt = ov.open > 0 && !nietsGedaan;
+    var toonPct = nietsGedaan ? null : ov.vloerPct;
+
     var extra = '<div class="hero-chips">' +
       '<span class="chip">' + answered + '/' + relevant + ' ingevuld</span>' +
+      (loopt && ov.binnen + ov.kwijt > 0
+        ? '<span class="chip" style="color:' + GD.scoreColor(day.pct) + '">' +
+          Math.round(day.pct) + '% raak tot nu toe</span>'
+        : '') +
       '<span class="chip">🔥 ' + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
       (day.restDay ? '<span class="chip">😴 rustdag</span>' : '') +
-      '</div>';
+      '</div>' +
+      (ov.open > 0 && !isFuture
+        ? '<p class="hint hint-tight">De vage ring is waar je vandaag nog op uit kunt komen.</p>'
+        : '');
 
-    var sub = isFuture
-      ? 'Deze dag ligt nog in de toekomst.'
-      : (day.pct === null
-        ? 'Nog niets ingevuld voor deze dag.'
-        : 'Je haalde <strong>' + fmt(day.points, 1) + '</strong> van de <strong>' + fmt(day.max, 1) + '</strong> punten die vandaag telden.');
+    var sub;
+    if (isFuture) {
+      sub = 'Deze dag ligt nog in de toekomst.';
+    } else if (nietsGedaan) {
+      sub = 'Nog niets ingevuld voor deze dag.';
+    } else if (loopt) {
+      // Niet het percentage van wat je al invulde, maar van de hele dag:
+      // anders staat de ring vol terwijl de dag nog open ligt.
+      sub = 'Je hebt <strong>' + fmt(ov.binnen, 1) + '</strong> van de <strong>' +
+        fmt(ov.totaal, 1) + '</strong> punten van vandaag binnen. Er staat nog <strong>' +
+        fmt(ov.open, 1) + '</strong> open' +
+        (ov.kwijt >= 0.05 ? ' en <strong>' + fmt(ov.kwijt, 1) + '</strong> is niet meer te halen' : '') + '.';
+    } else {
+      sub = 'Je haalde <strong>' + fmt(day.points, 1) + '</strong> van de <strong>' +
+        fmt(day.max, 1) + '</strong> punten die vandaag telden.';
+    }
 
-    var html = heroSection(day.pct, sub, extra);
+    var html = '';
+    if (isToday && GD.review && GD.review.vensterOpen(new Date()) && !GD.review.gezien(date)) {
+      html += reviewSection(date, { dagkaart: true });
+    }
+
+    html += heroSection(toonPct, sub, extra, {
+      tot: ov.open > 0 ? ov.plafondPct : null,
+      label: loopt ? 'Tussenstand' : null
+    });
 
     /* Meetwaarden */
+    var gm = S.gewichtMelding(date);
     html += '<section class="card">' +
       '<h2>Meetwaarden</h2>' +
       '<div class="measure-grid">' +
       measureField('gewicht', 'Gewicht', 'kg', entry.gewicht, '0.1', 'bv. 82,4') +
-      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel)) +
-      measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel)) +
+      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel),
+        voedingVoet(date, 'eiwitGram', 'g')) +
+      measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel),
+        voedingVoet(date, 'kcal', 'kcal')) +
       '</div>' +
+      (gm.status === 'uit' || isFuture ? '' :
+        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
+        '><span class="meldregel-icoon">⚖️</span>' + esc(gm.tekst) + '</p>') +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
       '</section>';
 
@@ -262,7 +316,7 @@
     return html;
   }
 
-  function measureField(field, label, unit, value, step, placeholder) {
+  function measureField(field, label, unit, value, step, placeholder, voet) {
     return '<label class="measure">' +
       '<span class="measure-label">' + esc(label) + '</span>' +
       '<span class="measure-input">' +
@@ -270,7 +324,26 @@
       ' value="' + (value === undefined || value === null ? '' : esc(value)) + '"' +
       ' placeholder="' + esc(placeholder) + '">' +
       '<span class="measure-unit">' + esc(unit) + '</span>' +
-      '</span></label>';
+      '</span>' + (voet || '') + '</label>';
+  }
+
+  /**
+   * Waar komt dit getal vandaan? Alleen zichtbaar als de koppeling met Apple
+   * Health aanstaat — anders is het ruis onder een veld dat je zelf invult.
+   */
+  function voedingVoet(datum, veld, eenheid) {
+    if (!GD.voeding) return '';
+    var st = GD.voeding.status(datum, veld);
+    if (!st.aan) return '';
+    if (st.health !== null && st.afwijkend) {
+      return '<span class="bron bron-anders">Health: ' + fmt(st.health) + ' ' + esc(eenheid) +
+        ' <button class="btn-mini" data-action="voeding-overnemen" data-veld="' + veld + '">' +
+        'overnemen</button></span>';
+    }
+    if (st.bron === 'health') {
+      return '<span class="bron bron-auto">↻ uit Apple Health</span>';
+    }
+    return '';
   }
 
   /** Waterteller: snelknoppen, voortgangsbalk en correctiemogelijkheid. */
@@ -438,6 +511,80 @@
       '</div></div>';
   }
 
+  /**
+   * Geschatte 1RM volgens Epley. Daarmee telt 40 kg × 10 als vooruitgang op
+   * 40 kg × 8, zonder dat de grafiek twee lijnen nodig heeft. Boven de tien
+   * herhalingen wordt de schatting optimistisch, maar het gaat hier om het
+   * verloop van je eigen oefening, niet om het absolute getal.
+   */
+  function geschat1RM(kg, reps) {
+    return kg * (1 + reps / 30);
+  }
+
+  /** Het hele verloop van één oefening, met de beste sessie gemarkeerd. */
+  function liftGrafiek(oef) {
+    var zijden = GD.lifts.zijden(oef);
+    var alles = [];
+    zijden.forEach(function (z) {
+      alles = alles.concat(GD.lifts.historie(oef.id, z.key));
+    });
+    if (!alles.length) {
+      return '<div class="lift-grafiek"><p class="empty">Nog geen sessies ingevuld voor deze oefening.</p></div>';
+    }
+
+    // Eén schaal voor de hele oefening: bij pull-ups en leg raises staat er
+    // geen gewicht, dan volgt de lijn je herhalingen.
+    var opReps = oef.type === 'reps' || !alles.some(function (r) { return r.kg > 0; });
+
+    var reeksen = zijden.map(function (z) {
+      var punten = GD.lifts.historie(oef.id, z.key).map(function (r) {
+        return {
+          datum: r.datum,
+          v: opReps ? r.reps : geschat1RM(r.kg, r.reps),
+          label: liftText(oef, r)
+        };
+      });
+      var beste = null;
+      punten.forEach(function (p) { if (!beste || p.v > beste.v) beste = p; });
+      if (beste) beste.piek = true;
+      return { naam: z.label || oef.naam, punten: punten };
+    });
+
+    // Per kant samenvatten: bij een oefening per arm zou één regel over rechts
+    // en links door elkaar niets zeggen.
+    var gevuld = reeksen.filter(function (r) { return r.punten.length; });
+    var samenvatting = gevuld.map(function (r) {
+      var eerste = r.punten[0];
+      var laatste = r.punten[r.punten.length - 1];
+      var groei = eerste.v > 0 ? ((laatste.v - eerste.v) / eerste.v) * 100 : null;
+      var top = r.punten.reduce(function (best, p) {
+        return best && best.v >= p.v ? best : p;
+      }, null);
+
+      return '<div class="lg-cijfers">' +
+        (gevuld.length > 1 ? '<span class="lg-zijde">' + esc(r.naam) + '</span>' : '') +
+        '<span>' + r.punten.length + ' sessie' + (r.punten.length === 1 ? '' : 's') +
+        ' sinds ' + esc(D.formatShort(eerste.datum)) + '</span>' +
+        (groei === null ? ''
+          : '<span style="color:' + GD.scoreColor(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
+            signed(groei, 0, '%') + ' sinds je start</span>') +
+        '<span>🏆 ' + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="lift-grafiek">' +
+      C.lijnGrafiek(reeksen, {
+        leeg: 'Nog geen sessies ingevuld voor deze oefening.',
+        omschrijving: 'Verloop van ' + oef.naam
+      }) +
+      samenvatting +
+      '<p class="hint hint-tight">' + (opReps
+        ? 'De lijn volgt je herhalingen.'
+        : 'De lijn volgt je geschatte 1RM: gewicht × (1 + reps ÷ 30). Meer reps bij hetzelfde ' +
+          'gewicht telt daarmee ook als vooruitgang.') +
+      '</p></div>';
+  }
+
   function liftRow(date, oid, res) {
     var oef = GD.lifts.byId(oid);
     if (!oef) return '';
@@ -449,12 +596,21 @@
       return liftSide(date, oef, z, regel);
     }).join('');
 
+    var open = ui.liftGrafiek === oid;
+
     return '<div class="lift">' +
       '<div class="lift-head">' +
       '<span class="lift-name">' + esc(oef.naam) + '</span>' +
+      '<span class="lift-knoppen">' +
+      '<button class="btn btn-ghost btn-sm' + (open ? ' btn-aan' : '') + '"' +
+      ' data-action="lift-grafiek" data-oef="' + esc(oid) + '"' +
+      ' aria-expanded="' + (open ? 'true' : 'false') + '"' +
+      ' title="Verloop van deze oefening">📈</button>' +
       '<button class="btn btn-ghost btn-sm" data-action="lift-clear" data-oef="' + esc(oid) + '"' +
       ' title="Deze oefening voor vandaag wissen">wissen</button>' +
-      '</div>' + sides + '</div>';
+      '</span>' +
+      '</div>' + sides +
+      (open ? liftGrafiek(oef) : '') + '</div>';
   }
 
   /**
@@ -537,6 +693,124 @@
       '</section>';
   }
 
+  /* --------------------------- weekafsluiting -------------------------- */
+
+  var RV_SOORT = {
+    'op-schema': 'goed',
+    goed: 'goed',
+    traag: 'let-op',
+    snel: 'let-op',
+    onder: 'let-op',
+    'te-weinig-gegeten': 'let-op',
+    'te-veel-gegeten': 'let-op',
+    verkeerd: 'slecht'
+  };
+
+  function rvSoort(status) { return RV_SOORT[status] || 'neutraal'; }
+
+  function reviewBlok(icoon, kop, tekst, soort) {
+    return '<div class="rv-blok rv-' + soort + '">' +
+      '<div class="rv-kop"><span class="rv-icoon">' + icoon + '</span>' + esc(kop) + '</div>' +
+      '<p class="rv-tekst">' + esc(tekst) + '</p>' +
+      '</div>';
+  }
+
+  function rvCijfer(waarde, label, kleur) {
+    return '<div class="rv-cijfer">' +
+      '<div class="rv-waarde"' + (kleur ? ' style="color:' + kleur + '"' : '') + '>' + waarde + '</div>' +
+      '<div class="rv-label">' + esc(label) + '</div></div>';
+  }
+
+  var RICHTING_TEKEN = { aankomen: '+', afvallen: '−', behouden: '±' };
+
+  /**
+   * De weekafsluiting: op zaterdag bovenaan de dag, en altijd te vinden in het
+   * weekoverzicht. Bewust maandag t/m vrijdag — het weekend is de vrije ruimte
+   * en hoort niet in het rapport. En bewust zaterdag en niet vrijdagavond: de
+   * voeding van vrijdag komt pas 's nachts uit Apple Health binnen.
+   */
+  function reviewSection(datum, opties) {
+    opties = opties || {};
+    var r = GD.review.maak(datum);
+
+    var kop = '<div class="card-head"><h2>📋 Weekafsluiting · ' + esc(r.label) + '</h2>' +
+      '<span class="chip">ma t/m vr · ' + esc(r.periode) + '</span></div>';
+
+    if (!r.ingevuld) {
+      return '<section class="card review">' + kop +
+        '<p class="hero-sub">Er staat nog niets ingevuld tussen ' + esc(r.periode) + '.</p>' +
+        '</section>';
+    }
+
+    var cijfers = '<div class="rv-cijfers">' +
+      rvCijfer(Math.round(r.pct) + '<span class="unit">%</span>', 'weekscore', GD.scoreColor(r.pct)) +
+      rvCijfer(r.goedeDagen + '<span class="unit">/' + r.geweest + '</span>', 'goede dagen') +
+      rvCijfer(r.trainDagen + '<span class="unit">×</span>', 'getraind') +
+      rvCijfer(r.kcalDagen + '<span class="unit">/' + r.geweest + '</span>', 'dagen calorieën',
+        GD.scoreColor(r.geweest ? (r.kcalDagen / r.geweest) * 100 : null)) +
+      '</div>';
+
+    var g = r.gewicht;
+    var gTekst;
+    if (g.richting === 'uit') {
+      gTekst = 'Je houdt geen gewichtsdoel bij, dus hier valt niets te vergelijken.';
+    } else if (g.delta === null) {
+      gTekst = 'Te weinig weegmomenten om deze week met de vorige te vergelijken: ' +
+        g.metingen + ' deze week, ' + g.vorigeMetingen + ' vorige week.';
+    } else {
+      // Twee decimalen: op één decimaal lijken twee weekgemiddelden die 50 gram
+      // schelen precies gelijk, en dan lijkt de melding eronder onzin.
+      gTekst = 'Gemiddeld ' + fmt(g.avg, 2) + ' kg tegenover ' + fmt(g.vorigeAvg, 2) +
+        ' kg vorige week, dus ' + GD.review.kgTekst(g.delta) + '. Je tempo is ' +
+        (RICHTING_TEKEN[g.richting] || '') + fmt(g.doelDelta, 2) + ' kg per week.';
+      if (g.status === 'op-schema') {
+        // Geen bevestiging nodig: hier valt niets bij te stellen.
+      } else if (g.bevestigd) {
+        gTekst += ' De week daarvoor deed hij ' + GD.review.kgTekst(g.vorigeDelta) +
+          ', dus dit is twee weken op rij hetzelfde beeld.';
+      } else if (g.vorigeStatus) {
+        gTekst += ' De week daarvoor deed hij ' + GD.review.kgTekst(g.vorigeDelta) +
+          ' — een ander beeld, dus dit kan schommeling zijn.';
+      } else {
+        gTekst += ' Er is nog geen week ervóór om dit naast te leggen.';
+      }
+    }
+
+    var blokken = '<div class="rv-blokken">' +
+      reviewBlok('🔥', r.eten.kop || 'Eten en gewicht', r.eten.tekst, rvSoort(r.eten.status)) +
+      reviewBlok('⚖️', 'Gewicht', gTekst,
+        rvSoort(g.status === 'op-schema' || g.bevestigd ? g.status : 'afwachten')) +
+      reviewBlok('🍗', 'Eiwit', r.eiwit.tekst, rvSoort(r.eiwit.status)) +
+      (r.beste
+        ? reviewBlok('🏆', 'Sterkste punt',
+          r.beste.goal.label + ' — ' + Math.round(r.beste.pct) + '% deze week.', 'goed')
+        : '') +
+      (r.zwakste
+        ? reviewBlok('📉', 'Zwakste punt',
+          r.zwakste.goal.label + ' — ' + Math.round(r.zwakste.pct) +
+          '%. Daar liggen je punten voor volgende week.',
+          r.zwakste.pct >= 70 ? 'goed' : 'let-op')
+        : '') +
+      '</div>';
+
+    var knoppen = opties.dagkaart
+      ? '<div class="row-actions">' +
+        '<button class="btn" data-action="review-week">Hele week bekijken</button>' +
+        '<button class="btn btn-ghost" data-action="review-verberg">Verbergen tot volgende week</button>' +
+        '</div>'
+      : '';
+
+    var voet = '<p class="hint">Dit gaat over maandag tot en met vrijdag; je weekend blijft ' +
+      'erbuiten. Hij verschijnt op zaterdag, zodat de voeding van vrijdag er nog in zit.' +
+      (r.eten.bijstellen
+        ? ' Het calorieadvies rekent met de vuistregel dat één kilo lichaamsgewicht ongeveer ' +
+          GD.review.KCAL_PER_KG + ' kcal is: genoeg om te zien of je moet bijsturen, te grof om ' +
+          'op de kilo nauwkeurig te rekenen.'
+        : '') + '</p>';
+
+    return '<section class="card review">' + kop + cijfers + blokken + knoppen + voet + '</section>';
+  }
+
   /* ------------------------------- week ------------------------------- */
 
   function renderWeek() {
@@ -551,6 +825,7 @@
           ? ', lege dagen tellen als 0%.' : '.');
 
     var html = heroSection(period.pct, sub);
+    html += reviewSection(dates[0], {});
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
     html += '<section class="card"><h2>Per dag</h2>' + C.dayBars(period.days) +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
@@ -691,9 +966,10 @@
       '</div></section>';
 
     html += '<section class="card"><h2>Gewichtsdoel</h2>' +
-      '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor. ' +
-      'Ga je de verkeerde kant op, dan kleurt de trend rood. Dit staat los van je dagscore: ' +
-      'gewicht is een uitkomst, geen gedrag dat je op één dag kunt halen.</p>' +
+      '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor — ' +
+      'nooit je laatste weging, want die schommelt te veel. Een afwijking kleurt pas rood als ' +
+      'hij twee weken op rij te zien is; één losse week blijft grijs. Dit staat los van je ' +
+      'dagscore: gewicht is een uitkomst, geen gedrag dat je op één dag kunt halen.</p>' +
       '<div class="form-grid">' +
       '<label class="field"><span class="field-label">Ik wil</span>' +
       '<select data-setting="gewichtRichting">' +
@@ -741,6 +1017,7 @@
       '</section>';
 
     html += syncSection();
+    html += healthSection();
 
     /* Data */
     html += '<section class="card"><h2>Je data</h2>' +
@@ -762,7 +1039,9 @@
       '<li>Je score is <em>behaalde punten ÷ haalbare punten</em>, met de gewichten hierboven.</li>' +
       '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
-      '<li>Voor vandaag tellen alleen de doelen die je al hebt ingevuld, zodat je score meegroeit met de dag. ' +
+      '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
+      'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
+      'vandaag nog op uit kunt komen. Zo staat de ring niet vol na drie ingevulde doelen. ' +
       'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
       '<li><em>Water</em> scoort naar rato: 2,25 van de 3 liter is 75%. Zolang de dag loopt telt de teller ' +
       'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
@@ -770,6 +1049,9 @@
       '<li>Gewicht telt niet mee in je dagscore. Het krijgt een eigen percentage in de ' +
       '<em>Gewichtstrend</em>: je weekgemiddelde tegenover dat van de week ervoor, ' +
       'afgemeten aan je gewichtsdoel hierboven.</li>' +
+      '<li>De regel onder je meetwaarden rekent met dezelfde gemiddelden, maar waarschuwt pas ' +
+      'als dezelfde afwijking er twee weken op rij staat. Eén week kan zomaar een kilo vocht ' +
+      'zijn; daar hoef je je eten niet op aan te passen.</li>' +
       '</ul></section>';
 
     return html;
@@ -918,6 +1200,154 @@
     '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
   ].join('\n');
 
+  var VOEDING_SQL = [
+    'create table if not exists public.voeding (',
+    '  user_id uuid not null default auth.uid() references auth.users on delete cascade,',
+    '  datum date not null,',
+    '  kcal numeric,',
+    '  eiwit numeric,',
+    '  bron text,',
+    '  bijgewerkt timestamptz not null default now(),',
+    '  primary key (user_id, datum)',
+    ');',
+    '',
+    'alter table public.voeding enable row level security;',
+    '',
+    'create policy "eigen voeding" on public.voeding',
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+  ].join('\n');
+
+  /** Eén stap in de handleiding voor de Shortcut. */
+  function stap(kop, regels) {
+    return '<li><strong>' + esc(kop) + '</strong>' +
+      (regels.length ? '<div class="stap-regels">' + regels.map(function (r) {
+        return '<div>' + r + '</div>';
+      }).join('') + '</div>' : '') + '</li>';
+  }
+
+  function veldRegel(naam, waarde) {
+    return esc(naam) + ': <code>' + esc(waarde) + '</code>';
+  }
+
+  function healthSection() {
+    var s = store.settings();
+    var st = GD.sync.status();
+    var c = GD.sync.config();
+    var ov = GD.voeding.overzicht();
+    var url = c.url || 'https://jouwproject.supabase.co';
+    var sleutel = c.anonKey || 'je publishable key';
+
+    var html = '<section class="card"><h2>Voeding uit Apple Health</h2>' +
+      '<p class="hint">MyFitnessPal schrijft je calorieën en eiwitten naar Apple Health. ' +
+      'Een Shortcut op je iPhone leest daar elke avond de dagtotalen uit en zet ze in je eigen ' +
+      'Supabase-project; dit dashboard haalt ze bij het synchroniseren op en vult je meetwaarden ' +
+      'in. Daarmee gaan ook <em>Eiwitdoel behaald</em> en <em>Caloriedoel behaald</em> vanzelf. ' +
+      'Tik je zelf een getal in, dan blijft dat staan: jouw invoer wint.</p>' +
+      toggle('voedingSync', 'Voeding ophalen uit Apple Health',
+        'Leest de tabel voeding uit je Supabase-project mee bij elke synchronisatie.',
+        s.voedingSync);
+
+    if (s.voedingSync) {
+      if (!st.geconfigureerd || !st.ingelogd) {
+        html += '<p class="alert alert-bad">Zet eerst het synchroniseren hierboven aan en log in — ' +
+          'deze koppeling loopt via hetzelfde project.</p>';
+      } else if (st.voedingFout) {
+        html += '<p class="alert alert-bad">' + esc(st.voedingFout) +
+          '<br>Waarschijnlijk bestaat de tabel <code>voeding</code> nog niet. Draai het SQL-blok ' +
+          'hieronder in Supabase.</p>';
+      } else if (ov.dagen) {
+        html += '<div class="sync-status">' +
+          '<span class="chip">✓ ' + ov.dagen + ' dag' + (ov.dagen === 1 ? '' : 'en') + ' ontvangen</span>' +
+          (ov.bijgewerkt ? '<span class="chip">laatst bijgewerkt: ' + esc(tijdstip(ov.bijgewerkt)) + '</span>' : '') +
+          (ov.laatste ? '<span class="chip">t/m ' + esc(D.formatShort(ov.laatste)) + '</span>' : '') +
+          '</div>';
+      } else {
+        html += '<p class="hint">Nog niets ontvangen. Draai de Shortcut één keer met de hand en ' +
+          'klik daarna op <em>Nu synchroniseren</em>.</p>';
+      }
+    }
+
+    html += '<details class="uitleg"><summary>Hoe zet ik dit klaar?</summary>' +
+      '<p class="hint">Eenmalig: een tabel in Supabase en een Shortcut op je telefoon. ' +
+      'Zet in MyFitnessPal eerst de Apple Health-koppeling aan, zodat je voeding daar terechtkomt.</p>' +
+      '<p class="hint"><strong>1. De tabel.</strong> Open in Supabase de SQL Editor, plak dit blok ' +
+      'en klik op <em>Run</em>. Alleen jij kunt bij je eigen rijen, net als bij je dagen.</p>' +
+      '<pre class="sql">' + esc(VOEDING_SQL) + '</pre>' +
+      '<div class="row-actions"><button class="btn btn-sm" data-action="voeding-copy-sql">SQL kopiëren</button></div>' +
+      '<p class="hint"><strong>2. De Shortcut.</strong> Open de app Opdrachten (Shortcuts) op je ' +
+      'iPhone en maak een nieuwe opdracht met deze stappen:</p>' +
+      '<ol class="explain stappen">' +
+      stap('Zoek gezondheidswaarden', [
+        veldRegel('Type', 'is Voedingsenergie'),
+        veldRegel('Begindatum', 'is vandaag'),
+        veldRegel('Eenheid', 'kcal'),
+        'Daaronder: <em>Bereken statistieken</em> → <em>Som</em>, en daar weer onder ' +
+        '<em>Stel variabele in</em> met de naam <code>kcal</code>.'
+      ]) +
+      stap('Nog een keer, nu met type Eiwitten en eenheid g', [
+        'Weer <em>Bereken statistieken</em> → <em>Som</em>, en daaronder ' +
+        '<em>Stel variabele in</em> met de naam <code>eiwit</code>.',
+        'Die twee <em>Stel variabele in</em>-acties lijken overbodig, maar beide sommen heten ' +
+        'in de variabelenbalk <em>Statistieken</em>. Zonder eigen naam pak je gegarandeerd een ' +
+        'keer de verkeerde.'
+      ]) +
+      stap('Huidige datum → Formatteer datum', [
+        veldRegel('Datumnotatie', 'Aangepast'),
+        veldRegel('Formatteer tekenreeks', 'yyyy-MM-dd'),
+        'Die letters zijn geen Nederlands maar een vaste code; ze blijven ook op een Nederlandse ' +
+        'iPhone zo staan. Zet er daaronder <em>Stel variabele in</em> met de naam ' +
+        '<code>datum</code>.'
+      ]) +
+      stap('Haal inhoud van URL op — inloggen', [
+        veldRegel('URL', url + '/auth/v1/token?grant_type=password'),
+        veldRegel('Methode', 'POST'),
+        veldRegel('Koptekst apikey', sleutel),
+        veldRegel('Koptekst Content-Type', 'application/json'),
+        'Vraag om hoofdtekst: <em>JSON</em>, met alleen <code>email</code> en ' +
+        '<code>password</code> van je dashboard-account.',
+        'Daarna een <strong>losse actie</strong> <em>Haal woordenboekwaarde op</em> → sleutel ' +
+        '<code>access_token</code>. Dus niet als veld in de hoofdtekst hierboven.'
+      ]) +
+      stap('Haal inhoud van URL op — wegschrijven', [
+        veldRegel('URL', url + '/rest/v1/voeding?on_conflict=user_id,datum'),
+        veldRegel('Methode', 'POST'),
+        veldRegel('Koptekst apikey', sleutel),
+        'Koptekst <code>Authorization</code>: typ <code>Bearer</code> plus een spatie en voeg ' +
+        'daarna het blokje van <em>Haal woordenboekwaarde op</em> in. Zonder die spatie ' +
+        'weigert Supabase het token.',
+        veldRegel('Koptekst Prefer', 'resolution=merge-duplicates'),
+        veldRegel('Koptekst Content-Type', 'application/json'),
+        'Vraag om hoofdtekst: <em>JSON</em> met vier velden: <code>datum</code>, ' +
+        '<code>kcal</code> en <code>eiwit</code> (die twee als type <em>Getal</em>) en ' +
+        '<code>bron</code> met de letterlijke tekst <code>apple-health</code>. ' +
+        '<code>bijgewerkt</code> vult Supabase zelf in.',
+        'In <code>datum</code>, <code>kcal</code> en <code>eiwit</code> hoort een blauw of grijs ' +
+        '<strong>variabeleblokje</strong> te staan, geen getypte tekst. Staat er gewoon het woord ' +
+        '<em>datum</em>, dan stuur je die letters naar Supabase en weigert hij de rij. Let ook op ' +
+        'een losse <code>0</code> die vóór een blokje is blijven staan — die haalt je hele getal ' +
+        'overhoop.'
+      ]) +
+      stap('Draai de opdracht één keer met de hand en kijk naar het getal', [
+        'Rond de 2.000 à 3.000 bij <code>kcal</code>: goed. Zie je iets van 10.000, dan staat de ' +
+        'eenheid in stap 1 nog op kilojoules. Controleer daarna in Supabase onder ' +
+        '<em>Table Editor → voeding</em> of er een rij bij staat.'
+      ]) +
+      stap('Automatisering', [
+        'Tabblad <em>Automatisering</em> → <em>Tijdstip</em> → 23:30 → <em>Direct uitvoeren</em>. ' +
+        'Dan draait hij elke avond vanzelf.'
+      ]) +
+      '</ol>' +
+      '<p class="hint">Je wachtwoord staat daarmee in die Shortcut, op je eigen telefoon. Dat is de ' +
+      'prijs voor een koppeling zonder eigen app; wil je hem intrekken, wijzig dan je wachtwoord — ' +
+      'dan stopt alleen de Shortcut ermee. Log je in de Shortcut in met hetzelfde account als in ' +
+      'dit dashboard.</p>' +
+      '<p class="hint">Wil je ook nog laat ingevoerde maaltijden meenemen? Herhaal stap 1, 2 en 4 ' +
+      'met periode <em>Gisteren</em> en de datum van gisteren.</p>' +
+      '</details></section>';
+
+    return html;
+  }
+
   function opt(v, label, current) {
     return '<option value="' + v + '"' + (current === v ? ' selected' : '') + '>' + esc(label) + '</option>';
   }
@@ -1000,10 +1430,11 @@
   }
 
   function meldSync(r) {
-    if (!r.opgehaald && !r.verstuurd) { toast('Alles liep al gelijk.'); return; }
     var delen = [];
     if (r.opgehaald) delen.push(r.opgehaald + ' dag(en) opgehaald');
     if (r.verstuurd) delen.push(r.verstuurd + ' verstuurd');
+    if (r.voeding) delen.push(r.voeding + ' × voeding uit Apple Health');
+    if (!delen.length) { toast('Alles liep al gelijk.'); return; }
     toast(delen.join(', ') + '.');
   }
 
@@ -1080,6 +1511,22 @@
     }
     if (action === 'lift-clear') {
       GD.lifts.wisOefening(ui.anchor, el.dataset.oef);
+      render();
+      return;
+    }
+    if (action === 'lift-grafiek') {
+      ui.liftGrafiek = ui.liftGrafiek === el.dataset.oef ? null : el.dataset.oef;
+      render();
+      return;
+    }
+    if (action === 'review-week') {
+      ui.view = 'week';
+      render();
+      return;
+    }
+    if (action === 'review-verberg') {
+      GD.review.markeerGezien(ui.anchor);
+      toast('Weekafsluiting staat in het weekoverzicht.');
       render();
       return;
     }
@@ -1251,6 +1698,25 @@
       }
       return;
     }
+    if (action === 'voeding-overnemen') {
+      if (GD.voeding.overnemen(ui.anchor, el.dataset.veld)) {
+        toast('Waarde uit Apple Health overgenomen.');
+        render();
+      }
+      return;
+    }
+    if (action === 'voeding-copy-sql') {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(VOEDING_SQL).then(function () {
+          toast('SQL gekopieerd.');
+        }).catch(function () {
+          toast('Kopiëren mislukt, selecteer de tekst handmatig.', 'bad');
+        });
+      } else {
+        toast('Kopiëren kan hier niet, selecteer de tekst handmatig.', 'bad');
+      }
+      return;
+    }
     if (action === 'export') {
       download('goal-dashboard-' + D.today() + '.json', store.exportJSON());
       toast('Back-up gedownload.');
@@ -1352,6 +1818,10 @@
           store.setField(ui.anchor, t.dataset.field, n);
         } else {
           store.setField(ui.anchor, t.dataset.field, val.trim() || null);
+        }
+        // Zelf ingetikt: de koppeling met Apple Health laat dit veld voortaan met rust.
+        if (GD.voeding && (t.dataset.field === 'kcal' || t.dataset.field === 'eiwitGram')) {
+          GD.voeding.handmatig(ui.anchor, t.dataset.field);
         }
         if (t.type === 'number') render();
         return;

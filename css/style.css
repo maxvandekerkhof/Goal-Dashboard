@@ -198,6 +198,8 @@ p { margin: 0; }
 .ring { display: block; }
 .ring-pct { font-weight: 700; letter-spacing: -.03em; }
 .ring-pct-sign { font-size: .5em; }
+/* Wat er vandaag nog te halen valt: zichtbaar, maar duidelijk nog niet van jou. */
+.ring-open { opacity: .3; }
 
 .legend { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); font-size: .72rem; }
 .legend-bar { flex: 1; height: 8px; border-radius: 999px; }
@@ -256,6 +258,44 @@ input[type="password"], select, textarea {
   padding: 10px 12px;
   outline: none;
 }
+/* Herkomst van een meetwaarde: automatisch of zelf ingetikt. */
+.bron {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.bron-auto { color: color-mix(in srgb, var(--accent) 75%, var(--text)); }
+.btn-mini {
+  appearance: none;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 650;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  padding: 0;
+  cursor: pointer;
+}
+
+.stappen > li { margin-bottom: 4px; }
+.stap-regels { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+.stap-regels code { background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: .92em; word-break: break-all; }
+
+.meldregel {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 12px;
+  font-size: .85rem;
+  font-weight: 550;
+  color: var(--muted);
+}
+.meldregel-icoon { flex: none; }
+
 input[type="number"] { padding-right: 46px; }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 textarea { resize: vertical; padding-right: 12px; }
@@ -342,6 +382,35 @@ textarea { resize: vertical; padding-right: 12px; }
 .bd-off { opacity: .45; }
 .bd-icon { font-size: 1rem; }
 
+/* ---------------------------- weekafsluiting -------------------------- */
+
+.rv-cijfers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.rv-waarde { font-size: 1.4rem; font-weight: 700; letter-spacing: -.02em; }
+.rv-waarde .unit { font-size: .78rem; font-weight: 600; color: var(--muted); margin-left: 1px; }
+.rv-label { color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; }
+
+.rv-blokken { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.rv-blok {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--rv-kleur, var(--border));
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.rv-kop { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: .92rem; }
+.rv-icoon { font-size: 1rem; }
+.rv-tekst { color: var(--muted); font-size: .86rem; margin-top: 4px; }
+
+.rv-goed { --rv-kleur: #4d912e; }
+.rv-let-op { --rv-kleur: #d99a0a; }
+.rv-slecht { --rv-kleur: #b21e1e; }
+
 .bar { height: 10px; background: var(--track); border-radius: 999px; overflow: hidden; }
 .bar-fill { display: block; height: 100%; border-radius: 999px; transition: width .3s ease; }
 
@@ -410,6 +479,22 @@ textarea { resize: vertical; padding-right: 12px; }
 .wc-axis { fill: var(--muted); font-size: 11px; }
 .wc-goal { stroke: #d9a30a; stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
 .wc-goal-label { fill: #d9a30a; font-size: 11px; }
+
+.lijn-grafiek { width: 100%; height: auto; aspect-ratio: 640 / 200; display: block; }
+.lc-line { fill: none; stroke: var(--lc-kleur, var(--accent)); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.lc-dot { fill: var(--lc-kleur, var(--accent)); stroke: var(--card-2); stroke-width: 1.5; }
+.lc-pr { stroke: var(--text); stroke-width: 2; }
+.lc-serie-1 { --lc-kleur: #d9a30a; }
+.lc-legenda { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: .75rem; margin-top: 4px; }
+.lc-merk {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--lc-kleur, var(--accent));
+  margin-right: 5px;
+  vertical-align: -1px;
+}
 
 /* ---------------------------- instellingen ---------------------------- */
 
@@ -521,6 +606,25 @@ ol.explain { list-style: decimal; }
 .lift-hist { color: var(--muted); font-size: .78rem; margin-top: 5px; }
 .lift-date { opacity: .7; }
 
+.lift-knoppen { display: flex; gap: 2px; flex: none; }
+.btn-aan { border-color: var(--accent); color: var(--text); }
+
+.lift-grafiek {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.lg-cijfers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 550;
+}
+.lg-zijde { color: var(--text); min-width: 78px; }
+
 .lift-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
 .lift-add input[type="text"] { flex: 1; min-width: 150px; }
 
@@ -567,6 +671,7 @@ ol.explain { list-style: decimal; }
   .seg { min-width: 0; font-size: .8rem; padding: 10px 4px; }
   .bd-row { grid-template-columns: 1fr 44px; grid-template-areas: "name pct" "bar bar" "counts counts"; }
   .stat-value { font-size: 1.3rem; }
+  .rv-waarde { font-size: 1.2rem; }
   .daybar-track { height: 84px; }
   .cal-pct { display: none; }
   .weight-row { grid-template-columns: 1fr 44px; grid-template-areas: "name val" "range range"; }

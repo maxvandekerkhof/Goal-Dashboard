@@ -197,6 +197,55 @@
     };
   }
 
+  /**
+   * Wat er van een dag vaststaat en wat er nog te halen valt.
+   *
+   * Zonder dit leest een lopende dag te mooi: vul je 's ochtends drie doelen
+   * goed in, dan staat de ring op 100% terwijl de dag nog bijna helemaal open
+   * ligt. `vloerPct` is je score als de dag nu zou eindigen, `plafondPct` het
+   * hoogste dat vandaag nog kan.
+   *
+   * binnen + kwijt + open = alle punten die deze dag te verdienen waren.
+   */
+  function dagOverzicht(day) {
+    var binnen = 0, kwijt = 0, open = 0;
+
+    day.items.forEach(function (it) {
+      var w = it.weight;
+      if (!w) return; // gewicht op 0: dit doel telt niet mee
+
+      if (it.goal.type === 'meter') {
+        var frac = it.frac === null || it.frac === undefined ? 0 : it.frac;
+        binnen += frac * w;
+        if (it.reason === 'nog niet ingevuld' || it.reason === 'nog bezig') {
+          open += (1 - frac) * w;
+        } else {
+          kwijt += (1 - frac) * w;
+        }
+        return;
+      }
+
+      if (it.included) {
+        binnen += it.score * w;
+        kwijt += (1 - it.score) * w;
+      } else if (it.reason === 'nog niet ingevuld') {
+        open += w;
+      }
+      // rustdag, niet getraind of een eerste keer: vandaag niet te verdienen
+    });
+
+    var totaal = binnen + kwijt + open;
+    return {
+      binnen: binnen,
+      kwijt: kwijt,
+      open: open,
+      totaal: totaal,
+      vloerPct: totaal > 0 ? (binnen / totaal) * 100 : null,
+      plafondPct: totaal > 0 ? ((binnen + open) / totaal) * 100 : null,
+      livePct: day.pct
+    };
+  }
+
   /** Maximaal haalbare punten voor een dag zonder training-afhankelijke doelen */
   function baseMax() {
     var settings = store.settings();
@@ -243,7 +292,17 @@
           max += d.max;
           scoredDays++;
         }
-        days.push({ date: date, pct: d.pct, state: 'logged', day: d });
+        // Vandaag laten we in de balkjes en de kalender dezelfde tussenstand
+        // zien als op de dagpagina. Zonder dat staat het balkje van vandaag op
+        // 100% omdat je ontbijt goed was, terwijl de dag zelf 24% meldt.
+        // De optelling hierboven blijft wel op de ingevulde doelen gebaseerd,
+        // anders zou één halve dag je hele weekcijfer omlaag trekken.
+        days.push({
+          date: date,
+          pct: date === t ? dagOverzicht(d).vloerPct : d.pct,
+          state: 'logged',
+          day: d
+        });
         d.items.forEach(function (it) {
           var b = bd[it.key];
           if (it.included) {
@@ -333,7 +392,9 @@
       trainDays: trainDays,
       restDays: restDays,
       kcalAvg: avg(kcal),
+      kcalDays: kcal.length,
       proteinAvg: avg(prot),
+      proteinDays: prot.length,
       waterAvg: avg(water),
       waterDays: water.length,
       goodDays: days.filter(function (d) {
@@ -420,6 +481,144 @@
     return out;
   }
 
+  /** Gemiddeld gewicht over zeven dagen tot en met `datum`, `terug` weken eerder. */
+  function gewichtWeek(datum, terug) {
+    var eind = D.addDays(datum, -7 * (terug || 0));
+    return weightAvg(D.range(D.addDays(eind, -6), eind));
+  }
+
+  function kgTekst(n) {
+    var v = Math.round(n * 100) / 100;
+    return (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v).toFixed(2).replace('.', ',') + ' kg';
+  }
+
+  /**
+   * Hoe verhoudt een gewichtsverschil zich tot je tempo?
+   * -> { status: 'verkeerd'|'traag'|'op-schema'|'snel', pct, ratio }
+   *
+   * De grenzen zijn ruim (een halve tot anderhalve keer je tempo telt als op
+   * schema), want een weekgemiddelde schommelt al gauw een ons of twee door
+   * vocht en darminhoud.
+   */
+  function gewichtStatus(delta, richting, tempo) {
+    if (richting === 'behouden') {
+      var marge = tempo > 0 ? tempo : 0.25;
+      var binnen = Math.abs(delta) <= marge;
+      return { status: binnen ? 'op-schema' : 'verkeerd', pct: binnen ? 100 : 20, ratio: null };
+    }
+    // Voor afvallen draaien we het teken om; daarna is de rekensom gelijk.
+    var gewenst = richting === 'aankomen' ? delta : -delta;
+    var ratio = tempo > 0 ? gewenst / tempo : (gewenst > 0 ? 1 : 0);
+    if (ratio <= 0) return { status: 'verkeerd', pct: 0, ratio: ratio };
+    if (ratio < 0.5) return { status: 'traag', pct: 45, ratio: ratio };
+    if (ratio <= 1.5) return { status: 'op-schema', pct: 100, ratio: ratio };
+    return { status: 'snel', pct: 50, ratio: ratio };
+  }
+
+  /**
+   * Eén regel over je gewicht: de laatste zeven dagen tegenover de zeven dagen
+   * daarvoor, afgezet tegen je tempo.
+   *
+   * Twee dingen zijn hier bewust zo gebouwd, allebei omdat gewicht van dag tot
+   * dag makkelijk een kilo op en neer gaat door vocht, zout en darminhoud:
+   *
+   * - Er wordt met gemiddelden gerekend, nooit met de laatste weging.
+   * - Een afwijking wordt pas als waarschuwing gebracht als hij twee weken op
+   *   rij te zien is. Daarvoor wordt dezelfde vergelijking een week eerder
+   *   nog eens gemaakt (dag −13 t/m −7 tegen −20 t/m −14). Zegt die iets
+   *   anders, dan blijft het bij een kale constatering.
+   *
+   * Het venster rolt mee met de dag in plaats van op hele kalenderweken te
+   * zitten, zodat de melding ook op een dinsdag ergens op slaat.
+   */
+  function gewichtMelding(datum) {
+    var s = store.settings();
+    var richting = s.gewichtRichting || 'uit';
+    var tempo = Math.abs(num(s.gewichtTempo, 0.25));
+    var out = {
+      richting: richting, status: 'uit', delta: null, doelDelta: tempo,
+      pct: null, tekst: '', metingen: 0, vorigeMetingen: 0, avg: null, vorigeAvg: null,
+      bevestigd: false, waarschuwing: false,
+      vorigeStatus: null, vorigeDelta: null, eerdereMetingen: 0, eerdereAvg: null
+    };
+    if (richting === 'uit') return out;
+
+    var nu = gewichtWeek(datum, 0);
+    var vorig = gewichtWeek(datum, 1);
+    var eerder = gewichtWeek(datum, 2);
+    out.metingen = nu.count;
+    out.vorigeMetingen = vorig.count;
+    out.eerdereMetingen = eerder.count;
+    out.avg = nu.avg;
+    out.vorigeAvg = vorig.avg;
+    out.eerdereAvg = eerder.avg;
+
+    if (nu.count === 0 || vorig.count === 0) {
+      out.status = 'te-weinig';
+      out.tekst = nu.count === 0
+        ? 'Weeg je een paar keer per week, dan zie je hier of je op schema ligt.'
+        : 'Nog geen gewicht in de zeven dagen daarvóór, dus er valt nog niets te vergelijken.';
+      return out;
+    }
+
+    var delta = nu.avg - vorig.avg;
+    out.delta = delta;
+    var oordeel = gewichtStatus(delta, richting, tempo);
+    out.status = oordeel.status;
+
+    // Dezelfde vergelijking een week terug. Pas als die hetzelfde oordeel geeft
+    // is het een trend en geen schommeling.
+    if (eerder.avg !== null) {
+      out.vorigeDelta = vorig.avg - eerder.avg;
+      out.vorigeStatus = gewichtStatus(out.vorigeDelta, richting, tempo).status;
+    }
+    out.bevestigd = out.vorigeStatus === oordeel.status;
+    out.waarschuwing = oordeel.status !== 'op-schema' && out.bevestigd;
+    // Kleur alleen bij goed nieuws of bij een bevestigde afwijking; een losse
+    // week blijft grijs, anders schrik je van ruis.
+    out.pct = (oordeel.status === 'op-schema' || out.waarschuwing) ? oordeel.pct : null;
+
+    var doel = (richting === 'aankomen' ? '+' : '−') + tempo.toFixed(2).replace('.', ',');
+    var marge = tempo > 0 ? tempo : 0.25;
+    var kop = kgTekst(delta) + ' deze week — ';
+
+    if (oordeel.status === 'op-schema') {
+      out.tekst = kop + (richting === 'behouden'
+        ? 'binnen je marge van ' + marge.toFixed(2).replace('.', ',') + ' kg.'
+        : 'op schema (doel ' + doel + ' per week).');
+    } else {
+      if (richting === 'behouden') {
+        out.tekst = kop + 'buiten je marge van ' + marge.toFixed(2).replace('.', ',') + ' kg.';
+      } else if (oordeel.status === 'verkeerd') {
+        out.tekst = kop + 'je komt niet ' + (richting === 'aankomen' ? 'aan' : 'af') +
+          ', terwijl je dat wel wilt (doel ' + doel + ' per week).';
+      } else if (oordeel.status === 'traag') {
+        out.tekst = kop + 'trager dan je tempo van ' + doel + ' per week.';
+      } else {
+        out.tekst = kop + 'sneller dan je tempo van ' + doel + ' per week.';
+      }
+
+      if (out.waarschuwing) {
+        out.tekst += ' Twee weken op rij, dus dit is geen schommeling meer.' +
+          (oordeel.status !== 'snel' ? '' : richting === 'aankomen'
+            ? ' Zo komt er vooral vet bij.'
+            : ' Let op je spierbehoud.');
+      } else if (out.vorigeStatus) {
+        out.tekst += ' De week ervóór was dat nog niet zo, dus dit kan schommeling zijn — ' +
+          'pas als het volgende week weer zo is, valt er iets bij te stellen.';
+      } else {
+        out.tekst += ' Eén week zegt nog weinig. Staat het volgende week weer zo, dan is het ' +
+          'een trend.';
+      }
+    }
+
+    if (nu.count < 3 || vorig.count < 3) {
+      out.tekst += ' Gebaseerd op ' + nu.count + ' en ' + vorig.count +
+        ' weegmoment' + (nu.count === 1 && vorig.count === 1 ? '' : 'en') + ', dus gevoelig voor toeval.';
+    }
+    return out;
+  }
+
   /** Huidige reeks goede dagen, geteld vanaf vandaag (of gisteren) terug. */
   function currentStreak() {
     var settings = store.settings();
@@ -463,9 +662,12 @@
   GD.score = {
     scoreDay: scoreDay,
     scorePeriod: scorePeriod,
+    dagOverzicht: dagOverzicht,
     resolveValue: resolveValue,
     weightOf: weightOf,
     baseMax: baseMax,
+    gewichtStatus: gewichtStatus,
+    gewichtMelding: gewichtMelding,
     currentStreak: currentStreak,
     bestStreak: bestStreak,
     weightAvg: weightAvg,

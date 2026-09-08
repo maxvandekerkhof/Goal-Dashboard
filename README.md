@@ -38,7 +38,8 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 Daarnaast kun je per dag je gewicht, eiwitten (g) en calorieën (kcal) invullen, plus een
 korte notitie. Zodra de grammen en kilocalorieën er staan, bepaalt de app "Eiwitdoel
 behaald" en "Caloriedoel behaald" zelf aan de hand van je doelen; handmatig aanklikken
-heeft altijd voorrang. Alle gewichten zijn aanpasbaar in **Instellingen**; op 0 telt een
+heeft altijd voorrang. Die twee getallen kunnen ook automatisch binnenkomen uit
+MyFitnessPal — zie [Voeding uit Apple Health](#voeding-uit-apple-health). Alle gewichten zijn aanpasbaar in **Instellingen**; op 0 telt een
 doel helemaal niet mee.
 
 ## Hoe de score werkt
@@ -51,8 +52,12 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
 - **Rustdag** haalt "gesport" uit de berekening — een rustdag verpest je score dus niet.
 - **Progressive overload** en de **post-workout maaltijd** tellen alleen mee op dagen dat
   je écht getraind hebt.
-- Voor **vandaag** tellen alleen de doelen die je al hebt ingevuld, zodat je percentage
-  meegroeit met de dag. Bij **afgelopen dagen** telt niet-ingevuld als niet gedaan.
+- Zolang **vandaag** loopt zie je een **tussenstand**: de punten die je al binnen hebt,
+  gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen is waar je nog
+  op uit kunt komen, en de chip *"… % raak tot nu toe"* zegt hoe goed je de ingevulde doelen
+  deed. De ring staat dan in één kleur — rood-naar-groen is een oordeel, en een halve dag
+  verdient dat nog niet. Bij **afgelopen dagen** telt niet-ingevuld als niet gedaan en komt
+  het oordeel (*Prima*, *Uitstekend*, …) terug.
 - Lege dagen in het verleden tellen als 0% (uit te zetten in Instellingen). Dagen van
   vóór je allereerste invoer tellen nooit mee — toen gebruikte je het dashboard nog niet.
 - **Gewicht** telt niet mee in je dagscore — het is een uitkomst, geen gedrag dat je op
@@ -87,6 +92,18 @@ Twee soorten oefeningen, in te stellen per oefening:
 - **Alleen reps** voor pull-ups, leg raises en alles zonder extra gewicht.
 - **Per arm** voor lateral raises en tricep overhead: rechts en links krijgen elk hun eigen
   invulvelden, eigen historie en eigen oordeel. Blijft links achter, dan zie je dat.
+
+### Grafiek per oefening
+
+Naast elke oefening staat een **📈**-knop. Die klapt het hele verloop van díe oefening uit:
+elke ingevulde sessie als punt, je beste sessie met een ring eromheen, en eronder in het
+kort hoeveel sessies je hebt, hoeveel procent je sinds je startpunt bent opgeschoven en wat
+je record is.
+
+De lijn volgt je **geschatte 1RM** — `gewicht × (1 + reps ÷ 30)` — zodat 40 kg × 10 boven
+40 kg × 8 uitkomt en je niet twee lijnen naast elkaar hoeft te lezen. Bij oefeningen zonder
+gewicht (pull-ups, leg raises) volgt de lijn gewoon je herhalingen. Houd je een oefening per
+arm bij, dan krijgen rechts en links elk hun eigen lijn.
 
 In **Instellingen → Trainingsschema's** beheer je je schema's: oefeningen toevoegen, van
 volgorde wisselen, uit een schema halen (je ingevulde sessies blijven staan) en met **↺**
@@ -134,6 +151,74 @@ kaart dat de vergelijking gevoelig is voor toeval.
 
 Week- en maandpercentages tellen punten over alle dagen bij elkaar op. Een week met veel
 rustdagen wordt dus niet afgestraft, omdat op zo'n dag ook minder punten haalbaar waren.
+
+### Eén regel op de dagkaart
+
+Onder je meetwaarden staat de korte versie van hetzelfde verhaal:
+
+```
+⚖️ +0,30 kg deze week — op schema (doel +0,25 per week).
+```
+
+Dat vergelijkt het **gemiddelde van de laatste zeven dagen met dat van de zeven dagen
+daarvóór** — nooit je laatste weging, want één ochtend kan er door vocht of darminhoud
+makkelijk een kilo naast zitten. Het is een rollend venster en geen kalenderweek, zodat de
+regel ook op een dinsdag ergens op slaat. Een halve tot anderhalve keer je tempo telt als
+*op schema*; daaronder is het *trager dan je tempo*, daarboven *sneller*. Weeg je te weinig,
+dan zegt de regel dat in plaats van een cijfer te verzinnen.
+
+Een afwijking wordt pas als **waarschuwing** gebracht — met kleur, en met de reden erbij —
+als dezelfde vergelijking een week eerder hetzelfde zei (dag −13 t/m −7 tegen −20 t/m −14).
+Anders blijft de regel grijs staan als kale constatering, met waarom: de week ervóór was het
+nog niet zo, of er is nog geen derde week om mee te vergelijken. Op schema is meteen groen —
+daar valt niets aan bij te stellen.
+
+## Weekafsluiting
+
+Bovenaan de **weekweergave** staat een rapport van je werkweek, en op **zaterdag de hele dag
+en zondag tot 12:00** verschijnt datzelfde rapport ook bovenaan je dagpagina. Daar kun je het
+wegklikken met *Verbergen tot volgende week*; in het weekoverzicht blijft het gewoon staan.
+
+De afsluiting gaat over **maandag tot en met vrijdag**. Het weekend blijft er bewust buiten:
+dat is de vrije ruimte, en die hoort niet in een rapportcijfer. Hij verschijnt pas op
+zaterdag en niet op vrijdagavond, omdat de voeding van vrijdag 's avonds laat uit Apple
+Health binnenkomt — op vrijdagavond zou het rapport over een onvolledige week gaan.
+
+Je krijgt vier cijfers (weekscore, goede dagen, keer getraind, en op hoeveel dagen je je
+calorieën écht hebt ingevuld) en daaronder een paar blokken met een oordeel: eten tegenover
+gewicht, je gewichtstrend, je eiwitten, en je sterkste en zwakste doel van die week.
+
+### Eten tegenover gewicht
+
+Dit is het blok waar het om draait. Losse cijfers zeggen weinig — 2300 kcal is pas een
+probleem als je ook niet aankomt, en +0,8 kg pas als je dat niet wilde. De app legt ze naast
+elkaar en trekt er één conclusie uit:
+
+| Wat de weegschaal doet | Wat je at | Wat je te horen krijgt |
+| --- | --- | --- |
+| Op tempo | maakt niet uit | Niets veranderen. Haalde je je caloriedoel daarbij níet, dan is dat doel te streng afgesteld en krijg je een passender getal. |
+| Te weinig aangekomen | onder je doel | Er ging simpelweg te weinig in: haal eerst je eigen doel, en hoeveel kcal per dag dat scheelt. |
+| Te weinig aangekomen | doel gehaald | Dan is je doel zelf te laag voor je verbruik — met een voorstel voor een nieuw doel. |
+| Te snel aangekomen | boven je doel | Dat is vooral vetaanzet; terug naar je doel is genoeg. |
+| Te snel aangekomen | rond je doel | Je doel staat te hoog — met een voorstel voor een nieuw doel. |
+
+Bij **afvallen** en **op gewicht blijven** werkt hetzelfde blok, met de richting omgedraaid.
+
+Maar: die conclusies komen er pas als de weegschaal **twee weken op rij** hetzelfde zegt.
+Daarvoor wordt je werkweek niet alleen met de vorige vergeleken, maar die vorige ook nog met
+de week dáárvoor. Zeggen ze iets verschillends, dan krijg je *Eén week — nog even aankijken*:
+wat je at, wat de weegschaal deed, en welk advies eruit zou komen als het volgende week weer
+zo is. Je caloriedoel blijft dan staan. Anders verzet je het op een halve kilo vocht en zet
+je het een week later weer terug.
+
+Het bijstelladvies rekent met de vuistregel dat één kilo lichaamsgewicht ongeveer **7700
+kcal** is: goed genoeg om te zien of je moet bijsturen, te grof om op de kilo nauwkeurig te
+rekenen. Het advies is daarom afgerond op 50 kcal en gaat nooit verder dan 500 kcal per dag
+— een grotere sprong op basis van één week meten is nooit verstandig.
+
+Twee dingen kan de app niet: **met minder dan drie ingevulde caloriedagen** zegt hij dat, in
+plaats van een advies te verzinnen op basis van gokwerk. En zonder gewicht in deze én de
+vorige week is er niets te vergelijken; dan vraagt hij je een paar ochtenden te wegen.
 
 ## Synchroniseren tussen telefoon en laptop
 
@@ -243,6 +328,66 @@ create policy "eigen instellingen" on public.instellingen
   (`gebruikersnaam.github.io`). Alles wat daar staat kan bij de opgeslagen gegevens van deze
   app. Zet er dus geen code van anderen naast, of geef het dashboard een eigen (sub)domein.
 
+## Voeding uit Apple Health
+
+Je calorieën en eiwitten kunnen ook vanzelf binnenkomen, zodat je ze niet meer overtypt.
+De keten is:
+
+```
+MyFitnessPal  ──▶  Apple Health  ──▶  Shortcut  ──▶  Supabase  ──▶  dit dashboard
+  (of Lifesum)       (op je iPhone)    (23:30)      (tabel voeding)
+```
+
+Een webpagina kan niet bij Apple Health — HealthKit is een native iOS-framework. Maar de
+Shortcuts-app kan dat wél, en die kan ook een webverzoek doen. Daarmee heb je geen eigen
+iOS-app, geen Xcode en geen developer-account nodig.
+
+**Waarom een aparte tabel?** Bij het synchroniseren wordt een dagrij in zijn geheel
+vervangen — dat is hoe "de laatste wijziging wint" werkt. Zou de koppeling rechtstreeks in
+`dagen` schrijven, dan wist een rij met alleen calorieën je water, je vinkjes en je
+oefeningen van die dag. De tabel `voeding` staat daarom los, wordt alleen door de Shortcut
+gevuld en alleen door het dashboard gelezen.
+
+Zet de koppeling aan onder **Instellingen → Voeding uit Apple Health**. Daar staat ook het
+SQL-blok voor de tabel en de complete stappenlijst voor de Shortcut, met jouw eigen
+project-URL er al in ingevuld.
+
+Zet in de Shortcut bij *Zoek gezondheidswaarden* de **Eenheid** op `kcal` (en op `g` voor
+eiwitten). Doe je dat niet, dan kan Health kilojoules teruggeven en staat je caloriedoel er
+een factor 4,184 naast zonder dat het opvalt. Controleer na de eerste keer dus of er rond
+de 2.000 à 3.000 staat, niet 10.000.
+
+Drie dingen waar het bij het bouwen misgaat:
+
+- Beide somacties heten in de variabelenbalk *Statistieken*, dus zet achter elke som een
+  *Stel variabele in* met een eigen naam (`kcal`, `eiwit`). Anders pak je de verkeerde.
+- Bij *Formatteer datum* is de notatie letterlijk `yyyy-MM-dd`. Dat is een vaste code, geen
+  Nederlands — hij wordt niet vertaald.
+- In de JSON-hoofdtekst moet bij `datum`, `kcal` en `eiwit` een variabeleblokje staan, geen
+  getypte tekst, en er mag geen los cijfer voor blijven staan.
+
+### Wie wint bij verschil?
+
+| Situatie | Wat er gebeurt |
+| --- | --- |
+| Veld leeg | Health vult het in, met het label *↻ uit Apple Health* |
+| Kwam uit Health en Health werkt bij | Volgt vanzelf mee (je middagstand wordt je eindstand) |
+| Jij tikt zelf een getal in | Jouw getal blijft staan, ook na synchroniseren |
+| Jij tikt iets in en Health zegt iets anders | Je ziet *Health: 2437 kcal · overnemen* en kiest zelf |
+| Stond er al iets vóór de koppeling | Blijft met rust gelaten |
+
+Dat onthouden we per veld in `kcalBron` en `eiwitGramBron`. Wis je het veld weer, dan blijft
+het leeg — tenzij die dag verder helemaal leeg is, want dan verdwijnt de hele dag en daarmee
+ook de herinnering dat je het weghaalde.
+
+Omdat `autoMacro` de vinkjes *Eiwitdoel behaald* en *Caloriedoel behaald* uit deze getallen
+afleidt, vinken die zichzelf aan zodra de cijfers binnen zijn. En de
+[weekafsluiting](#weekafsluiting) weigert advies te geven onder drie ingevulde caloriedagen —
+met deze koppeling staat die teller vanzelf vol.
+
+Gaat er iets mis met de tabel (bijvoorbeeld: het SQL-blok is nog niet gedraaid), dan blijft
+de rest van het synchroniseren gewoon werken. Je dagen zijn belangrijker dan deze extra's.
+
 ## Je data
 
 Alles staat in `localStorage` van de browser waarin je het gebruikt. Zonder de koppeling
@@ -262,6 +407,7 @@ Gebruik daarom **Instellingen → Je data**:
   terug naar vandaag.
 - Klik in de week- of maandweergave op een dag om hem meteen in te vullen.
 - **Neem gisteren over** kopieert de antwoorden van gisteren, handig op vaste dagen.
+- **📈** naast een oefening klapt de grafiek van díe oefening uit.
 - Het icoon rechtsboven wisselt tussen donker en licht.
 - Ben je ingelogd voor synchronisatie, dan staat er een **⟳** naast: die synchroniseert
   vanaf elke pagina, zonder eerst naar de instellingen te gaan. Hij draait terwijl hij
@@ -275,8 +421,10 @@ css/style.css       stijl, donker en licht thema
 js/config.js        doeldefinities, standaardinstellingen, kleurschaal 0 -> 100
 js/store.js         opslag (localStorage), import/export, datum-helpers
 js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
-js/score.js         scoreberekening per dag en per periode, streaks
-js/charts.js        SVG-ring, balken, kalender en gewichtsgrafiek
+js/score.js         scoreberekening per dag en per periode, streaks, gewichtstrend
+js/charts.js        SVG-ring, balken, kalender, gewichts- en oefeninggrafiek
+js/review.js        weekafsluiting: eten tegenover gewicht, adviezen
+js/voeding.js       calorieën en eiwitten uit Apple Health toepassen
 js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
 
