@@ -953,9 +953,10 @@
       '</div></section>';
 
     html += '<section class="card"><h2>Gewichtsdoel</h2>' +
-      '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor. ' +
-      'Ga je de verkeerde kant op, dan kleurt de trend rood. Dit staat los van je dagscore: ' +
-      'gewicht is een uitkomst, geen gedrag dat je op één dag kunt halen.</p>' +
+      '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor — ' +
+      'nooit je laatste weging, want die schommelt te veel. Een afwijking kleurt pas rood als ' +
+      'hij twee weken op rij te zien is; één losse week blijft grijs. Dit staat los van je ' +
+      'dagscore: gewicht is een uitkomst, geen gedrag dat je op één dag kunt halen.</p>' +
       '<div class="form-grid">' +
       '<label class="field"><span class="field-label">Ik wil</span>' +
       '<select data-setting="gewichtRichting">' +
@@ -1035,6 +1036,9 @@
       '<li>Gewicht telt niet mee in je dagscore. Het krijgt een eigen percentage in de ' +
       '<em>Gewichtstrend</em>: je weekgemiddelde tegenover dat van de week ervoor, ' +
       'afgemeten aan je gewichtsdoel hierboven.</li>' +
+      '<li>De regel onder je meetwaarden rekent met dezelfde gemiddelden, maar waarschuwt pas ' +
+      'als dezelfde afwijking er twee weken op rij staat. Eén week kan zomaar een kilo vocht ' +
+      'zijn; daar hoef je je eten niet op aan te passen.</li>' +
       '</ul></section>';
 
     return html;
