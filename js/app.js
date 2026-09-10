@@ -114,6 +114,9 @@
   function periodStatsSection(period, totalDays) {
     var st = period.stats;
     var s = store.settings();
+    // Het eiwitdoel zoals het aan het eind van deze periode stond; beweegt het
+    // mee met je gewicht, dan is dat een ander getal dan vandaag.
+    var eiwit = S.eiwitDoel(period.days.length ? period.days[period.days.length - 1].date : null, s);
     var tiles = [
       statTile('Dagen ingevuld', period.logged + '<span class="unit">/' + totalDays + '</span>',
         period.missing ? period.missing + ' niet ingevuld' : 'compleet'),
@@ -124,7 +127,7 @@
       statTile('Gewicht', st.weightEnd !== null ? fmt(st.weightEnd, 1) + '<span class="unit">kg</span>' : '–',
         st.weightDelta !== null ? signed(st.weightDelta, 1, ' kg in periode') : 'gem. ' + fmt(st.weightAvg, 1) + ' kg'),
       statTile('Gem. eiwit', st.proteinAvg !== null ? fmt(st.proteinAvg) + '<span class="unit">g</span>' : '–',
-        'doel ' + fmt(s.eiwitDoel) + ' g'),
+        'doel ' + fmt(eiwit.doel) + ' g' + (eiwit.afgeleid ? ' · ' + fmt(eiwit.perKg, 1) + ' g/kg' : '')),
       statTile('Gem. calorieën', st.kcalAvg !== null ? fmt(st.kcalAvg) + '<span class="unit">kcal</span>' : '–',
         'doel ' + fmt(s.calorieDoel) + ' kcal'),
       statTile('Gem. water', st.waterAvg !== null ? GD.formatVolume(st.waterAvg) : '–',
@@ -270,11 +273,13 @@
 
     /* Meetwaarden */
     var gm = S.gewichtMelding(date);
+    var eiwit = S.eiwitDoel(date, s);
     html += '<section class="card">' +
       '<h2>Meetwaarden</h2>' +
       '<div class="measure-grid">' +
       measureField('gewicht', 'Gewicht', 'kg', entry.gewicht, '0.1', 'bv. 82,4') +
-      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel),
+      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1',
+        'doel ' + fmt(eiwit.doel) + (eiwit.afgeleid ? ' · ' + fmt(eiwit.perKg, 1) + ' g/kg' : ''),
         voedingVoet(date, 'eiwitGram', 'g')) +
       measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel),
         voedingVoet(date, 'kcal', 'kcal')) +
@@ -283,6 +288,12 @@
         '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
         '><span class="meldregel-icoon">⚖️</span>' + esc(gm.tekst) + '</p>') +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
+      // Een doel dat met je gewicht meebeweegt verandert vanzelf, dus het hoort
+      // ook zichtbaar te blijven als het veld al is ingevuld.
+      (eiwit.afgeleid
+        ? '<p class="hint">Eiwitdoel voor deze dag: ' + fmt(eiwit.doel) + ' g — ' +
+          fmt(eiwit.perKg, 1) + ' g per kilo bij ' + fmt(eiwit.gewicht, 1) + ' kg.</p>'
+        : '') +
       '</section>';
 
     /* Tellers (water) krijgen hun eigen kaart met snelknoppen */
@@ -946,12 +957,48 @@
       '</section>';
   }
 
+  /**
+   * Uitleg onder de voedingsdoelen: waar het eiwitdoel van vandaag vandaan komt,
+   * of wat het zou worden als je het op je gewicht zet.
+   */
+  function eiwitUitleg(s) {
+    var info = S.eiwitDoel(null, s);
+    if (s.eiwitBasis !== 'gewicht') {
+      return '<p class="hint">Bij spieropbouw wordt 1,6 tot 2,2 gram eiwit per kilo lichaamsgewicht ' +
+        'aangehouden. Zet je het doel per kilo, dan schuift het mee zodra je aankomt of afvalt; ' +
+        'anders blijft hetzelfde getal staan terwijl jij zwaarder wordt.' +
+        (!info.gewicht || info.gewicht <= 0 ? '' :
+          ' Bij je huidige ' + fmt(info.gewicht, 1) + ' kg komt ' + fmt(info.vast) + ' g neer op ' +
+          fmt(info.vast / info.gewicht, 2) + ' g per kilo.') +
+        '</p>';
+    }
+    if (info.gewicht === null) {
+      return '<p class="hint">Er staat de afgelopen twee weken geen gewicht in het dashboard, dus ' +
+        'valt er niets af te leiden: zolang dat zo is geldt je vaste doel van ' +
+        fmt(info.vast) + ' g.</p>';
+    }
+    return '<p class="hint">Je doel is nu <strong>' + fmt(info.doel) + ' g per dag</strong>: ' +
+      fmt(info.perKg, 1) + ' × ' + fmt(info.gewicht, 1) + ' kg, afgerond op 5 g. Dat gewicht is het ' +
+      'gemiddelde van ' + info.metingen + ' weegmoment' + (info.metingen === 1 ? '' : 'en') +
+      ' in de afgelopen twee weken, zodat je doel meeschuift met de weegschaal en niet met één ' +
+      'ochtend. Weeg je twee weken lang niet, dan geldt je vaste doel van ' + fmt(info.vast) + ' g.</p>';
+  }
+
   function renderSettings() {
     var s = store.settings();
     var dates = store.allDates();
 
     var html = '<section class="card"><h2>Voedingsdoelen</h2><div class="form-grid">' +
-      settingNumber('eiwitDoel', 'Eiwitdoel', 'g per dag', s.eiwitDoel, '1') +
+      '<label class="field"><span class="field-label">Eiwitdoel is</span>' +
+      '<select data-setting="eiwitBasis">' +
+      opt('vast', 'Een vast aantal gram', s.eiwitBasis) +
+      opt('gewicht', 'Per kilo lichaamsgewicht', s.eiwitBasis) +
+      '</select></label>' +
+      (s.eiwitBasis === 'gewicht'
+        ? settingNumber('eiwitPerKg', 'Gram per kilo', 'g/kg', s.eiwitPerKg, '0.1') : '') +
+      settingNumber('eiwitDoel',
+        s.eiwitBasis === 'gewicht' ? 'Vast doel (terugval)' : 'Eiwitdoel',
+        'g per dag', s.eiwitDoel, '1') +
       settingNumber('waterDoel', 'Waterdoel', 'ml per dag', s.waterDoel, '250') +
       settingNumber('calorieDoel', 'Caloriedoel', 'kcal per dag', s.calorieDoel, '10') +
       '<label class="field"><span class="field-label">Caloriedoel geldt als</span>' +
@@ -963,7 +1010,7 @@
       (s.calorieRichting === 'rond'
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
-      '</div></section>';
+      '</div>' + eiwitUitleg(s) + '</section>';
 
     html += '<section class="card"><h2>Gewichtsdoel</h2>' +
       '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor — ' +

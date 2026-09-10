@@ -853,7 +853,9 @@ ol.explain { list-style: decimal; }
   ];
 
   var DEFAULT_SETTINGS = {
-    eiwitDoel: 150,           // gram per dag
+    eiwitDoel: 150,           // gram per dag, bij eiwitBasis 'vast'
+    eiwitBasis: 'vast',       // 'vast' = het getal hierboven, 'gewicht' = per kilo lichaamsgewicht
+    eiwitPerKg: 1.8,          // gram eiwit per kilo, alleen bij eiwitBasis 'gewicht'
     waterDoel: 3000,          // ml per dag
     calorieDoel: 2200,        // kcal per dag
     calorieRichting: 'max',   // 'max' = onder blijven, 'min' = halen, 'rond' = binnen marge
@@ -1857,7 +1859,9 @@ ol.explain { list-style: decimal; }
     if (goal.macro === 'protein') {
       var g = num(entry.eiwitGram);
       if (g === null) return { value: null, auto: false };
-      return { value: g >= num(settings.eiwitDoel, 0) ? 'ja' : 'nee', auto: true };
+      // Het doel van díé dag: staat het op gewicht, dan lag de lat vorig jaar
+      // lager dan vandaag en hoort de score van toen daar ook op te rusten.
+      return { value: g >= eiwitDoel(entry.date, settings).doel ? 'ja' : 'nee', auto: true };
     }
     if (goal.macro === 'calories') {
       var kcal = num(entry.kcal);
@@ -2237,6 +2241,49 @@ ol.explain { list-style: decimal; }
     return { avg: n ? sum / n : null, count: n };
   }
 
+  /* Hoeveel dagen gewicht er onder het eiwitdoel liggen. Er wordt met een
+     gemiddelde gerekend en niet met je laatste weging, anders verspringt je
+     doel elke ochtend met de weegschaal mee. Twee weken, want dat vangt ook
+     een week waarin je nauwelijks op de weegschaal stond. */
+  var EIWIT_VENSTER = 14;
+
+  /**
+   * Het eiwitdoel dat op `datum` gold, in gram.
+   * -> { doel, afgeleid, vast, naarGewicht, gewicht, metingen, perKg }
+   *
+   * Een vast getal loopt scheef zodra je aankomt of afvalt: dezelfde 150 gram
+   * is bij 75 kilo ruim voldoende en bij 90 kilo te weinig. Daarom kan het doel
+   * meebewegen met je gewicht — de vuistregel bij spieropbouw is 1,6 tot 2,2
+   * gram per kilo.
+   *
+   * `afgeleid` is false zolang je een vast doel hebt staan, en ook als er in de
+   * afgelopen twee weken niets op de weegschaal stond: dan valt het terug op je
+   * vaste getal, want een dag zonder doel valt niet te scoren. `naarGewicht` is
+   * altijd ingevuld als er gewicht bekend is, ook bij een vast doel — daarmee
+   * ziet de weekafsluiting of dat vaste getal is achtergaan lopen.
+   */
+  function eiwitDoel(datum, settings) {
+    var s = settings || store.settings();
+    var vast = num(s.eiwitDoel, 0);
+    var perKg = num(s.eiwitPerKg, 0);
+    var eind = datum || D.today();
+    var w = weightAvg(D.range(D.addDays(eind, -(EIWIT_VENSTER - 1)), eind));
+    var uit = {
+      doel: vast,
+      afgeleid: false,
+      vast: vast,
+      naarGewicht: (w.avg !== null && perKg > 0) ? Math.round((w.avg * perKg) / 5) * 5 : null,
+      gewicht: w.avg,
+      metingen: w.count,
+      perKg: perKg
+    };
+    if (s.eiwitBasis === 'gewicht' && uit.naarGewicht !== null) {
+      uit.doel = uit.naarGewicht;
+      uit.afgeleid = true;
+    }
+    return uit;
+  }
+
   /**
    * Vergelijkt het gemiddelde gewicht van twee periodes en scoort dat tegen
    * je gewichtsdoel (aankomen, afvallen of op gewicht blijven).
@@ -2491,6 +2538,7 @@ ol.explain { list-style: decimal; }
     bestStreak: bestStreak,
     weightAvg: weightAvg,
     weightTrend: weightTrend,
+    eiwitDoel: eiwitDoel,
     num: num,
     optionFor: optionFor
   };
@@ -3019,29 +3067,61 @@ ol.explain { list-style: decimal; }
     return (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v).toFixed(2).replace('.', ',') + ' kg';
   }
 
-  function eiwitAdvies(gem, dagen, geweest, s) {
-    var doel = S.num(s.eiwitDoel, 0);
+  /* Onder deze verhouding gaat een vast eiwitdoel knellen: bij spieropbouw
+     wordt 1,6 tot 2,2 gram eiwit per kilo lichaamsgewicht aangehouden. */
+  var EIWIT_MIN_PER_KG = 1.6;
+
+  function getal(n, dec) {
+    return n.toFixed(dec).replace('.', ',');
+  }
+
+  /** "doel 165 g", en als het meebeweegt met je gewicht ook waar dat vandaan komt. */
+  function doelTekst(info) {
+    var t = 'doel ' + Math.round(info.doel) + ' g';
+    if (!info.afgeleid) return t;
+    return t + ' (' + getal(info.perKg, 1) + ' g per kilo bij ' + getal(info.gewicht, 1) + ' kg)';
+  }
+
+  /**
+   * Een vast eiwitdoel zakt vanzelf weg terwijl je aankomt: het getal blijft
+   * staan, jij wordt zwaarder, en de verhouding wordt stilletjes te laag.
+   * Daar zegt de afsluiting dan één keer per week iets van.
+   */
+  function eiwitAchterstand(info) {
+    if (info.afgeleid || !info.gewicht || info.gewicht <= 0 || !info.vast) return '';
+    var perKg = info.vast / info.gewicht;
+    if (perKg >= EIWIT_MIN_PER_KG) return '';
+    return ' Let op je doel zelf: ' + Math.round(info.vast) + ' g bij ' + getal(info.gewicht, 1) +
+      ' kg is ' + getal(perKg, 2) + ' g per kilo, en voor spieropbouw wordt 1,6 tot 2,2 ' +
+      'aangehouden. Zet je doel bij Instellingen op "per kilo lichaamsgewicht", dan blijft die ' +
+      'verhouding staan ook als je zwaarder wordt.';
+  }
+
+  function eiwitAdvies(gem, dagen, geweest, s, datum) {
+    var info = S.eiwitDoel(datum, s);
+    var doel = info.doel;
+    var extra = eiwitAchterstand(info);
     if (!dagen) {
-      return { status: 'onbekend', tekst: 'Je vulde deze week geen eiwitten in.' };
+      return { status: 'onbekend', tekst: 'Je vulde deze week geen eiwitten in.' + extra };
     }
     if (dagen < 3) {
       return {
         status: 'onbekend',
         tekst: 'Eiwitten maar ' + dagen + ' van de ' + geweest + ' dagen ingevuld — te weinig om ' +
-          'iets over te zeggen.'
+          'iets over te zeggen.' + extra
       };
     }
     if (doel > 0 && gem < doel * 0.9) {
       return {
         status: 'onder',
-        tekst: 'Gemiddeld ' + Math.round(gem) + ' g eiwit tegen een doel van ' + Math.round(doel) +
-          ' g. Dat is ' + Math.round(doel - gem) + ' g per dag te weinig — juist bij spieropbouw ' +
-          'is dat het cijfer dat telt.'
+        tekst: 'Gemiddeld ' + Math.round(gem) + ' g eiwit tegen een ' + doelTekst(info) +
+          '. Dat is ' + Math.round(doel - gem) + ' g per dag te weinig — juist bij spieropbouw ' +
+          'is dat het cijfer dat telt.' + extra
       };
     }
     return {
       status: 'goed',
-      tekst: 'Gemiddeld ' + Math.round(gem) + ' g eiwit per dag, doel ' + Math.round(doel) + ' g. Prima.'
+      tekst: 'Gemiddeld ' + Math.round(gem) + ' g eiwit per dag, ' + doelTekst(info) + '. Prima.' + extra
     };
   }
 
@@ -3109,7 +3189,7 @@ ol.explain { list-style: decimal; }
       zwakste: gesorteerd.length > 1 ? gesorteerd[gesorteerd.length - 1] : null,
       gewicht: gewicht,
       eten: eetAdvies(gewicht, st.kcalAvg, st.kcalDays, geweest.length, s),
-      eiwit: eiwitAdvies(st.proteinAvg, st.proteinDays, geweest.length, s),
+      eiwit: eiwitAdvies(st.proteinAvg, st.proteinDays, geweest.length, s, reeks[reeks.length - 1]),
       kcalDagen: st.kcalDays,
       kcalGem: st.kcalAvg,
       eiwitDagen: st.proteinDays,
@@ -3990,6 +4070,9 @@ ol.explain { list-style: decimal; }
   function periodStatsSection(period, totalDays) {
     var st = period.stats;
     var s = store.settings();
+    // Het eiwitdoel zoals het aan het eind van deze periode stond; beweegt het
+    // mee met je gewicht, dan is dat een ander getal dan vandaag.
+    var eiwit = S.eiwitDoel(period.days.length ? period.days[period.days.length - 1].date : null, s);
     var tiles = [
       statTile('Dagen ingevuld', period.logged + '<span class="unit">/' + totalDays + '</span>',
         period.missing ? period.missing + ' niet ingevuld' : 'compleet'),
@@ -4000,7 +4083,7 @@ ol.explain { list-style: decimal; }
       statTile('Gewicht', st.weightEnd !== null ? fmt(st.weightEnd, 1) + '<span class="unit">kg</span>' : '–',
         st.weightDelta !== null ? signed(st.weightDelta, 1, ' kg in periode') : 'gem. ' + fmt(st.weightAvg, 1) + ' kg'),
       statTile('Gem. eiwit', st.proteinAvg !== null ? fmt(st.proteinAvg) + '<span class="unit">g</span>' : '–',
-        'doel ' + fmt(s.eiwitDoel) + ' g'),
+        'doel ' + fmt(eiwit.doel) + ' g' + (eiwit.afgeleid ? ' · ' + fmt(eiwit.perKg, 1) + ' g/kg' : '')),
       statTile('Gem. calorieën', st.kcalAvg !== null ? fmt(st.kcalAvg) + '<span class="unit">kcal</span>' : '–',
         'doel ' + fmt(s.calorieDoel) + ' kcal'),
       statTile('Gem. water', st.waterAvg !== null ? GD.formatVolume(st.waterAvg) : '–',
@@ -4146,11 +4229,13 @@ ol.explain { list-style: decimal; }
 
     /* Meetwaarden */
     var gm = S.gewichtMelding(date);
+    var eiwit = S.eiwitDoel(date, s);
     html += '<section class="card">' +
       '<h2>Meetwaarden</h2>' +
       '<div class="measure-grid">' +
       measureField('gewicht', 'Gewicht', 'kg', entry.gewicht, '0.1', 'bv. 82,4') +
-      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel),
+      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1',
+        'doel ' + fmt(eiwit.doel) + (eiwit.afgeleid ? ' · ' + fmt(eiwit.perKg, 1) + ' g/kg' : ''),
         voedingVoet(date, 'eiwitGram', 'g')) +
       measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel),
         voedingVoet(date, 'kcal', 'kcal')) +
@@ -4159,6 +4244,12 @@ ol.explain { list-style: decimal; }
         '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
         '><span class="meldregel-icoon">⚖️</span>' + esc(gm.tekst) + '</p>') +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
+      // Een doel dat met je gewicht meebeweegt verandert vanzelf, dus het hoort
+      // ook zichtbaar te blijven als het veld al is ingevuld.
+      (eiwit.afgeleid
+        ? '<p class="hint">Eiwitdoel voor deze dag: ' + fmt(eiwit.doel) + ' g — ' +
+          fmt(eiwit.perKg, 1) + ' g per kilo bij ' + fmt(eiwit.gewicht, 1) + ' kg.</p>'
+        : '') +
       '</section>';
 
     /* Tellers (water) krijgen hun eigen kaart met snelknoppen */
@@ -4822,12 +4913,48 @@ ol.explain { list-style: decimal; }
       '</section>';
   }
 
+  /**
+   * Uitleg onder de voedingsdoelen: waar het eiwitdoel van vandaag vandaan komt,
+   * of wat het zou worden als je het op je gewicht zet.
+   */
+  function eiwitUitleg(s) {
+    var info = S.eiwitDoel(null, s);
+    if (s.eiwitBasis !== 'gewicht') {
+      return '<p class="hint">Bij spieropbouw wordt 1,6 tot 2,2 gram eiwit per kilo lichaamsgewicht ' +
+        'aangehouden. Zet je het doel per kilo, dan schuift het mee zodra je aankomt of afvalt; ' +
+        'anders blijft hetzelfde getal staan terwijl jij zwaarder wordt.' +
+        (!info.gewicht || info.gewicht <= 0 ? '' :
+          ' Bij je huidige ' + fmt(info.gewicht, 1) + ' kg komt ' + fmt(info.vast) + ' g neer op ' +
+          fmt(info.vast / info.gewicht, 2) + ' g per kilo.') +
+        '</p>';
+    }
+    if (info.gewicht === null) {
+      return '<p class="hint">Er staat de afgelopen twee weken geen gewicht in het dashboard, dus ' +
+        'valt er niets af te leiden: zolang dat zo is geldt je vaste doel van ' +
+        fmt(info.vast) + ' g.</p>';
+    }
+    return '<p class="hint">Je doel is nu <strong>' + fmt(info.doel) + ' g per dag</strong>: ' +
+      fmt(info.perKg, 1) + ' × ' + fmt(info.gewicht, 1) + ' kg, afgerond op 5 g. Dat gewicht is het ' +
+      'gemiddelde van ' + info.metingen + ' weegmoment' + (info.metingen === 1 ? '' : 'en') +
+      ' in de afgelopen twee weken, zodat je doel meeschuift met de weegschaal en niet met één ' +
+      'ochtend. Weeg je twee weken lang niet, dan geldt je vaste doel van ' + fmt(info.vast) + ' g.</p>';
+  }
+
   function renderSettings() {
     var s = store.settings();
     var dates = store.allDates();
 
     var html = '<section class="card"><h2>Voedingsdoelen</h2><div class="form-grid">' +
-      settingNumber('eiwitDoel', 'Eiwitdoel', 'g per dag', s.eiwitDoel, '1') +
+      '<label class="field"><span class="field-label">Eiwitdoel is</span>' +
+      '<select data-setting="eiwitBasis">' +
+      opt('vast', 'Een vast aantal gram', s.eiwitBasis) +
+      opt('gewicht', 'Per kilo lichaamsgewicht', s.eiwitBasis) +
+      '</select></label>' +
+      (s.eiwitBasis === 'gewicht'
+        ? settingNumber('eiwitPerKg', 'Gram per kilo', 'g/kg', s.eiwitPerKg, '0.1') : '') +
+      settingNumber('eiwitDoel',
+        s.eiwitBasis === 'gewicht' ? 'Vast doel (terugval)' : 'Eiwitdoel',
+        'g per dag', s.eiwitDoel, '1') +
       settingNumber('waterDoel', 'Waterdoel', 'ml per dag', s.waterDoel, '250') +
       settingNumber('calorieDoel', 'Caloriedoel', 'kcal per dag', s.calorieDoel, '10') +
       '<label class="field"><span class="field-label">Caloriedoel geldt als</span>' +
@@ -4839,7 +4966,7 @@ ol.explain { list-style: decimal; }
       (s.calorieRichting === 'rond'
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
-      '</div></section>';
+      '</div>' + eiwitUitleg(s) + '</section>';
 
     html += '<section class="card"><h2>Gewichtsdoel</h2>' +
       '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor — ' +

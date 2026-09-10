@@ -38,7 +38,9 @@
     if (goal.macro === 'protein') {
       var g = num(entry.eiwitGram);
       if (g === null) return { value: null, auto: false };
-      return { value: g >= num(settings.eiwitDoel, 0) ? 'ja' : 'nee', auto: true };
+      // Het doel van díé dag: staat het op gewicht, dan lag de lat vorig jaar
+      // lager dan vandaag en hoort de score van toen daar ook op te rusten.
+      return { value: g >= eiwitDoel(entry.date, settings).doel ? 'ja' : 'nee', auto: true };
     }
     if (goal.macro === 'calories') {
       var kcal = num(entry.kcal);
@@ -418,6 +420,49 @@
     return { avg: n ? sum / n : null, count: n };
   }
 
+  /* Hoeveel dagen gewicht er onder het eiwitdoel liggen. Er wordt met een
+     gemiddelde gerekend en niet met je laatste weging, anders verspringt je
+     doel elke ochtend met de weegschaal mee. Twee weken, want dat vangt ook
+     een week waarin je nauwelijks op de weegschaal stond. */
+  var EIWIT_VENSTER = 14;
+
+  /**
+   * Het eiwitdoel dat op `datum` gold, in gram.
+   * -> { doel, afgeleid, vast, naarGewicht, gewicht, metingen, perKg }
+   *
+   * Een vast getal loopt scheef zodra je aankomt of afvalt: dezelfde 150 gram
+   * is bij 75 kilo ruim voldoende en bij 90 kilo te weinig. Daarom kan het doel
+   * meebewegen met je gewicht — de vuistregel bij spieropbouw is 1,6 tot 2,2
+   * gram per kilo.
+   *
+   * `afgeleid` is false zolang je een vast doel hebt staan, en ook als er in de
+   * afgelopen twee weken niets op de weegschaal stond: dan valt het terug op je
+   * vaste getal, want een dag zonder doel valt niet te scoren. `naarGewicht` is
+   * altijd ingevuld als er gewicht bekend is, ook bij een vast doel — daarmee
+   * ziet de weekafsluiting of dat vaste getal is achtergaan lopen.
+   */
+  function eiwitDoel(datum, settings) {
+    var s = settings || store.settings();
+    var vast = num(s.eiwitDoel, 0);
+    var perKg = num(s.eiwitPerKg, 0);
+    var eind = datum || D.today();
+    var w = weightAvg(D.range(D.addDays(eind, -(EIWIT_VENSTER - 1)), eind));
+    var uit = {
+      doel: vast,
+      afgeleid: false,
+      vast: vast,
+      naarGewicht: (w.avg !== null && perKg > 0) ? Math.round((w.avg * perKg) / 5) * 5 : null,
+      gewicht: w.avg,
+      metingen: w.count,
+      perKg: perKg
+    };
+    if (s.eiwitBasis === 'gewicht' && uit.naarGewicht !== null) {
+      uit.doel = uit.naarGewicht;
+      uit.afgeleid = true;
+    }
+    return uit;
+  }
+
   /**
    * Vergelijkt het gemiddelde gewicht van twee periodes en scoort dat tegen
    * je gewichtsdoel (aankomen, afvallen of op gewicht blijven).
@@ -672,6 +717,7 @@
     bestStreak: bestStreak,
     weightAvg: weightAvg,
     weightTrend: weightTrend,
+    eiwitDoel: eiwitDoel,
     num: num,
     optionFor: optionFor
   };

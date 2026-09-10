@@ -102,7 +102,9 @@
   ];
 
   var DEFAULT_SETTINGS = {
-    eiwitDoel: 150,           // gram per dag
+    eiwitDoel: 150,           // gram per dag, bij eiwitBasis 'vast'
+    eiwitBasis: 'vast',       // 'vast' = het getal hierboven, 'gewicht' = per kilo lichaamsgewicht
+    eiwitPerKg: 1.8,          // gram eiwit per kilo, alleen bij eiwitBasis 'gewicht'
     waterDoel: 3000,          // ml per dag
     calorieDoel: 2200,        // kcal per dag
     calorieRichting: 'max',   // 'max' = onder blijven, 'min' = halen, 'rond' = binnen marge
