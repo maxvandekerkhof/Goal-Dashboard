@@ -324,20 +324,26 @@
   /**
    * Startpunt en de laatste sessie vóór `datum`. Het startpunt is je eerste
    * ingevulde sessie, of de eerste na een handmatige herstart.
+   *
+   * `recordKg` is het zwaarste dat je vóór `datum` tilde. Vandaag telt daar
+   * niet in mee: anders is elk gewicht zijn eigen record.
    */
   function context(datum, oid, zijdeKey) {
     var oef = byId(oid);
     var vanaf = oef && oef.startDatum ? oef.startDatum : null;
     var h = historie(oid, zijdeKey);
-    var start = null, vorige = null, aantal = 0;
+    var start = null, vorige = null, aantal = 0, recordKg = null;
     for (var i = 0; i < h.length; i++) {
       var r = h[i];
       if (vanaf && r.datum < vanaf) continue;
       if (!start) start = r;
       aantal++;
-      if (r.datum < datum) vorige = r;
+      if (r.datum < datum) {
+        vorige = r;
+        if (recordKg === null || r.kg > recordKg) recordKg = r.kg;
+      }
     }
-    return { start: start, vorige: vorige, aantal: aantal };
+    return { start: start, vorige: vorige, aantal: aantal, recordKg: recordKg };
   }
 
   /**
@@ -350,30 +356,45 @@
     return kg * (1 + reps / 30);
   }
 
-  /* Hoeveel je geschatte 1RM mag schelen voor het vooruitgang of terugval
-     heet. Een set van acht tegen een set van vijftien omrekenen is een
-     schatting, geen meting: onder de vijf procent is het verschil kleiner dan
-     de onzekerheid van de formule zelf. */
-  var RUIL_BAND = 0.05;
+  /* Hoe ver je geschatte 1RM mag zakken voor het terugval heet. Bewust alleen
+     naar beneden: een set van acht tegen een set van vijftien omrekenen is een
+     schatting, en het voordeel van de twijfel hoort naar jou te gaan. Gaat je
+     1RM omhoog, dan is dat vooruitgang, hoe klein ook. */
+  var TERUG_BAND = 0.05;
+
+  /* Een nieuw record telt alleen als je er een echte set mee maakte. Niet een
+     vast getal maar de helft van je vorige keer, want vijf herhalingen is bij
+     een curl iets heel anders dan bij een deadlift. */
+  var REPS_ONDERGRENS = 0.5;
 
   /**
    * Hoe verhoudt deze set zich tot de vorige?
-   * -> { status, ruil, nu1rm, vorig1rm, verschil }
+   * -> { status, ruil, record, nu1rm, vorig1rm, verschil }
    *
    * Gaan gewicht en reps dezelfde kant op, dan is er niets te wegen. Ruil je ze
    * tegen elkaar uit — zwaarder maar minder herhalingen, of andersom — dan
-   * beslist je geschatte 1RM.
+   * gelden er twee regels, in deze volgorde.
    *
-   * Dat ging eerder op gewicht × reps, en dat weegt verkeerd: 26 kg × 8 is dan
-   * 39% minder dan 23 kg × 15, terwijl het in werkelijkheid vrijwel dezelfde
-   * set is. Volume straft zwaar-en-kort af om de verkeerde reden, namelijk
-   * omdat je minder herhalingen deed.
+   * 1. Til je zwaarder dan je ooit op deze oefening deed, en hield je er een
+   *    fatsoenlijke set mee vol, dan is dat vooruitgang. Punt. Gewicht erbij en
+   *    herhalingen tijdelijk omlaag is hoe je zwaarder leert tillen, en een
+   *    rekensom die dat afstraft meet het verkeerde.
+   * 2. Anders beslist je geschatte 1RM.
+   *
+   * Dat ging eerder op gewicht × reps, en dat weegt verkeerd: 26 kg × 8 is
+   * daarin 39% minder dan 23 kg × 15, terwijl het in werkelijkheid vrijwel
+   * dezelfde set is. Volume straft zwaar-en-kort af om de verkeerde reden,
+   * namelijk omdat je minder herhalingen deed.
+   *
+   * `recordKg` is het zwaarste dat je vóór vandaag op deze oefening tilde.
    */
-  function vergelijkDetail(nu, vorige) {
+  function vergelijkDetail(nu, vorige, recordKg) {
     if (!nu || !vorige) return null;
     var uit = {
       status: 'gelijk',
       ruil: false,
+      record: false,
+      recordKg: recordKg === undefined ? null : recordKg,
       nu1rm: geschat1RM(nu.kg, nu.reps),
       vorig1rm: geschat1RM(vorige.kg, vorige.reps),
       verschil: 0
@@ -387,13 +408,19 @@
     if (dk <= 0 && dr <= 0) { uit.status = 'terug'; return uit; }
 
     uit.ruil = true;
-    if (uit.verschil > RUIL_BAND) uit.status = 'vooruit';
-    else if (uit.verschil < -RUIL_BAND) uit.status = 'terug';
+    if (nu.kg > 0 && uit.recordKg !== null && nu.kg > uit.recordKg &&
+        nu.reps >= vorige.reps * REPS_ONDERGRENS) {
+      uit.record = true;
+      uit.status = 'vooruit';
+      return uit;
+    }
+    if (uit.verschil > 0) uit.status = 'vooruit';
+    else if (uit.verschil < -TERUG_BAND) uit.status = 'terug';
     return uit;
   }
 
-  function vergelijk(nu, vorige) {
-    var d = vergelijkDetail(nu, vorige);
+  function vergelijk(nu, vorige, recordKg) {
+    var d = vergelijkDetail(nu, vorige, recordKg);
     return d ? d.status : null;
   }
 
@@ -410,7 +437,7 @@
         var nu = leesZijde(dag[oid], z.key);
         if (!nu) return;
         var ctx = context(datum, oid, z.key);
-        var detail = ctx.vorige ? vergelijkDetail(nu, ctx.vorige) : null;
+        var detail = ctx.vorige ? vergelijkDetail(nu, ctx.vorige, ctx.recordKg) : null;
         regels.push({
           id: oid,
           zijde: z,

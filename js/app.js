@@ -580,12 +580,16 @@
 
   /** Waarom een set met minder reps maar meer kilo's zo beoordeeld wordt. */
   function ruilUitleg(d) {
+    if (d.record) {
+      return 'Zwaarder dan je ooit op deze oefening deed — je record stond op ' +
+        fmt(d.recordKg, d.recordKg % 1 ? 1 : 0) + ' kg.';
+    }
     var kern = 'Geschat 1RM ' + fmt(d.nu1rm, 0) + ' kg tegen ' + fmt(d.vorig1rm, 0) +
       ' kg vorige keer';
     var pct = Math.round(Math.abs(d.verschil) * 100);
     if (d.status === 'vooruit') return kern + ': ' + pct + '% erboven.';
     if (d.status === 'terug') return kern + ': ' + pct + '% eronder.';
-    return kern + ' — te dicht bij elkaar om vooruitgang of terugval te heten.';
+    return kern + ' — te dicht bij elkaar om terugval te heten.';
   }
 
   /* Dezelfde maat als waarmee de app vooruitgang beoordeelt, zodat de lijn en
@@ -751,9 +755,10 @@
 
     var uitleg = res.vergeleken
       ? 'Vooruit telt zodra gewicht én reps gelijk of hoger zijn en er minstens één omhoog gaat. ' +
-        'Ruil je het een tegen het ander — zwaarder met minder herhalingen, of andersom — ' +
-        'dan beslist je geschatte 1RM, dezelfde maat als de grafiek per oefening. ' +
-        'Scheelt dat minder dan 5%, dan is het te dicht bij elkaar en heet het gelijk.'
+        'Ruil je het een tegen het ander, dan telt een nieuw record op deze oefening altijd als ' +
+        'vooruitgang, zolang je er minstens de helft van je vorige herhalingen mee haalde. ' +
+        'Lukt dat niet, dan beslist je geschatte 1RM — dezelfde maat als de grafiek. ' +
+        'Daar telt elke stijging, en pas een daling van meer dan 5% heet terugval.'
       : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
 
     return '<section class="card">' +
