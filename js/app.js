@@ -108,7 +108,7 @@
         '</div>';
     }).join('');
 
-    return '<section class="card"><h2>Per doel</h2><div class="breakdown">' + rows + '</div></section>';
+    return '<section class="card"><h2>' + GD.icon('vink') + 'Per doel</h2><div class="breakdown">' + rows + '</div></section>';
   }
 
   function periodStatsSection(period, totalDays) {
@@ -179,7 +179,7 @@
         '</div>';
     }
 
-    return '<section class="card"><h2>Gewichtstrend</h2>' +
+    return '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtstrend</h2>' +
       '<div class="trend">' + body + '</div></section>';
   }
 
@@ -281,7 +281,7 @@
     var gm = S.gewichtMelding(date);
     var eiwit = S.eiwitDoel(date, s);
     html += '<section class="card">' +
-      '<h2>Meetwaarden</h2>' +
+      '<h2>' + GD.icon('weegschaal') + 'Meetwaarden</h2>' +
       '<div class="measure-grid">' +
       measureField('gewicht', 'Gewicht', 'kg', entry.gewicht, '0.1', 'bv. 82,4') +
       measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1',
@@ -315,7 +315,7 @@
     }).join('');
 
     html += '<section class="card">' +
-      '<div class="card-head"><h2>Doelen</h2>' +
+      '<div class="card-head"><h2>' + GD.icon('vink') + 'Doelen</h2>' +
       '<button class="btn btn-ghost btn-sm" data-action="copy-yesterday">Neem gisteren over</button></div>' +
       '<div class="goals">' + goalRows + '</div>' +
       '</section>';
@@ -324,7 +324,7 @@
 
     /* Notitie */
     html += '<section class="card">' +
-      '<h2>Notitie</h2>' +
+      '<h2>' + GD.icon('notitie') + 'Notitie</h2>' +
       '<textarea class="note" data-field="notitie" rows="3" placeholder="Hoe voelde de training? Wat ging goed of mis?">' +
       esc(entry.notitie || '') + '</textarea>' +
       (store.entry(date) ? '<div class="card-foot"><button class="btn btn-danger btn-sm" data-action="delete-day">Dag wissen</button></div>' : '') +
@@ -846,7 +846,7 @@
     var html = heroSection(period.pct, sub);
     html += reviewSection(dates[0], {});
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
-    html += '<section class="card"><h2>Per dag</h2>' + C.dayBars(period.days) +
+    html += '<section class="card"><h2>' + GD.icon('week') + 'Per dag</h2>' + C.dayBars(period.days) +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
 
@@ -855,7 +855,7 @@
       dates, D.range(vorigeStart, D.addDays(vorigeStart, 6)),
       'week ' + D.isoWeek(dates[0]), 'week ' + D.isoWeek(vorigeStart), 1);
 
-    html += '<section class="card"><h2>Gewicht</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('grafiek') + 'Gewicht</h2>' +
       C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
     return html;
   }
@@ -873,7 +873,7 @@
 
     var html = heroSection(period.pct, sub);
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
-    html += '<section class="card"><h2>Kalender</h2>' + C.calendar(ui.anchor, period.days) +
+    html += '<section class="card"><h2>' + GD.icon('maand') + 'Kalender</h2>' + C.calendar(ui.anchor, period.days) +
       C.schaal() +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
@@ -884,7 +884,7 @@
       dates, vorigeDates, D.monthName(ui.anchor), D.monthName(vorigeMaand),
       dates.length / 7);
 
-    html += '<section class="card"><h2>Gewicht</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('grafiek') + 'Gewicht</h2>' +
       C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
     return html;
   }
@@ -949,7 +949,7 @@
       return '<option value="' + esc(o.naam) + '"></option>';
     }).join('');
 
-    return '<section class="card"><h2>Trainingsschema\'s</h2>' +
+    return '<section class="card"><h2>' + GD.icon('gesport') + 'Trainingsschema\'s</h2>' +
       '<p class="hint">Per training kies je op de dagpagina één schema en vul je per oefening je ' +
       'beste set in. De app onthoudt je startpunt en je vorige keer, en bepaalt daaruit zelf of je ' +
       'progressive overload hebt gehaald.</p>' +
@@ -997,7 +997,7 @@
     var s = store.settings();
     var dates = store.allDates();
 
-    var html = '<section class="card"><h2>Voedingsdoelen</h2><div class="form-grid">' +
+    var html = '<section class="card"><h2>' + GD.icon('eiwit') + 'Voedingsdoelen</h2><div class="form-grid">' +
       '<label class="field"><span class="field-label">Eiwitdoel is</span>' +
       '<select data-setting="eiwitBasis">' +
       opt('vast', 'Een vast aantal gram', s.eiwitBasis) +
@@ -1021,7 +1021,7 @@
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
       '</div>' + eiwitUitleg(s) + '</section>';
 
-    html += '<section class="card"><h2>Gewichtsdoel</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
       '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor — ' +
       'nooit je laatste weging, want die schommelt te veel. Een afwijking kleurt pas rood als ' +
       'hij twee weken op rij te zien is; één losse week blijft grijs. Dit staat los van je ' +
@@ -1048,7 +1048,7 @@
 
     html += schemaSection();
 
-    html += '<section class="card"><h2>Scoreregels</h2><div class="form-grid">' +
+    html += '<section class="card"><h2>' + GD.icon('instellingen') + 'Scoreregels</h2><div class="form-grid">' +
       settingNumber('goedeDagDrempel', 'Drempel goede dag', '% voor streak', s.goedeDagDrempel, '5') +
       '</div>' +
       toggle('countMissingAsZero', 'Lege dagen in het verleden tellen als 0%',
@@ -1066,7 +1066,7 @@
         '</div>';
     }).join('');
 
-    html += '<section class="card"><h2>Gewicht per doel</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('week') + 'Gewicht per doel</h2>' +
       '<p class="hint">Hoe zwaar telt elk doel mee in je dagscore? Op 0 telt het doel helemaal niet mee.</p>' +
       '<div class="weights">' + weightRows + '</div>' +
       '<div class="card-foot"><button class="btn btn-ghost btn-sm" data-action="reset-weights">Standaardgewichten herstellen</button></div>' +
@@ -1076,7 +1076,7 @@
     html += healthSection();
 
     /* Data */
-    html += '<section class="card"><h2>Je data</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('download') + 'Je data</h2>' +
       '<p class="hint">Alles staat lokaal in deze browser (localStorage) — er gaat niets naar een server. ' +
       'Maak dus af en toe een back-up, en gebruik die om je data op een ander apparaat te zetten.</p>' +
       '<div class="row-actions">' +
@@ -1088,7 +1088,7 @@
       (dates.length ? ' (' + esc(D.formatShort(dates[0])) + ' t/m ' + esc(D.formatShort(dates[dates.length - 1])) + ')' : '') +
       '.</p></section>';
 
-    html += '<section class="card"><h2>Hoe wordt de score berekend?</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('melding') + 'Hoe wordt de score berekend?</h2>' +
       '<ul class="explain">' +
       '<li>Elk doel levert punten op: <em>Ja (eiwitrijk)</em> = vol, <em>Ja</em> = 60%, <em>Nee</em> = niets. ' +
       '<em>Deels</em> bij progressive overload telt voor de helft.</li>' +
@@ -1128,7 +1128,7 @@
     var st = GD.sync.status();
     var c = GD.sync.config();
 
-    var html = '<section class="card"><h2>Synchroniseren tussen apparaten</h2>';
+    var html = '<section class="card"><h2>' + GD.icon('telefoon') + 'Synchroniseren tussen apparaten</h2>';
 
     if (!st.geconfigureerd) {
       html += '<p class="hint">Vul je telefoon en laptop allebei dezelfde twee gegevens in, ' +
@@ -1294,7 +1294,7 @@
     var url = c.url || 'https://jouwproject.supabase.co';
     var sleutel = c.anonKey || 'je publishable key';
 
-    var html = '<section class="card"><h2>Voeding uit Apple Health</h2>' +
+    var html = '<section class="card"><h2>' + GD.icon('calorieen') + 'Voeding uit Apple Health</h2>' +
       '<p class="hint">MyFitnessPal schrijft je calorieën en eiwitten naar Apple Health. ' +
       'Een Shortcut op je iPhone leest daar elke avond de dagtotalen uit en zet ze in je eigen ' +
       'Supabase-project; dit dashboard haalt ze bij het synchroniseren op en vult je meetwaarden ' +
