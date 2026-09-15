@@ -102,7 +102,7 @@
         (w === 0 ? '<span class="chip chip-off">uit</span>' : '<span class="chip">×' + fmt(w, w % 1 ? 1 : 0) + '</span>') +
         '</div>' +
         '<div class="bd-bar">' + C.bar(b.pct) + '</div>' +
-        '<div class="bd-pct" style="color:' + (has ? GD.scoreColor(b.pct) : 'var(--muted)') + '">' +
+        '<div class="bd-pct" style="color:' + (has ? GD.scoreInk(b.pct) : 'var(--muted)') + '">' +
         (has ? Math.round(b.pct) + '%' : '–') + '</div>' +
         '<div class="bd-counts">' + esc(counts || '—') + '</div>' +
         '</div>';
@@ -164,7 +164,7 @@
         ' (' + esc(RICHTING_TEKST[t.richting] || t.richting) + ').</p>' +
         '</div>';
     } else {
-      var kleur = GD.scoreColor(t.pct);
+      var kleur = GD.scoreInk(t.pct);
       body = '<div class="trend-ring">' + C.ring(t.pct, 128, 12) + '</div>' +
         '<div class="trend-info">' +
         '<div class="trend-delta" style="color:' + kleur + '">' + signed(t.delta, 2, ' kg') + '</div>' +
@@ -192,29 +192,26 @@
     // Een lopende dag krijgt geen oordeel mee: "Uitstekend" hoort pas bij een
     // dag die af is, niet bij drie ingevulde doelen om negen uur 's ochtends.
     // Ook de kleur wacht: rood-naar-groen zegt goed of slecht, en een dag die
-    // pas begonnen is verdient allebei niet. De schaal eronder staat dan grijs.
+    // pas begonnen is verdient allebei niet.
     var loopt = !!opts.label;
-    var has = pct !== null && pct !== undefined && !isNaN(pct);
-    var color = loopt ? 'var(--text)' : GD.scoreColor(pct);
+    var color = loopt ? 'var(--text)' : GD.scoreInk(pct);
 
     return '<section class="card hero">' +
-      '<div class="hero-score">' +
-      '<div class="score-num" style="color:' + color + '">' +
-      (has ? Math.round(pct) + '<span class="score-pct">%</span>' : '<span class="score-leeg">–</span>') +
-      '</div>' +
-      '<div class="hero-label" style="color:' + color + '">' +
-      esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
+      '<div class="hero-ring">' +
+      C.ring(pct, 176, 16, {
+        tot: opts.tot,
+        kleur: loopt ? 'var(--accent)' : null,
+        // Het streepje van je drempel is informatie, geen oordeel: dat mag
+        // ook zichtbaar zijn terwijl de dag nog loopt.
+        drempel: S.num(store.settings().goedeDagDrempel)
+      }) +
       '</div>' +
       '<div class="hero-info">' +
+      '<div class="hero-label" style="color:' + color + '">' +
+      esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
       '<p class="hero-sub">' + subtitle + '</p>' +
       (extra || '') +
-      '</div>' +
-      C.rail(pct, {
-        tot: opts.tot,
-        drempel: S.num(store.settings().goedeDagDrempel),
-        neutraal: loopt
-      }) +
-      '</section>';
+      '</div></section>';
   }
 
   /* -------------------------------- dag ------------------------------- */
@@ -243,14 +240,14 @@
     var extra = '<div class="hero-chips">' +
       '<span class="chip">' + answered + '/' + relevant + ' ingevuld</span>' +
       (loopt && ov.binnen + ov.kwijt > 0
-        ? '<span class="chip" style="color:' + GD.scoreColor(day.pct) + '">' +
+        ? '<span class="chip" style="color:' + GD.scoreInk(day.pct) + '">' +
           Math.round(day.pct) + '% raak tot nu toe</span>'
         : '') +
       '<span class="chip">' + GD.icon('vlam', 14) + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
       (day.restDay ? '<span class="chip">' + GD.icon('rust', 14) + 'rustdag</span>' : '') +
       '</div>' +
       (ov.open > 0 && !isFuture
-        ? '<p class="hint hint-tight">De vage streep op de schaal is waar je vandaag nog op uit kunt komen.</p>'
+        ? '<p class="hint hint-tight">De vage ring eromheen is waar je vandaag nog op uit kunt komen.</p>'
         : '');
 
     var sub;
@@ -294,7 +291,7 @@
         voedingVoet(date, 'kcal', 'kcal')) +
       '</div>' +
       (gm.status === 'uit' || isFuture ? '' :
-        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
+        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreInk(gm.pct) + '"') +
         '><span class="meldregel-icoon">' + GD.icon('weegschaal', 16) + '</span>' + esc(gm.tekst) + '</p>') +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
       // Een doel dat met je gewicht meebeweegt verandert vanzelf, dus het hoort
@@ -372,7 +369,7 @@
     var amount = item.amount === null ? 0 : item.amount;
     var doel = item.doel || 0;
     var pct = doel > 0 ? GD.clamp((amount / doel) * 100, 0, 100) : (amount > 0 ? 100 : 0);
-    var kleur = GD.scoreColor(pct);
+    var kleur = GD.scoreInk(pct);
     var gehaald = doel > 0 && amount >= doel;
     var rest = Math.max(0, doel - amount);
 
@@ -448,7 +445,7 @@
     if (disabled) status = '<span class="chip chip-off">uit</span>';
     else if (dimmed) status = '<span class="chip chip-off">' + esc(item.reason) + '</span>';
     else if (item.included) {
-      status = '<span class="chip" style="color:' + GD.scoreColor(item.score * 100) + '">+' +
+      status = '<span class="chip" style="color:' + GD.scoreInk(item.score * 100) + '">+' +
         fmt(item.score * w, 1) + ' / ' + fmt(w, w % 1 ? 1 : 0) + '</span>';
     } else if (item.reason) {
       status = '<span class="chip chip-off">' + esc(item.reason) + '</span>';
@@ -527,7 +524,7 @@
       '<div class="lift-body">' +
       '<div class="lift-inputs">' + velden +
       (st ? '<span class="chip lift-status"' +
-        (st.pct === null ? '' : ' style="color:' + GD.scoreColor(st.pct) + '"') + '>' +
+        (st.pct === null ? '' : ' style="color:' + GD.scoreInk(st.pct) + '"') + '>' +
         esc(st.label) + '</span>' : '') +
       '</div>' +
       '<p class="lift-hist">' + geschiedenis.join(' · ') + '</p>' +
@@ -589,7 +586,7 @@
         '<span>' + r.punten.length + ' sessie' + (r.punten.length === 1 ? '' : 's') +
         ' sinds ' + esc(D.formatShort(eerste.datum)) + '</span>' +
         (groei === null ? ''
-          : '<span style="color:' + GD.scoreColor(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
+          : '<span style="color:' + GD.scoreInk(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
             signed(groei, 0, '%') + ' sinds je start</span>') +
         '<span>' + GD.icon('beker', 14) + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
         '</div>';
@@ -676,7 +673,7 @@
     var status;
     if (res.vergeleken) {
       var pct = (res.vooruit / res.vergeleken) * 100;
-      status = '<span class="chip" style="color:' + GD.scoreColor(pct) + '">' +
+      status = '<span class="chip" style="color:' + GD.scoreInk(pct) + '">' +
         res.vooruit + ' van de ' + res.vergeleken + ' vooruit</span>';
     } else if (res.regels.length) {
       status = '<span class="chip chip-off">startpunt</span>';
@@ -765,11 +762,11 @@
     }
 
     var cijfers = '<div class="rv-cijfers">' +
-      rvCijfer(Math.round(r.pct) + '<span class="unit">%</span>', 'weekscore', GD.scoreColor(r.pct)) +
+      rvCijfer(Math.round(r.pct) + '<span class="unit">%</span>', 'weekscore', GD.scoreInk(r.pct)) +
       rvCijfer(r.goedeDagen + '<span class="unit">/' + r.geweest + '</span>', 'goede dagen') +
       rvCijfer(r.trainDagen + '<span class="unit">×</span>', 'getraind') +
       rvCijfer(r.kcalDagen + '<span class="unit">/' + r.geweest + '</span>', 'dagen calorieën',
-        GD.scoreColor(r.geweest ? (r.kcalDagen / r.geweest) * 100 : null)) +
+        GD.scoreInk(r.geweest ? (r.kcalDagen / r.geweest) * 100 : null)) +
       '</div>';
 
     var g = r.gewicht;
@@ -877,6 +874,7 @@
     var html = heroSection(period.pct, sub);
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
     html += '<section class="card"><h2>Kalender</h2>' + C.calendar(ui.anchor, period.days) +
+      C.schaal() +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
 
@@ -1098,9 +1096,10 @@
       '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
-      'gedeeld door alle punten die vandaag te halen waren. De vage streep op de schaal laat zien waar ' +
-      'je vandaag nog op uit kunt komen, en de schaal blijft grijs tot de dag om is — een halve dag ' +
-      'verdient nog geen oordeel. Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
+      'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
+      'vandaag nog op uit kunt komen, en de ring blijft in één kleur tot de dag om is — een halve dag ' +
+      'verdient nog geen oordeel. Het streepje op de ring is je drempel voor een goede dag. ' +
+      'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
       '<li><em>Water</em> scoort naar rato: 2,25 van de 3 liter is 75%. Zolang de dag loopt telt de teller ' +
       'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
       'aan bezig bent. Bij afgelopen dagen telt gewoon het deel dat je haalde.</li>' +

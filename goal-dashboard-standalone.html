@@ -14,38 +14,50 @@
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Dagelijks, wekelijks en maandelijks overzicht van je sport- en voedingsdoelen, met een gekleurd percentage van donkerrood naar donkergroen.">
-  <meta name="theme-color" content="#0c0e11">
+  <meta name="theme-color" content="#0a0c10">
   <title>Goal Dashboard — sport &amp; voeding</title>
   <style>
-/* Goal Dashboard - stijl "Staal"
+/* Goal Dashboard - stijl "Signaal"
  *
- * Een trainingslogboek: smalle blokletters voor de kopjes, cijfers in een
- * tabellarische letter zodat kolommen recht onder elkaar staan, haarlijnen in
- * plaats van kaartranden met schaduw, en nergens ronde hoeken. De enige kleur
- * in de app is je score — rood naar groen. Al het andere is grafiet en krijt,
- * zodat een gekleurd cijfer altijd iets betekent.
+ * De opbouw van een trainingslogboek: doorlopende stroken gescheiden door één
+ * lijn, smalle blokletters voor de kopjes, cijfers in een tabellarische letter
+ * zodat kolommen recht onder elkaar staan.
+ *
+ * Wat eroverheen ligt is kleur die je aankijkt. De scoreschaal loopt van rood
+ * (#ff3b30) naar mintgroen (#00e5a0) — fel genoeg om op een telefoon in de
+ * sportschool te lezen. Blauw is het accent voor alles wat je kunt indrukken,
+ * met opzet buiten die schaal: een blauwe knop kan dan nooit per ongeluk als
+ * een score gelezen worden.
+ *
+ * Fel op zwart leest, fel op wit niet. Vlakken (balken, ringen, kalender)
+ * houden daarom in beide thema's dezelfde felle kleur, met donkere tekst
+ * erop; losse getallen en woorden krijgen in de lichte modus een donkerder
+ * variant via GD.scoreInk().
  *
  * Er wordt niets van buiten geladen (zie de Content-Security-Policy in
  * index.html en de standalone-versie), dus geen webfonts: de smalle letter
  * komt uit wat het apparaat zelf heeft, en waar die ontbreekt doen hoofdletters
- * met ruime letterafstand het werk.
+ * met ruime letterafstand het werk. De iconen zijn Lucide, inline meegeleverd.
  */
 
 :root {
-  --bg: #0c0e11;
-  --bg-elev: #12161a;
-  --card: #12161a;
-  --card-2: #12161a;
-  --border: #242931;
-  --line: #1b2026;
-  --text: #e8ebef;
-  --muted: #878f9b;
-  --faint: #6e7684;
-  --accent: #e8ebef;
-  --on-accent: #0c0e11;
-  --track: #1b2026;
-  --danger: #b3261e;
-  --radius: 0px;
+  --bg: #0a0c10;
+  --bg-elev: #10141c;
+  --card: #10141c;
+  --card-2: #0d1118;
+  --border: #232a36;
+  --line: #181e28;
+  --text: #edf1f7;
+  --muted: #8a94a6;
+  --faint: #6b7486;
+  --accent: #2ba8ff;
+  --accent-zacht: rgba(43, 168, 255, .14);
+  --on-accent: #ffffff;
+  --track: #1a212c;
+  --danger: #ff3b30;
+  --danger-tekst: #ff6a5e;
+  --radius: 12px;
+  --radius-s: 10px;
   --maxw: 940px;
 
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -54,18 +66,21 @@
 }
 
 html[data-theme="light"] {
-  --bg: #f4f5f6;
+  --bg: #f4f6f9;
   --bg-elev: #ffffff;
   --card: #ffffff;
-  --card-2: #ffffff;
-  --border: #d5d8dd;
-  --line: #e4e6ea;
-  --text: #14171b;
-  --muted: #5e6773;
-  --faint: #838b96;
-  --accent: #14171b;
+  --card-2: #f9fafc;
+  --border: #dce1e9;
+  --line: #e7eaf0;
+  --text: #0d1118;
+  --muted: #5a6474;
+  --faint: #7c8798;
+  --accent: #0a84ff;
+  --accent-zacht: rgba(10, 132, 255, .10);
   --on-accent: #ffffff;
-  --track: #e0e3e8;
+  --track: #e3e7ee;
+  --danger: #d92b20;
+  --danger-tekst: #c02419;
 }
 
 * { box-sizing: border-box; }
@@ -99,7 +114,7 @@ p { margin: 0; }
 /* Getallen krijgen een tabellarische letter, zodat ze onder elkaar uitlijnen
    en niet verspringen terwijl je invult. */
 .stat-value, .rv-waarde, .meter-amount, .meter-pct, .trend-delta, .bd-pct,
-.daybar-val, .cal-day, .cal-pct, .schema-tel, .weight-val, .rail-scale,
+.daybar-val, .cal-day, .cal-pct, .schema-tel, .weight-val,
 input[type="number"], .sql {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -153,8 +168,7 @@ input[type="number"], .sql {
 }
 
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand-mark { display: flex; color: var(--text); }
-.brand-mark svg { width: 22px; height: 22px; display: block; }
+.brand-mark { display: flex; color: var(--accent); }
 .brand-sub {
   font-size: .64rem;
   letter-spacing: .18em;
@@ -163,12 +177,16 @@ input[type="number"], .sql {
   margin-top: 1px;
 }
 
-.tabs { display: flex; padding-top: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 
 .tab {
   flex: 1 0 auto;
   appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: none;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -176,14 +194,14 @@ input[type="number"], .sql {
   font-family: var(--font-cond);
   font-size: .8rem;
   font-weight: 600;
-  letter-spacing: .16em;
+  letter-spacing: .14em;
   text-transform: uppercase;
-  padding: 10px 14px 8px;
+  padding: 10px 12px 8px;
   cursor: pointer;
   white-space: nowrap;
 }
 .tab:hover { color: var(--text); }
-.tab-active { color: var(--text); border-bottom-color: var(--text); }
+.tab-active { color: var(--accent); border-bottom-color: var(--accent); }
 
 .period-nav {
   display: flex;
@@ -207,39 +225,35 @@ input[type="number"], .sql {
 
 .btn {
   appearance: none;
-  font-family: var(--font-cond);
-  font-size: .8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+  font-size: .88rem;
   font-weight: 600;
-  letter-spacing: .12em;
-  text-transform: uppercase;
   color: var(--text);
-  background: transparent;
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-s);
   padding: 10px 14px;
   cursor: pointer;
   transition: border-color .15s, background .15s;
 }
 .btn:hover { border-color: var(--muted); }
 .btn:active { background: var(--line); }
-.btn-sm { padding: 6px 10px; font-size: .72rem; }
-.btn-icon {
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-body);
-  font-size: 1rem;
-  letter-spacing: 0;
-}
-.btn-ghost { border-color: transparent; color: var(--muted); }
+.btn-sm { padding: 7px 11px; font-size: .8rem; }
+.btn-icon { padding: 0; width: 34px; height: 34px; flex: none; }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
 .btn-ghost:hover { border-color: var(--border); color: var(--text); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.btn-primary:hover { opacity: .88; }
-.btn-danger { color: #e0684f; border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
-.btn-danger:hover { background: color-mix(in srgb, var(--danger) 16%, transparent); border-color: #e0684f; }
+.btn-primary:hover { filter: brightness(1.08); border-color: var(--accent); }
+.btn-danger {
+  color: var(--danger-tekst);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+.btn-danger:hover { background: color-mix(in srgb, var(--danger) 18%, transparent); border-color: var(--danger); }
 .btn[hidden] { display: none; }
 
 /* -------------------------------- layout ------------------------------ */
@@ -256,16 +270,16 @@ input[type="number"], .sql {
 .card {
   background: transparent;
   border: 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   border-radius: 0;
   padding: 18px 0 20px;
   box-shadow: none;
 }
-.view > .card:first-child { border-top: 0; padding-top: 14px; }
+.view > .card:first-child { border-top: 0; padding-top: 16px; }
 
-.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .card-head h2 { margin: 0; }
-.card > h2 { margin-bottom: 12px; }
+.card > h2 { margin-bottom: 14px; }
 .card-foot { margin-top: 12px; display: flex; justify-content: flex-end; }
 
 .hint { color: var(--faint); font-size: .8rem; margin-top: 10px; }
@@ -274,75 +288,26 @@ input[type="number"], .sql {
 .footer {
   padding-top: 16px;
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   color: var(--faint);
   font-size: .76rem;
 }
 
 /* --------------------------------- hero ------------------------------- */
 
-.hero { display: flex; flex-direction: column; }
-.hero-score { display: flex; align-items: flex-end; gap: 14px; }
-.score-num {
-  font-family: var(--font-cond);
-  font-weight: 700;
-  font-size: 5rem;
-  line-height: .78;
-  letter-spacing: -.02em;
-  font-variant-numeric: tabular-nums;
-}
-.score-pct { font-size: 1.5rem; font-weight: 600; color: var(--muted); }
-.score-leeg { color: var(--faint); }
+.hero { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.hero-ring { flex: 0 0 auto; }
+.hero-info { flex: 1 1 200px; min-width: 190px; }
 .hero-label {
   font-family: var(--font-cond);
   font-weight: 700;
-  font-size: 1.2rem;
-  letter-spacing: .2em;
+  font-size: 1.35rem;
+  letter-spacing: .18em;
   text-transform: uppercase;
-  padding-bottom: 6px;
 }
-.hero-info { margin-top: 12px; }
-.hero-sub { color: var(--muted); font-size: .88rem; }
+.hero-sub { color: var(--muted); font-size: .88rem; margin-top: 6px; }
 .hero-sub strong { color: var(--text); font-weight: 600; }
-.hero-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-
-/* De schaal onder je score: rood links, groen rechts, jij ergens daartussen. */
-.rail { margin-top: 18px; }
-.rail-track { position: relative; height: 8px; width: 100%; }
-.rail-mark {
-  position: absolute;
-  top: -5px;
-  width: 2px;
-  height: 18px;
-  margin-left: -1px;
-  background: var(--text);
-}
-/* Wat er vandaag nog te halen valt: zichtbaar, maar duidelijk nog niet van jou. */
-.rail-tot {
-  position: absolute;
-  top: -3px;
-  width: 2px;
-  height: 14px;
-  margin-left: -1px;
-  background: var(--text);
-  opacity: .4;
-}
-.rail-drempel {
-  position: absolute;
-  top: -1px;
-  width: 1px;
-  height: 10px;
-  background: var(--bg);
-  opacity: .75;
-}
-.rail-scale {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  font-size: .64rem;
-  letter-spacing: .1em;
-  color: var(--faint);
-}
+.hero-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 
 .trend { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .trend-ring { flex: 0 0 auto; }
@@ -352,7 +317,10 @@ input[type="number"], .sql {
 .ring { display: block; }
 .ring-pct { font-family: var(--font-cond); font-weight: 700; letter-spacing: -.01em; }
 .ring-pct-sign { font-size: .5em; }
-.ring-open { opacity: .3; }
+/* Wat er vandaag nog te halen valt: zichtbaar, maar duidelijk nog niet van jou. */
+.ring-open { opacity: .28; }
+/* Je grens voor een goede dag, dwars door de ringband. */
+.ring-drempel { stroke: var(--bg); stroke-width: 2.5; }
 
 .chip {
   display: inline-flex;
@@ -360,11 +328,11 @@ input[type="number"], .sql {
   gap: 5px;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 0;
-  padding: 4px 8px;
-  font-size: .66rem;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: .68rem;
   font-weight: 600;
-  letter-spacing: .12em;
+  letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--muted);
   white-space: nowrap;
@@ -373,31 +341,27 @@ input[type="number"], .sql {
 
 /* -------------------------------- stats ------------------------------- */
 
-/* Eén raster van haarlijnen in plaats van losse tegels met randen. Elke tegel
-   tekent zijn eigen rechter- en onderlijn; een lege plek in de laatste rij
-   blijft daardoor ook echt leeg. */
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0;
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
+  gap: 9px;
 }
 .stat {
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px 14px;
 }
 .stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--faint);
   font-size: .62rem;
   text-transform: uppercase;
   letter-spacing: .12em;
 }
-.stat-value { font-size: 1.35rem; font-weight: 500; margin-top: 6px; }
+.stat-value { font-size: 1.4rem; font-weight: 600; margin-top: 7px; }
 .stat-value .unit { font-family: var(--font-body); font-size: .7rem; font-weight: 600; color: var(--faint); margin-left: 3px; }
 .stat-sub { color: var(--faint); font-size: .72rem; margin-top: 3px; }
 
@@ -426,8 +390,8 @@ input[type="password"], select, textarea {
   color: var(--text);
   background: var(--card-2);
   border: 1px solid var(--border);
-  border-radius: 0;
-  padding: 10px 12px;
+  border-radius: var(--radius-s);
+  padding: 11px 12px;
   outline: none;
 }
 select { font-family: var(--font-body); }
@@ -442,7 +406,7 @@ select { font-family: var(--font-body); }
   text-transform: uppercase;
   color: var(--faint);
 }
-.bron-auto { color: var(--muted); }
+.bron-auto { color: var(--accent); }
 .btn-mini {
   appearance: none;
   font: inherit;
@@ -450,7 +414,7 @@ select { font-family: var(--font-body); }
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--text);
+  color: var(--accent);
   background: none;
   border: 0;
   border-bottom: 1px solid currentColor;
@@ -460,23 +424,23 @@ select { font-family: var(--font-body); }
 
 .stappen > li { margin-bottom: 4px; }
 .stap-regels { color: var(--muted); font-size: .8rem; margin-top: 2px; }
-.stap-regels code { background: var(--line); padding: 1px 5px; font-size: .92em; word-break: break-all; }
+.stap-regels code { background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: .92em; word-break: break-all; }
 
 .meldregel {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 9px;
   margin-top: 14px;
-  padding: 10px 11px;
+  padding: 11px 12px;
   border: 1px solid var(--border);
-  background: var(--bg-elev);
+  border-radius: var(--radius-s);
+  background: var(--card);
   font-size: .84rem;
-  color: var(--muted);
 }
 .meldregel-icoon { flex: none; display: flex; margin-top: 1px; }
 
 input[type="number"] { padding-right: 46px; }
-input:focus, select:focus, textarea:focus { border-color: var(--text); }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 textarea { resize: vertical; padding-right: 12px; }
 
 /* -------------------------------- doelen ------------------------------ */
@@ -487,40 +451,47 @@ textarea { resize: vertical; padding-right: 12px; }
 .goal-dim { opacity: .55; }
 .goal-off { opacity: .4; }
 .goal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
-.goal-name { font-weight: 550; font-size: .92rem; display: flex; align-items: center; gap: 9px; }
-.goal-icon { display: flex; color: var(--faint); }
+.goal-name { font-weight: 600; font-size: .92rem; display: flex; align-items: center; gap: 10px; }
+.goal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card-2);
+  color: var(--muted);
+}
 
-/* Eén aaneengesloten balk in plaats van losse knoppen: dat leest als één
-   keuze, en hij past ook op een smal scherm. */
-.segmented { display: flex; }
+.segmented { display: flex; gap: 5px; flex-wrap: wrap; }
 .seg {
   flex: 1 1 0;
   min-width: 0;
   appearance: none;
   font: inherit;
-  font-size: .82rem;
-  font-weight: 550;
+  font-size: .84rem;
+  font-weight: 500;
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--border);
-  border-left-width: 0;
-  border-radius: 0;
-  padding: 10px 6px;
+  border-radius: var(--radius-s);
+  padding: 11px 6px;
   cursor: pointer;
   position: relative;
-  transition: background .15s, color .15s;
+  transition: background .15s, color .15s, border-color .15s;
 }
-.seg:first-child { border-left-width: 1px; }
-.seg:hover:not(:disabled) { color: var(--text); background: var(--line); }
+.seg:hover:not(:disabled) { color: var(--text); background: var(--card); }
 .seg:disabled { cursor: not-allowed; }
 .seg-active {
   background: var(--seg-color, var(--accent));
   border-color: var(--seg-color, var(--accent));
-  color: var(--seg-fg, #fff);
-  font-weight: 650;
+  color: var(--seg-fg, var(--on-accent));
+  font-weight: 700;
 }
-/* Het schema van vandaag is geen score, dus geen kleur uit de schaal: krijt. */
-.seg-chalk.seg-active { background: var(--text); border-color: var(--text); color: var(--bg); }
+/* Het schema van vandaag is geen score, dus geen kleur uit de schaal. */
+.seg-chalk.seg-active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .auto-dot {
   display: block;
   font-size: .58rem;
@@ -532,21 +503,16 @@ textarea { resize: vertical; padding-right: 12px; }
 /* -------------------------------- teller ------------------------------ */
 
 .meter-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
-.meter-amount { font-size: 1.9rem; font-weight: 500; }
+.meter-amount { font-size: 1.9rem; font-weight: 700; }
 .meter-goal { font-family: var(--font-body); color: var(--faint); font-size: .84rem; flex: 1; }
-.meter-pct { font-size: 1rem; font-weight: 600; }
+.meter-pct { font-size: 1rem; font-weight: 700; }
 
-.meter-buttons { display: flex; gap: 6px; margin-top: 14px; }
-.btn-add {
-  flex: 1;
-  padding: 15px 6px;
-  font-size: .84rem;
-}
-.btn-add:hover { background: var(--line); border-color: var(--muted); }
+.meter-buttons { display: flex; gap: 7px; margin-top: 14px; }
+.btn-add { flex: 1; padding: 14px 6px; font-size: .92rem; font-weight: 700; }
 
 .meter-tweak { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
 .meter-manual { position: relative; display: flex; align-items: center; width: 110px; }
-.meter-manual input { padding: 6px 34px 6px 10px; font-size: .85rem; }
+.meter-manual input { padding: 7px 34px 7px 10px; font-size: .85rem; }
 .meter-manual .measure-unit { right: 10px; font-size: .72rem; }
 
 /* ------------------------------ breakdown ----------------------------- */
@@ -562,9 +528,9 @@ textarea { resize: vertical; padding-right: 12px; }
   border-top: 1px solid var(--line);
 }
 .bd-row:first-child { border-top: 0; padding-top: 0; }
-.bd-name { grid-area: name; display: flex; align-items: center; gap: 8px; font-size: .88rem; font-weight: 500; }
+.bd-name { grid-area: name; display: flex; align-items: center; gap: 9px; font-size: .88rem; font-weight: 500; }
 .bd-bar { grid-area: bar; }
-.bd-pct { grid-area: pct; text-align: right; font-weight: 500; font-size: .85rem; }
+.bd-pct { grid-area: pct; text-align: right; font-weight: 700; font-size: .85rem; }
 .bd-counts { grid-area: counts; color: var(--faint); font-size: .72rem; }
 .bd-off { opacity: .45; }
 .bd-icon { display: flex; color: var(--faint); }
@@ -574,16 +540,15 @@ textarea { resize: vertical; padding-right: 12px; }
 .rv-cijfers {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
-  gap: 0;
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
+  gap: 8px;
 }
 .rv-cijfer {
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  padding: 11px 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 11px;
 }
-.rv-waarde { font-size: 1.3rem; font-weight: 500; }
+.rv-waarde { font-size: 1.3rem; font-weight: 700; }
 .rv-waarde .unit { font-family: var(--font-body); font-size: .72rem; font-weight: 600; color: var(--faint); margin-left: 1px; }
 .rv-label {
   color: var(--faint);
@@ -593,35 +558,51 @@ textarea { resize: vertical; padding-right: 12px; }
   margin-top: 5px;
 }
 
-.rv-blokken { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.rv-blokken { display: flex; flex-direction: column; }
 .rv-blok {
+  display: flex;
+  flex-direction: column;
   background: transparent;
   border: 0;
-  border-left: 2px solid var(--rv-kleur, var(--border));
+  border-top: 1px solid var(--line);
   border-radius: 0;
-  padding: 2px 0 2px 12px;
+  padding: 13px 0;
 }
+.rv-blok:first-child { border-top: 0; }
 .rv-kop {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-family: var(--font-cond);
   font-weight: 600;
-  font-size: .88rem;
+  font-size: .9rem;
   letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--rv-kleur, var(--text));
 }
-.rv-icoon { display: flex; }
-.rv-tekst { color: var(--muted); font-size: .85rem; margin-top: 5px; }
+.rv-icoon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--rv-kleur, var(--muted)) 16%, transparent);
+}
+.rv-tekst { color: var(--muted); font-size: .85rem; margin-top: 6px; padding-left: 40px; }
 
-.rv-goed { --rv-kleur: #4d912e; }
-.rv-let-op { --rv-kleur: #d99a0a; }
-.rv-slecht { --rv-kleur: #b21e1e; }
-.rv-neutraal { --rv-kleur: var(--muted); }
+.rv-goed { --rv-kleur: #00e5a0; }
+.rv-let-op { --rv-kleur: #ffd60a; }
+.rv-slecht { --rv-kleur: #ff3b30; }
+.rv-neutraal { --rv-kleur: var(--accent); }
 
-.bar { height: 6px; background: var(--track); border-radius: 0; overflow: hidden; }
-.bar-fill { display: block; height: 100%; transition: width .3s ease; }
+html[data-theme="light"] .rv-goed { --rv-kleur: #00815b; }
+html[data-theme="light"] .rv-let-op { --rv-kleur: #846a00; }
+html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
+
+.bar { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 4px; transition: width .3s ease; }
 
 /* ------------------------------- daybars ------------------------------ */
 
@@ -639,26 +620,26 @@ textarea { resize: vertical; padding-right: 12px; }
 }
 .daybar-track {
   width: 100%;
-  height: 110px;
+  height: 112px;
   background: var(--track);
-  border-radius: 0;
+  border-radius: 7px;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
 }
-.daybar-fill { width: 100%; transition: height .3s ease; }
+.daybar-fill { width: 100%; border-radius: 7px; transition: height .3s ease; }
 .daybar-label { color: var(--faint); font-size: .64rem; text-transform: uppercase; letter-spacing: .1em; }
-.daybar-val { font-size: .76rem; font-weight: 500; }
-.daybar:hover .daybar-track { outline: 1px solid var(--text); outline-offset: 1px; }
+.daybar-val { font-size: .76rem; font-weight: 700; }
+.daybar:hover .daybar-track { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* ------------------------------ kalender ------------------------------ */
 
-.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .cal-head { text-align: center; color: var(--faint); font-size: .6rem; text-transform: uppercase; letter-spacing: .12em; padding-bottom: 6px; }
 .cal-cell {
   appearance: none;
   border: 1px solid var(--line);
-  border-radius: 0;
+  border-radius: var(--radius-s);
   aspect-ratio: 1 / 1;
   display: flex;
   flex-direction: column;
@@ -670,36 +651,50 @@ textarea { resize: vertical; padding-right: 12px; }
   padding: 2px;
   min-height: 42px;
 }
-.cal-cell:hover { outline: 1px solid var(--text); outline-offset: 1px; }
+.cal-cell:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
 .cal-empty { border: 0; cursor: default; pointer-events: none; }
-.cal-day { font-size: .78rem; font-weight: 500; }
-.cal-pct { font-size: .6rem; opacity: .85; }
-.cal-today { outline: 2px solid var(--text); outline-offset: -2px; }
+.cal-day { font-size: .78rem; font-weight: 700; }
+.cal-pct { font-size: .6rem; font-weight: 600; opacity: .9; }
+.cal-today { box-shadow: 0 0 0 2px var(--accent); }
 .cal-future { opacity: .35; }
 .cal-missing { border-style: dashed; }
+
+/* De kleurschaal hoort bij de kalender: daar staat elk vlakje in een kleur
+   die je zonder legenda moet raden. */
+.schaal-legenda {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  font-size: .65rem;
+  letter-spacing: .1em;
+  color: var(--faint);
+}
+.schaal-balk { flex: 1; height: 8px; border-radius: 4px; }
 
 /* ------------------------------ grafieken ----------------------------- */
 
 .weight-chart { width: 100%; height: auto; aspect-ratio: 640 / 200; display: block; }
-.wc-line { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.wc-area { fill: color-mix(in srgb, var(--text) 8%, transparent); stroke: none; }
-.wc-dot { fill: var(--bg); stroke: var(--text); stroke-width: 1.6; }
+.wc-line { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.wc-area { fill: color-mix(in srgb, var(--accent) 12%, transparent); stroke: none; }
+.wc-dot { fill: var(--bg); stroke: var(--accent); stroke-width: 2; }
 .wc-grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .wc-axis { fill: var(--faint); font-family: var(--font-mono); font-size: 10px; }
-.wc-goal { stroke: #d99a0a; stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
-.wc-goal-label { fill: #d99a0a; font-family: var(--font-mono); font-size: 10px; }
+.wc-goal { stroke: #ffd60a; stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.wc-goal-label { fill: #ffd60a; font-family: var(--font-mono); font-size: 10px; }
 
 .lijn-grafiek { width: 100%; height: auto; aspect-ratio: 640 / 200; display: block; }
-.lc-line { fill: none; stroke: var(--lc-kleur, var(--text)); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.lc-dot { fill: var(--bg); stroke: var(--lc-kleur, var(--text)); stroke-width: 1.6; }
-.lc-pr { fill: var(--lc-kleur, var(--text)); stroke-width: 2; }
-.lc-serie-1 { --lc-kleur: #d99a0a; }
+.lc-line { fill: none; stroke: var(--lc-kleur, var(--accent)); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.lc-dot { fill: var(--bg); stroke: var(--lc-kleur, var(--accent)); stroke-width: 2; }
+.lc-pr { fill: var(--lc-kleur, var(--accent)); stroke-width: 2; }
+.lc-serie-1 { --lc-kleur: #ffd60a; }
 .lc-legenda { display: flex; flex-wrap: wrap; gap: 12px; color: var(--faint); font-size: .72rem; margin-top: 4px; }
 .lc-merk {
   display: inline-block;
   width: 10px;
   height: 10px;
-  background: var(--lc-kleur, var(--text));
+  border-radius: 3px;
+  background: var(--lc-kleur, var(--accent));
   margin-right: 5px;
   vertical-align: -1px;
 }
@@ -721,8 +716,8 @@ textarea { resize: vertical; padding-right: 12px; }
 .field-hint { color: var(--faint); font-size: .72rem; }
 
 .switch { display: flex; gap: 11px; align-items: flex-start; margin-top: 14px; cursor: pointer; }
-.switch input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--text); flex: 0 0 auto; }
-.switch-label { display: block; font-weight: 550; font-size: .9rem; }
+.switch input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: 0 0 auto; }
+.switch-label { display: block; font-weight: 600; font-size: .9rem; }
 .switch-hint { display: block; color: var(--faint); font-size: .78rem; }
 
 .weights { display: flex; flex-direction: column; }
@@ -735,26 +730,26 @@ textarea { resize: vertical; padding-right: 12px; }
   border-top: 1px solid var(--line);
 }
 .weight-row:first-child { border-top: 0; }
-.weight-name { display: flex; align-items: center; gap: 8px; font-size: .88rem; font-weight: 500; }
-.weight-val { text-align: right; color: var(--muted); font-size: .8rem; }
-input[type="range"] { width: 100%; accent-color: var(--text); }
+.weight-name { display: flex; align-items: center; gap: 9px; font-size: .88rem; font-weight: 500; }
+.weight-val { text-align: right; color: var(--muted); font-size: .8rem; font-weight: 700; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
 
 .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
 
-.alert { border-radius: 0; padding: 12px; font-size: .85rem; margin-top: 12px; }
-.alert-bad { background: color-mix(in srgb, var(--danger) 14%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); }
+.alert { border-radius: var(--radius-s); padding: 12px; font-size: .85rem; margin-top: 12px; }
+.alert-bad { background: color-mix(in srgb, var(--danger) 12%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); }
 
 .scheiding { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .sync-status { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.uitleg { margin-top: 14px; border: 1px solid var(--border); border-radius: 0; padding: 10px 12px; }
+.uitleg { margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius-s); padding: 11px 13px; }
 .uitleg summary { cursor: pointer; font-weight: 600; font-size: .88rem; }
 .uitleg[open] summary { margin-bottom: 10px; }
-.uitleg code { background: var(--line); padding: 1px 5px; font-size: .85em; }
+.uitleg code { background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: .85em; }
 .sql {
-  background: var(--bg-elev);
+  background: var(--card-2);
   border: 1px solid var(--border);
-  border-radius: 0;
-  padding: 10px;
+  border-radius: var(--radius-s);
+  padding: 11px;
   overflow-x: auto;
   font-size: .7rem;
   line-height: 1.45;
@@ -773,12 +768,13 @@ ol.explain { list-style: decimal; }
   bottom: calc(20px + env(safe-area-inset-bottom));
   transform: translate(-50%, 20px);
   background: var(--bg-elev);
-  border: 1px solid var(--text);
+  border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 0;
-  padding: 10px 16px;
+  border-radius: var(--radius-s);
+  padding: 11px 16px;
   font-size: .85rem;
-  font-weight: 550;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
   opacity: 0;
   pointer-events: none;
   transition: opacity .2s, transform .2s;
@@ -786,7 +782,7 @@ ol.explain { list-style: decimal; }
   max-width: calc(100vw - 32px);
 }
 .toast-show { opacity: 1; transform: translate(-50%, 0); }
-.toast-bad { border-color: #e0684f; }
+.toast-bad { border-color: var(--danger); }
 
 /* ------------------------------- oefeningen --------------------------- */
 
@@ -819,7 +815,7 @@ ol.explain { list-style: decimal; }
 .lift-arm {
   flex: none;
   width: 22px;
-  margin-top: 10px;
+  margin-top: 11px;
   text-align: center;
   font-size: .68rem;
   font-weight: 700;
@@ -828,8 +824,8 @@ ol.explain { list-style: decimal; }
 }
 
 .lift-inputs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.lift-field { position: relative; display: flex; align-items: center; width: 92px; }
-.lift-field input { padding: 8px 34px 8px 10px; font-size: .95rem; }
+.lift-field { position: relative; display: flex; align-items: center; width: 94px; }
+.lift-field input { padding: 9px 34px 9px 11px; font-size: .95rem; }
 .lift-field .measure-unit { right: 9px; font-size: .68rem; }
 .lift-x { color: var(--faint); font-size: .9rem; }
 .lift-status { margin-left: auto; white-space: nowrap; }
@@ -838,8 +834,7 @@ ol.explain { list-style: decimal; }
 .lift-date { opacity: .7; }
 
 .lift-knoppen { display: flex; gap: 4px; flex: none; }
-.lift-knoppen .btn { display: inline-flex; align-items: center; justify-content: center; }
-.btn-aan { border-color: var(--text); color: var(--text); }
+.btn-aan { border-color: var(--accent); color: var(--accent); }
 
 .lift-grafiek {
   margin-top: 12px;
@@ -863,10 +858,15 @@ ol.explain { list-style: decimal; }
 
 /* ---------------------------- schema-instellingen --------------------- */
 
-.schemas { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
-.schema { border: 1px solid var(--border); border-radius: 0; padding: 12px; background: transparent; }
+.schemas { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.schema {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: var(--card);
+}
 .schema-head { display: flex; gap: 8px; align-items: center; }
-.schema-titel { font-family: var(--font-cond); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.schema-titel { font-family: var(--font-cond); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .schema-lijst { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
 
 .schema-oef {
@@ -879,28 +879,38 @@ ol.explain { list-style: decimal; }
 }
 .schema-oef:first-child { border-top: 0; padding-top: 0; }
 .schema-naam { flex: 1; min-width: 130px; }
-.schema-oef select { width: auto; min-width: 120px; font-size: .8rem; padding: 6px 8px; }
+.schema-oef select { width: auto; min-width: 120px; font-size: .8rem; padding: 7px 9px; }
 .schema-arm { display: flex; align-items: center; gap: 5px; font-size: .74rem; color: var(--faint); white-space: nowrap; }
-.schema-arm input { width: auto; }
+.schema-arm input { width: auto; accent-color: var(--accent); }
 .schema-tel { font-size: .72rem; color: var(--faint); min-width: 28px; text-align: right; }
-.schema-knoppen { display: flex; gap: 2px; margin-left: auto; }
-.schema-knoppen .btn { padding: 4px 8px; }
+.schema-knoppen { display: flex; gap: 3px; margin-left: auto; }
+.schema-knoppen .btn { padding: 6px 8px; }
 
 /* ------------------------------- responsive --------------------------- */
 
 @media (max-width: 560px) {
   .schema-naam { min-width: 100%; }
   .schema-knoppen { margin-left: 0; }
-  .lift-field { width: 84px; }
+  .lift-field { width: 86px; }
 
-  .score-num { font-size: 4.2rem; }
-  .hero-label { font-size: 1.05rem; }
-  .trend { gap: 12px; }
-  .seg { font-size: .76rem; padding: 10px 3px; }
-  .stat-value { font-size: 1.2rem; }
+  /* Vier tabs met een icoon passen op een telefoon alleen als de letters
+     dichter op elkaar staan. */
+  .tab { padding: 10px 7px 8px; font-size: .72rem; letter-spacing: .06em; gap: 5px; }
+  .tab .ico { width: 14px; height: 14px; }
+
+  .hero { gap: 16px; justify-content: center; }
+  .hero-ring svg { width: 150px; height: 150px; }
+  .hero-info { text-align: center; }
+  .hero-chips { justify-content: center; }
+  .hero-label { font-size: 1.15rem; }
+  .trend { gap: 14px; justify-content: center; }
+  .trend-info { text-align: center; }
+  .seg { font-size: .78rem; padding: 11px 3px; }
+  .stat-value { font-size: 1.25rem; }
   .rv-waarde { font-size: 1.15rem; }
+  .rv-tekst { padding-left: 0; }
   .bd-row { grid-template-columns: 1fr 44px; grid-template-areas: "name pct" "bar bar" "counts counts"; }
-  .daybar-track { height: 84px; }
+  .daybar-track { height: 88px; }
   .cal-pct { display: none; }
   .weight-row { grid-template-columns: 1fr 44px; grid-template-areas: "name val" "range range"; }
   .weight-row input[type="range"] { grid-area: range; }
@@ -914,17 +924,14 @@ ol.explain { list-style: decimal; }
 }
 
   </style>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><rect width='20' height='20' fill='%230c0e11'/><g fill='none' stroke='%23e8ebef' stroke-width='1.6'><circle cx='10' cy='10' r='6.4'/><circle cx='10' cy='10' r='2.9'/></g><circle cx='10' cy='10' r='.9' fill='%23e8ebef'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><rect width='20' height='20' fill='%230a0c10'/><g fill='none' stroke='%2300e5a0' stroke-width='1.8'><circle cx='10' cy='10' r='6.4'/><circle cx='10' cy='10' r='2.9'/></g><circle cx='10' cy='10' r='.9' fill='%2300e5a0'/></svg>">
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" focusable="false">
-            <circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.2"/>
-            <circle cx="10" cy="10" r=".9" fill="currentColor" stroke="none"/>
-          </svg>
+          <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" /> <circle cx="12" cy="12" r="6" /> <circle cx="12" cy="12" r="2" /></svg>
         </span>
         <div>
           <h1>Goal Dashboard</h1>
@@ -932,22 +939,22 @@ ol.explain { list-style: decimal; }
         </div>
       </div>
       <div class="topbar-actions">
-        <button id="btn-sync" class="btn btn-icon" hidden title="Nu synchroniseren" aria-label="Nu synchroniseren">⟳</button>
-        <button id="btn-theme" class="btn btn-icon" title="Licht/donker wisselen" aria-label="Licht of donker thema">◐</button>
+        <button id="btn-sync" class="btn btn-icon" hidden title="Nu synchroniseren" aria-label="Nu synchroniseren"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /> <path d="M21 3v5h-5" /> <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /> <path d="M8 16H3v5" /></svg></button>
+        <button id="btn-theme" class="btn btn-icon" title="Licht/donker wisselen" aria-label="Licht of donker thema"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2v2" /> <path d="M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715" /> <path d="M16 12a4 4 0 0 0-4-4" /> <path d="m19 5-1.256 1.256" /> <path d="M20 12h2" /></svg></button>
       </div>
     </div>
 
     <nav class="tabs" role="tablist" aria-label="Periode">
-      <button class="tab tab-active" data-view="dag" role="tab" aria-selected="true">Dag</button>
-      <button class="tab" data-view="week" role="tab" aria-selected="false">Week</button>
-      <button class="tab" data-view="maand" role="tab" aria-selected="false">Maand</button>
-      <button class="tab" data-view="instellingen" role="tab" aria-selected="false">Instellingen</button>
+      <button class="tab tab-active" data-view="dag" role="tab" aria-selected="true"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" /> <path d="M12 6v6l4 2" /></svg>Dag</button>
+      <button class="tab" data-view="week" role="tab" aria-selected="false"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg>Week</button>
+      <button class="tab" data-view="maand" role="tab" aria-selected="false"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 2v3" /> <path d="M16 2v3" /> <rect x="3" y="3" width="18" height="18" rx="2" /> <path d="M3 9h18" /> <path d="M8 13h.01" /> <path d="M12 13h.01" /> <path d="M16 13h.01" /> <path d="M8 17h.01" /> <path d="M12 17h.01" /> <path d="M16 17h.01" /></svg>Maand</button>
+      <button class="tab" data-view="instellingen" role="tab" aria-selected="false"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /> <circle cx="12" cy="12" r="3" /></svg>Instellingen</button>
     </nav>
 
     <div class="period-nav" id="period-nav">
-      <button class="btn btn-icon" data-nav="prev" aria-label="Vorige periode">‹</button>
+      <button class="btn btn-icon" data-nav="prev" aria-label="Vorige periode"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 18-6-6 6-6" /></svg></button>
       <span id="period-label" class="period-label">—</span>
-      <button class="btn btn-icon" data-nav="next" aria-label="Volgende periode">›</button>
+      <button class="btn btn-icon" data-nav="next" aria-label="Volgende periode"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6" /></svg></button>
       <button class="btn btn-ghost btn-sm" id="btn-today" data-nav="today">Vandaag</button>
     </div>
   </header>
@@ -1091,28 +1098,42 @@ ol.explain { list-style: decimal; }
   GOALS.forEach(function (g) { DEFAULT_SETTINGS.weights[g.key] = g.weight; });
 
   /* ------------------------------------------------------------------ *
-   * Kleurschaal: 0% donkerrood -> 100% donkergroen
+   * Kleurschaal: 0% rood -> 100% mintgroen
    * ------------------------------------------------------------------ */
+  /* Vlakken: balken, ringen, kalendervlakjes. Fel, want een score die je moet
+     aankijken hoort op te vallen — het oude donkergroen zakte 's avonds weg in
+     een zwart scherm. */
   var COLOR_STOPS = [
-    { p: 0,   c: [122, 12, 18] },   // donkerrood
-    { p: 20,  c: [178, 30, 30] },
-    { p: 40,  c: [214, 96, 20] },
-    { p: 55,  c: [217, 154, 10] },  // amber
-    { p: 70,  c: [154, 168, 20] },
-    { p: 85,  c: [77, 145, 46] },
-    { p: 100, c: [13, 82, 34] }     // donkergroen
+    { p: 0,   c: [255, 59, 48] },   // rood
+    { p: 20,  c: [255, 107, 43] },
+    { p: 40,  c: [255, 159, 10] },
+    { p: 55,  c: [255, 214, 10] },  // goud
+    { p: 70,  c: [168, 230, 43] },
+    { p: 85,  c: [47, 224, 127] },
+    { p: 100, c: [0, 229, 160] }    // mintgroen
+  ];
+
+  /* Diezelfde tinten, maar donker genoeg om als TEKST op een lichte
+     ondergrond te lezen. Fel op zwart werkt; fel op wit niet. */
+  var INK_STOPS = [
+    { p: 0,   c: [207, 42, 32] },
+    { p: 20,  c: [196, 80, 26] },
+    { p: 40,  c: [169, 101, 0] },
+    { p: 55,  c: [132, 106, 0] },
+    { p: 70,  c: [86, 130, 13] },
+    { p: 85,  c: [14, 148, 80] },
+    { p: 100, c: [0, 129, 91] }
   ];
 
   function clamp(v, min, max) { return v < min ? min : (v > max ? max : v); }
 
-  function scoreColor(pct) {
-    if (pct === null || pct === undefined || isNaN(pct)) return '#3a3f4b';
+  function meng(stops, pct) {
     var p = clamp(pct, 0, 100);
-    var a = COLOR_STOPS[0], b = COLOR_STOPS[COLOR_STOPS.length - 1];
-    for (var i = 0; i < COLOR_STOPS.length - 1; i++) {
-      if (p >= COLOR_STOPS[i].p && p <= COLOR_STOPS[i + 1].p) {
-        a = COLOR_STOPS[i];
-        b = COLOR_STOPS[i + 1];
+    var a = stops[0], b = stops[stops.length - 1];
+    for (var i = 0; i < stops.length - 1; i++) {
+      if (p >= stops[i].p && p <= stops[i + 1].p) {
+        a = stops[i];
+        b = stops[i + 1];
         break;
       }
     }
@@ -1121,6 +1142,27 @@ ol.explain { list-style: decimal; }
       return Math.round(a.c[i] + (b.c[i] - a.c[i]) * t);
     });
     return 'rgb(' + rgb.join(',') + ')';
+  }
+
+  /** Kleur voor een vlak: balk, ring, kalendervlakje. */
+  function scoreColor(pct) {
+    if (pct === null || pct === undefined || isNaN(pct)) return '#3a4050';
+    return meng(COLOR_STOPS, pct);
+  }
+
+  function lichtThema() {
+    return typeof document !== 'undefined' &&
+      document.documentElement.getAttribute('data-theme') === 'light';
+  }
+
+  /**
+   * Kleur voor een getal of een woord dat op de achtergrond van de pagina
+   * staat. In het donker is dat dezelfde felle kleur; op een lichte
+   * achtergrond de donkere variant, anders lees je je eigen score niet.
+   */
+  function scoreInk(pct) {
+    if (pct === null || pct === undefined || isNaN(pct)) return 'var(--muted)';
+    return lichtThema() ? meng(INK_STOPS, pct) : meng(COLOR_STOPS, pct);
   }
 
   /* Dezelfde schaal als verloop, voor de balk onder je dagscore. Hij wordt uit
@@ -1134,11 +1176,13 @@ ol.explain { list-style: decimal; }
 
   /* Leesbare tekstkleur op een score-achtergrond */
   function textOn(pct) {
-    if (pct === null || pct === undefined || isNaN(pct)) return '#c9cedb';
+    if (pct === null || pct === undefined || isNaN(pct)) return 'var(--muted)';
     var m = /rgb\((\d+),(\d+),(\d+)\)/.exec(scoreColor(pct));
     if (!m) return '#fff';
     var lum = (0.299 * +m[1] + 0.587 * +m[2] + 0.114 * +m[3]) / 255;
-    return lum > 0.62 ? '#14181f' : '#ffffff';
+    // De hele schaal is fel, dus staat er bijna altijd donkere tekst op. Wit
+    // op mintgroen of goud haalt bij lange na geen leesbaar verschil.
+    return lum > 0.45 ? '#0a0c10' : '#ffffff';
   }
 
   function scoreLabel(pct) {
@@ -1156,6 +1200,7 @@ ol.explain { list-style: decimal; }
   global.GD.GOALS = GOALS;
   global.GD.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
   global.GD.scoreColor = scoreColor;
+  global.GD.scoreInk = scoreInk;
   global.GD.scaleGradient = scaleGradient;
   global.GD.textOn = textOn;
   global.GD.scoreLabel = scoreLabel;
@@ -1187,53 +1232,116 @@ ol.explain { list-style: decimal; }
   <script>
 /* Goal Dashboard - iconen
  *
- * Getekende iconen in plaats van emoji. Emoji zien er op elk apparaat anders
- * uit, schalen niet mee met de tekst en nemen hun eigen kleur mee; deze lijnen
- * volgen de tekstkleur en staan overal hetzelfde.
+ * De iconen komen uit Lucide (lucide-static 1.46.0, ISC-licentie): de echte
+ * paden, niet nagetekend. Alles op een raster van 24 bij 24 met lijndikte 2,
+ * dus ze staan onderling gelijk en volgen de tekstkleur.
  *
- * Alles op één raster van 20 bij 20, met dezelfde lijndikte, zodat de set als
- * één set leest. Gebruik: GD.icon('water') of GD.icon('water', 22).
+ * Emoji zijn hier bewust weg: die zien er op elk apparaat anders uit, schalen
+ * niet mee met de tekst en nemen hun eigen kleur mee.
+ *
+ * Gebruik: GD.icon('water') of GD.icon('water', 22).
  */
 (function (global) {
   'use strict';
 
   var PADEN = {
+
     /* merk */
-    doel: '<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.2"/>' +
-      '<circle cx="10" cy="10" r=".9" fill="currentColor" stroke="none"/>',
+    doel: '<circle cx="12" cy="12" r="10" /> <circle cx="12" cy="12" r="6" /> <circle cx="12" '
+      + 'cy="12" r="2" />',
 
-    /* de doelen, met dezelfde sleutel als in GOALS */
-    creatine: '<rect x="3.2" y="7.6" width="13.6" height="6.8" rx="3.4"/><path d="M10 7.6v6.8"/>',
-    ontbijt: '<path d="M3.4 9.6h13.2a6.6 6.6 0 0 1-13.2 0Z"/><path d="M8 6.6c0-1 1-1.4 1-2.4"/>' +
-      '<path d="M11.6 6.6c0-1 1-1.4 1-2.4"/>',
-    lunch: '<path d="M16.4 3.6c0 7-4 10-9 10-1.5 0-2.5-.4-2.5-.4S4 6.6 10 4.6c2.4-.8 6.4-1 6.4-1Z"/>' +
-      '<path d="M4.2 16.4c2-4 5-6 8.4-7.4"/>',
-    avondeten: '<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.2"/>',
-    postworkout: '<path d="M6.2 7h7.6l-1 9.4a1 1 0 0 1-1 .9H8.2a1 1 0 0 1-1-.9Z"/>' +
-      '<path d="M5.6 4.2h8.8L13.8 7H6.2Z"/>',
-    gesport: '<path d="M2.6 10h14.8"/><rect x="4.4" y="6" width="3.1" height="8" rx="1"/>' +
-      '<rect x="12.5" y="6" width="3.1" height="8" rx="1"/><path d="M2.6 7.9v4.2M17.4 7.9v4.2"/>',
-    overload: '<path d="M3 14.6 8 9.2l3 3 6-6.6"/><path d="M12.8 5.6H17v4.2"/>',
-    water: '<path d="M10 3.2c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3Z"/>',
-    eiwit: '<path d="M10 3.4c3 0 5.2 4.2 5.2 7.4a5.2 5.2 0 0 1-10.4 0C4.8 7.6 7 3.4 10 3.4Z"/>',
-    calorieen: '<path d="M10 3.2s.7 2.6-1.2 4.4C7 9.4 5.6 10.6 5.6 12.6a4.4 4.4 0 0 0 8.8 0c0-2.4-1.6-3.6-2.4-5.2' +
-      '-.5 1-1.3 1.6-1.3 1.6S11.6 6 10 3.2Z"/>',
+    /* doelen */
+    creatine: '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /> <path '
+      + 'd="m8.5 8.5 7 7" />',
+    ontbijt: '<path d="M10.2 18H4.774a1.5 1.5 0 0 1-1.352-.97 11 11 0 0 1 .132-6.487" /> <path '
+      + 'd="M18 10.2V4.774a1.5 1.5 0 0 0-.97-1.352 11 11 0 0 0-6.486.132" /> <path d="M18 5a4 3 '
+      + '0 0 1 4 3 2 2 0 0 1-2 2 10 10 0 0 0-5.139 1.42" /> <path d="M5 18a3 4 0 0 0 3 4 2 2 0 '
+      + '0 0 2-2 10 10 0 0 1 1.42-5.14" /> <path d="M8.709 2.554a10 10 0 0 0-6.155 6.155 1.5 '
+      + '1.5 0 0 0 .676 1.626l9.807 5.42a2 2 0 0 0 2.718-2.718l-5.42-9.807a1.5 1.5 0 0 '
+      + '0-1.626-.676" />',
+    lunch: '<path d="M7 21h10" /> <path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z" /> <path '
+      + 'd="M11.38 12a2.4 2.4 0 0 1-.4-4.77 2.4 2.4 0 0 1 3.2-2.77 2.4 2.4 0 0 1 3.47-.63 2.4 '
+      + '2.4 0 0 1 3.37 3.37 2.4 2.4 0 0 1-1.1 3.7 2.51 2.51 0 0 1 .03 1.1" /> <path d="m13 12 '
+      + '4-4" /> <path d="M10.9 7.25A3.99 3.99 0 0 0 4 10c0 .73.2 1.41.54 2" />',
+    avondeten: '<path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8" /> <path d="M15 '
+      + '15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7" /> <path d="m2.1 '
+      + '21.8 6.4-6.3" /> <path d="m19 5-7 7" />',
+    postworkout: '<path d="m6 8 1.75 12.28a2 2 0 0 0 2 1.72h4.54a2 2 0 0 0 2-1.72L18 8" /> <path d="M5 '
+      + '8h14" /> <path d="M7 15a6.47 6.47 0 0 1 5 0 6.47 6.47 0 0 0 5 0" /> <path d="m12 8 '
+      + '1-6h2" />',
+    gesport: '<path d="M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 '
+      + '2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z" /> '
+      + '<path d="m2.5 21.5 1.4-1.4" /> <path d="m20.1 3.9 1.4-1.4" /> <path d="M5.343 21.485a2 '
+      + '2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 '
+      + '2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z" /> <path d="m9.6 14.4 4.8-4.8" />',
+    overload: '<path d="M16 7h6v6" /> <path d="m22 7-8.5 8.5-5-5L2 17" />',
+    water: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 '
+      + '5 13 5 15a7 7 0 0 0 7 7z" />',
+    eiwit: '<path d="M15.4 15.63a7.875 6 135 1 1 6.23-6.23 4.5 3.43 135 0 0-6.23 6.23" /> <path '
+      + 'd="m8.29 12.71-2.6 2.6a2.5 2.5 0 1 0-1.65 4.65A2.5 2.5 0 1 0 8.7 18.3l2.59-2.59" />',
+    calorieen: '<path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 '
+      + '0c0-2-1.5-3-1.5-5q0-2 2.5-4" />',
 
-    /* losse iconen in de app */
-    weegschaal: '<rect x="3.2" y="5.5" width="13.6" height="11" rx="2"/>' +
-      '<path d="M6.6 10a3.6 3.6 0 0 1 6.8 0"/><path d="M10 10 8.4 12.2"/>',
-    rapport: '<rect x="4.5" y="4.2" width="11" height="12.6" rx="1.6"/>' +
-      '<rect x="7.6" y="2.6" width="4.8" height="2.8" rx=".9"/><path d="M7.6 9.4h4.8M7.6 12.6h3.2"/>',
-    beker: '<path d="M6.5 3.2h7v3.4a3.5 3.5 0 0 1-7 0Z"/><path d="M6.5 4.4H4v1a2.5 2.5 0 0 0 2.5 2.5"/>' +
-      '<path d="M13.5 4.4H16v1A2.5 2.5 0 0 1 13.5 8"/><path d="M8 16.8h4"/><path d="M10 10.2v6.6"/>',
-    daling: '<path d="M3 5.4 8 10.8l3-3 6 6.4"/><path d="M12.8 14.4H17v-4.2"/>',
-    rust: '<path d="M15.4 12.4A6.2 6.2 0 0 1 7.6 4.6a6.2 6.2 0 1 0 7.8 7.8Z"/>',
-    grafiek: '<path d="M3.2 16.4V3.6"/><path d="M3.2 16.4h13.6"/><path d="M6 13.2l3-3.4 2.6 2.2 3.8-4.6"/>',
-    sync: '<path d="M16.2 10a6.2 6.2 0 1 1-1.9-4.4"/><path d="M16.6 3.4v3.4h-3.4"/>',
-    klok: '<circle cx="10" cy="10" r="6.8"/><path d="M10 6v4.2l2.8 1.7"/>'
+    /* losse iconen */
+    weegschaal: '<path d="M12 3v18" /> <path d="m19 8 3 8a5 5 0 0 1-6 0zV7" /> <path d="M3 7h1a17 17 0 '
+      + '0 0 8-2 17 17 0 0 0 8 2h1" /> <path d="m5 8 3 8a5 5 0 0 1-6 0zV7" /> <path d="M7 '
+      + '21h10" />',
+    rapport: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 '
+      + '2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path '
+      + 'd="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" />',
+    beker: '<path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2" /> <path d="M14 14.66V17a1 1 0 0 '
+      + '0 1 1 2 2 0 0 1 2 2v2" /> <path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 '
+      + '0-1-1h-3" /> <path d="M4 22h16" /> <path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 '
+      + '0 0 0-1 1z" /> <path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3" />',
+    daling: '<path d="M16 17h6v-6" /> <path d="m22 17-8.5-8.5-5 5L2 7" />',
+    rust: '<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 '
+      + '8.268c.344-.215.825-.004.803.401" />',
+    grafiek: '<path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="m19 9-5 5-4-4-3 3" />',
+    sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /> <path d="M21 3v5h-5" '
+      + '/> <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /> <path d="M8 '
+      + '16H3v5" />',
+    thema: '<path d="M12 2v2" /> <path d="M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 '
+      + '1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715" /> <path d="M16 12a4 4 0 0 '
+      + '0-4-4" /> <path d="m19 5-1.256 1.256" /> <path d="M20 12h2" />',
+    klok: '<circle cx="12" cy="12" r="10" /> <path d="M12 6v6l4 2" />',
+    week: '<path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> '
+      + '<path d="M8 17v-3" />',
+    maand: '<path d="M8 2v3" /> <path d="M16 2v3" /> <rect x="3" y="3" width="18" height="18" '
+      + 'rx="2" /> <path d="M3 9h18" /> <path d="M8 13h.01" /> <path d="M12 13h.01" /> <path '
+      + 'd="M16 13h.01" /> <path d="M8 17h.01" /> <path d="M12 17h.01" /> <path d="M16 17h.01" '
+      + '/>',
+    instellingen: '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 '
+      + '0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 '
+      + '0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 '
+      + '1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 '
+      + '3.319-1.915" /> <circle cx="12" cy="12" r="3" />',
+    notitie: '<path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4" /> <path '
+      + 'd="M2 6h4" /> <path d="M2 10h4" /> <path d="M2 14h4" /> <path d="M2 18h4" /> <path '
+      + 'd="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 '
+      + '0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />',
+    melding: '<circle cx="12" cy="12" r="10" /> <line x1="12" x2="12" y1="8" y2="12" /> <line '
+      + 'x1="12" x2="12.01" y1="16" y2="16" />',
+    telefoon: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2" /> <path d="M12 18h.01" />',
+
+    /* knoppen */
+    vorige: '<path d="m15 18-6-6 6-6" />',
+    volgende: '<path d="m9 18 6-6-6-6" />',
+    plus: '<path d="M5 12h14" /> <path d="M12 5v14" />',
+    min: '<path d="M5 12h14" />',
+    kruis: '<path d="M18 6 6 18" /> <path d="m6 6 12 12" />',
+    omhoog: '<path d="m5 12 7-7 7 7" /> <path d="M12 19V5" />',
+    omlaag: '<path d="M12 5v14" /> <path d="m19 12-7 7-7-7" />',
+    opnieuw: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" />',
+    vink: '<path d="M20 6 9 17l-5-5" />',
+    download: '<path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path '
+      + 'd="m7 10 5 5 5-5" />',
+    upload: '<path d="M12 3v12" /> <path d="m17 8-5-5-5 5" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 '
+      + '0 0 1-2-2v-4" />',
+    prullenbak: '<path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 '
+      + '1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />'
   };
 
-  /* Het vlammetje doet dubbel dienst: calorieën én je reeks goede dagen. */
+  /* Het vlammetje doet dubbel dienst: calorieen en je reeks goede dagen. */
   PADEN.vlam = PADEN.calorieen;
 
   /**
@@ -1245,8 +1353,8 @@ ol.explain { list-style: decimal; }
     var pad = PADEN[naam];
     if (!pad) return '';
     var g = px || 18;
-    return '<svg class="ico" width="' + g + '" height="' + g + '" viewBox="0 0 20 20"' +
-      ' fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"' +
+    return '<svg class="ico" width="' + g + '" height="' + g + '" viewBox="0 0 24 24"' +
+      ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"' +
       ' stroke-linejoin="round" aria-hidden="true" focusable="false">' + pad + '</svg>';
   }
 
@@ -2867,6 +2975,8 @@ ol.explain { list-style: decimal; }
    * opts.kleur: eigen kleur in plaats van de score-schaal. Voor een dag die nog
    *             loopt: rood-naar-groen is een oordeel, en een halve dag verdient
    *             nog geen oordeel.
+   * opts.drempel: streepje op de ring bij je grens voor een goede dag, zodat je
+   *             ziet of je erboven zit zonder het percentage na te rekenen.
    */
   function ring(pct, size, stroke, opts) {
     size = size || 160;
@@ -2878,6 +2988,10 @@ ol.explain { list-style: decimal; }
     var value = has ? GD.clamp(pct, 0, 100) : 0;
     var dash = (value / 100) * c;
     var color = opts.kleur || GD.scoreColor(has ? pct : null);
+    /* De boog is een vlak en mag fel; het getal in het midden staat op de
+       achtergrond van de pagina en heeft in de lichte modus een donkerder
+       variant nodig. */
+    var tekstkleur = opts.kleur || GD.scoreInk(has ? pct : null);
     var label = has ? Math.round(pct) + '<tspan class="ring-pct-sign">%</tspan>' : '–';
 
     var tot = opts.tot === null || opts.tot === undefined || isNaN(opts.tot)
@@ -2893,6 +3007,22 @@ ol.explain { list-style: decimal; }
       omschrijving += ', vandaag nog tot ' + Math.round(tot) + ' procent te halen';
     }
 
+    /* Het streepje van je drempel snijdt door de ringband heen, zodat het ook
+       leesbaar blijft als de ring er precies tot aan komt. */
+    var drempel = '';
+    if (opts.drempel !== null && opts.drempel !== undefined && !isNaN(opts.drempel)) {
+      var hoek = (GD.clamp(opts.drempel, 0, 100) / 100) * 2 * Math.PI - Math.PI / 2;
+      var mid = size / 2;
+      var binnen = r - stroke / 2 - 1;
+      var buiten = r + stroke / 2 + 1;
+      drempel = '<line x1="' + (mid + Math.cos(hoek) * binnen).toFixed(1) +
+        '" y1="' + (mid + Math.sin(hoek) * binnen).toFixed(1) +
+        '" x2="' + (mid + Math.cos(hoek) * buiten).toFixed(1) +
+        '" y2="' + (mid + Math.sin(hoek) * buiten).toFixed(1) +
+        '" class="ring-drempel"><title>' +
+        esc('Goede dag vanaf ' + Math.round(opts.drempel) + '%') + '</title></line>';
+    }
+
     return '' +
       '<svg class="ring" viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size +
       '" role="img" aria-label="' + esc(omschrijving) + '">' +
@@ -2901,7 +3031,8 @@ ol.explain { list-style: decimal; }
       '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '"' +
       ' stroke-width="' + stroke + '" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + (c - dash) + '"' +
       ' transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/>' +
-      '<text x="' + size / 2 + '" y="' + (size / 2 + size * 0.075) + '" text-anchor="middle" class="ring-pct" fill="' + color + '"' +
+      drempel +
+      '<text x="' + size / 2 + '" y="' + (size / 2 + size * 0.075) + '" text-anchor="middle" class="ring-pct" fill="' + tekstkleur + '"' +
       ' font-size="' + Math.round(size * 0.26) + '">' + label + '</text>' +
       '</svg>';
   }
@@ -3080,11 +3211,12 @@ ol.explain { list-style: decimal; }
       var has = d.pct !== null;
       var h = has ? Math.max(3, GD.clamp(d.pct, 0, 100)) : 3;
       var color = has ? GD.scoreColor(d.pct) : 'var(--track)';
+      var inkt = has ? GD.scoreInk(d.pct) : 'var(--muted)';
       var title = D.formatDate(d.date) + ' — ' + (has ? Math.round(d.pct) + '%' : 'niet ingevuld');
       return '<button class="daybar" data-date="' + d.date + '" title="' + esc(title) + '" ' + (onClickAttr || '') + '>' +
         '<span class="daybar-track"><span class="daybar-fill" style="height:' + h + '%;background:' + color + '"></span></span>' +
         '<span class="daybar-label">' + esc(D.dayName(d.date)) + '</span>' +
-        '<span class="daybar-val" style="color:' + (has ? color : 'var(--muted)') + '">' + (has ? Math.round(d.pct) : '–') + '</span>' +
+        '<span class="daybar-val" style="color:' + inkt + '">' + (has ? Math.round(d.pct) : '–') + '</span>' +
         '</button>';
     }).join('') + '</div>';
   }
@@ -3128,42 +3260,11 @@ ol.explain { list-style: decimal; }
     return '<div class="calendar">' + head + cells + '</div>';
   }
 
-  /**
-   * De schaal onder je score: waar je staat op de lijn van rood naar groen.
-   *
-   * opts.tot      : tweede, vage streep — waar je vandaag nog op uit kunt komen.
-   * opts.drempel  : je grens voor een goede dag, als streepje op de schaal.
-   * opts.neutraal : grijze balk in plaats van de kleurschaal. Voor een dag die
-   *                 nog loopt: rood-naar-groen is een oordeel, en een halve dag
-   *                 verdient dat nog niet.
-   */
-  function rail(pct, opts) {
-    opts = opts || {};
-    var has = pct !== null && pct !== undefined && !isNaN(pct);
-    var v = has ? GD.clamp(pct, 0, 100) : null;
-    var tot = opts.tot === null || opts.tot === undefined || isNaN(opts.tot)
-      ? null : GD.clamp(opts.tot, 0, 100);
-    var drempel = opts.drempel === null || opts.drempel === undefined || isNaN(opts.drempel)
-      ? null : GD.clamp(opts.drempel, 0, 100);
-
-    var merken = '';
-    if (drempel !== null) {
-      merken += '<span class="rail-drempel" style="left:' + drempel + '%"' +
-        ' title="' + esc('Goede dag vanaf ' + Math.round(drempel) + '%') + '"></span>';
-    }
-    if (v !== null && tot !== null && tot > v + 0.5) {
-      merken += '<span class="rail-tot" style="left:' + tot + '%"' +
-        ' title="' + esc('Vandaag nog te halen: ' + Math.round(tot) + '%') + '"></span>';
-    }
-    if (v !== null) {
-      merken += '<span class="rail-mark" style="left:' + v + '%"></span>';
-    }
-
-    var achtergrond = opts.neutraal ? 'var(--track)' : GD.scaleGradient();
-    return '<div class="rail">' +
-      '<div class="rail-track" style="background:' + achtergrond + '">' + merken + '</div>' +
-      '<div class="rail-scale"><span>0</span><span>50</span><span>100</span></div>' +
-      '</div>';
+  /** Kleurenschaal 0 -> 100, als legenda onder de kalender. */
+  function schaal() {
+    return '<div class="schaal-legenda"><span>0%</span>' +
+      '<span class="schaal-balk" style="background:' + GD.scaleGradient() + '"></span>' +
+      '<span>100%</span></div>';
   }
 
   GD.charts = {
@@ -3173,7 +3274,7 @@ ol.explain { list-style: decimal; }
     lijnGrafiek: lijnGrafiek,
     dayBars: dayBars,
     calendar: calendar,
-    rail: rail,
+    schaal: schaal,
     esc: esc
   };
 })(window);
@@ -4382,7 +4483,7 @@ ol.explain { list-style: decimal; }
         (w === 0 ? '<span class="chip chip-off">uit</span>' : '<span class="chip">×' + fmt(w, w % 1 ? 1 : 0) + '</span>') +
         '</div>' +
         '<div class="bd-bar">' + C.bar(b.pct) + '</div>' +
-        '<div class="bd-pct" style="color:' + (has ? GD.scoreColor(b.pct) : 'var(--muted)') + '">' +
+        '<div class="bd-pct" style="color:' + (has ? GD.scoreInk(b.pct) : 'var(--muted)') + '">' +
         (has ? Math.round(b.pct) + '%' : '–') + '</div>' +
         '<div class="bd-counts">' + esc(counts || '—') + '</div>' +
         '</div>';
@@ -4444,7 +4545,7 @@ ol.explain { list-style: decimal; }
         ' (' + esc(RICHTING_TEKST[t.richting] || t.richting) + ').</p>' +
         '</div>';
     } else {
-      var kleur = GD.scoreColor(t.pct);
+      var kleur = GD.scoreInk(t.pct);
       body = '<div class="trend-ring">' + C.ring(t.pct, 128, 12) + '</div>' +
         '<div class="trend-info">' +
         '<div class="trend-delta" style="color:' + kleur + '">' + signed(t.delta, 2, ' kg') + '</div>' +
@@ -4472,29 +4573,26 @@ ol.explain { list-style: decimal; }
     // Een lopende dag krijgt geen oordeel mee: "Uitstekend" hoort pas bij een
     // dag die af is, niet bij drie ingevulde doelen om negen uur 's ochtends.
     // Ook de kleur wacht: rood-naar-groen zegt goed of slecht, en een dag die
-    // pas begonnen is verdient allebei niet. De schaal eronder staat dan grijs.
+    // pas begonnen is verdient allebei niet.
     var loopt = !!opts.label;
-    var has = pct !== null && pct !== undefined && !isNaN(pct);
-    var color = loopt ? 'var(--text)' : GD.scoreColor(pct);
+    var color = loopt ? 'var(--text)' : GD.scoreInk(pct);
 
     return '<section class="card hero">' +
-      '<div class="hero-score">' +
-      '<div class="score-num" style="color:' + color + '">' +
-      (has ? Math.round(pct) + '<span class="score-pct">%</span>' : '<span class="score-leeg">–</span>') +
-      '</div>' +
-      '<div class="hero-label" style="color:' + color + '">' +
-      esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
+      '<div class="hero-ring">' +
+      C.ring(pct, 176, 16, {
+        tot: opts.tot,
+        kleur: loopt ? 'var(--accent)' : null,
+        // Het streepje van je drempel is informatie, geen oordeel: dat mag
+        // ook zichtbaar zijn terwijl de dag nog loopt.
+        drempel: S.num(store.settings().goedeDagDrempel)
+      }) +
       '</div>' +
       '<div class="hero-info">' +
+      '<div class="hero-label" style="color:' + color + '">' +
+      esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
       '<p class="hero-sub">' + subtitle + '</p>' +
       (extra || '') +
-      '</div>' +
-      C.rail(pct, {
-        tot: opts.tot,
-        drempel: S.num(store.settings().goedeDagDrempel),
-        neutraal: loopt
-      }) +
-      '</section>';
+      '</div></section>';
   }
 
   /* -------------------------------- dag ------------------------------- */
@@ -4523,14 +4621,14 @@ ol.explain { list-style: decimal; }
     var extra = '<div class="hero-chips">' +
       '<span class="chip">' + answered + '/' + relevant + ' ingevuld</span>' +
       (loopt && ov.binnen + ov.kwijt > 0
-        ? '<span class="chip" style="color:' + GD.scoreColor(day.pct) + '">' +
+        ? '<span class="chip" style="color:' + GD.scoreInk(day.pct) + '">' +
           Math.round(day.pct) + '% raak tot nu toe</span>'
         : '') +
       '<span class="chip">' + GD.icon('vlam', 14) + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
       (day.restDay ? '<span class="chip">' + GD.icon('rust', 14) + 'rustdag</span>' : '') +
       '</div>' +
       (ov.open > 0 && !isFuture
-        ? '<p class="hint hint-tight">De vage streep op de schaal is waar je vandaag nog op uit kunt komen.</p>'
+        ? '<p class="hint hint-tight">De vage ring eromheen is waar je vandaag nog op uit kunt komen.</p>'
         : '');
 
     var sub;
@@ -4574,7 +4672,7 @@ ol.explain { list-style: decimal; }
         voedingVoet(date, 'kcal', 'kcal')) +
       '</div>' +
       (gm.status === 'uit' || isFuture ? '' :
-        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
+        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreInk(gm.pct) + '"') +
         '><span class="meldregel-icoon">' + GD.icon('weegschaal', 16) + '</span>' + esc(gm.tekst) + '</p>') +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
       // Een doel dat met je gewicht meebeweegt verandert vanzelf, dus het hoort
@@ -4652,7 +4750,7 @@ ol.explain { list-style: decimal; }
     var amount = item.amount === null ? 0 : item.amount;
     var doel = item.doel || 0;
     var pct = doel > 0 ? GD.clamp((amount / doel) * 100, 0, 100) : (amount > 0 ? 100 : 0);
-    var kleur = GD.scoreColor(pct);
+    var kleur = GD.scoreInk(pct);
     var gehaald = doel > 0 && amount >= doel;
     var rest = Math.max(0, doel - amount);
 
@@ -4728,7 +4826,7 @@ ol.explain { list-style: decimal; }
     if (disabled) status = '<span class="chip chip-off">uit</span>';
     else if (dimmed) status = '<span class="chip chip-off">' + esc(item.reason) + '</span>';
     else if (item.included) {
-      status = '<span class="chip" style="color:' + GD.scoreColor(item.score * 100) + '">+' +
+      status = '<span class="chip" style="color:' + GD.scoreInk(item.score * 100) + '">+' +
         fmt(item.score * w, 1) + ' / ' + fmt(w, w % 1 ? 1 : 0) + '</span>';
     } else if (item.reason) {
       status = '<span class="chip chip-off">' + esc(item.reason) + '</span>';
@@ -4807,7 +4905,7 @@ ol.explain { list-style: decimal; }
       '<div class="lift-body">' +
       '<div class="lift-inputs">' + velden +
       (st ? '<span class="chip lift-status"' +
-        (st.pct === null ? '' : ' style="color:' + GD.scoreColor(st.pct) + '"') + '>' +
+        (st.pct === null ? '' : ' style="color:' + GD.scoreInk(st.pct) + '"') + '>' +
         esc(st.label) + '</span>' : '') +
       '</div>' +
       '<p class="lift-hist">' + geschiedenis.join(' · ') + '</p>' +
@@ -4869,7 +4967,7 @@ ol.explain { list-style: decimal; }
         '<span>' + r.punten.length + ' sessie' + (r.punten.length === 1 ? '' : 's') +
         ' sinds ' + esc(D.formatShort(eerste.datum)) + '</span>' +
         (groei === null ? ''
-          : '<span style="color:' + GD.scoreColor(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
+          : '<span style="color:' + GD.scoreInk(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
             signed(groei, 0, '%') + ' sinds je start</span>') +
         '<span>' + GD.icon('beker', 14) + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
         '</div>';
@@ -4956,7 +5054,7 @@ ol.explain { list-style: decimal; }
     var status;
     if (res.vergeleken) {
       var pct = (res.vooruit / res.vergeleken) * 100;
-      status = '<span class="chip" style="color:' + GD.scoreColor(pct) + '">' +
+      status = '<span class="chip" style="color:' + GD.scoreInk(pct) + '">' +
         res.vooruit + ' van de ' + res.vergeleken + ' vooruit</span>';
     } else if (res.regels.length) {
       status = '<span class="chip chip-off">startpunt</span>';
@@ -5045,11 +5143,11 @@ ol.explain { list-style: decimal; }
     }
 
     var cijfers = '<div class="rv-cijfers">' +
-      rvCijfer(Math.round(r.pct) + '<span class="unit">%</span>', 'weekscore', GD.scoreColor(r.pct)) +
+      rvCijfer(Math.round(r.pct) + '<span class="unit">%</span>', 'weekscore', GD.scoreInk(r.pct)) +
       rvCijfer(r.goedeDagen + '<span class="unit">/' + r.geweest + '</span>', 'goede dagen') +
       rvCijfer(r.trainDagen + '<span class="unit">×</span>', 'getraind') +
       rvCijfer(r.kcalDagen + '<span class="unit">/' + r.geweest + '</span>', 'dagen calorieën',
-        GD.scoreColor(r.geweest ? (r.kcalDagen / r.geweest) * 100 : null)) +
+        GD.scoreInk(r.geweest ? (r.kcalDagen / r.geweest) * 100 : null)) +
       '</div>';
 
     var g = r.gewicht;
@@ -5157,6 +5255,7 @@ ol.explain { list-style: decimal; }
     var html = heroSection(period.pct, sub);
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
     html += '<section class="card"><h2>Kalender</h2>' + C.calendar(ui.anchor, period.days) +
+      C.schaal() +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
 
@@ -5378,9 +5477,10 @@ ol.explain { list-style: decimal; }
       '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
-      'gedeeld door alle punten die vandaag te halen waren. De vage streep op de schaal laat zien waar ' +
-      'je vandaag nog op uit kunt komen, en de schaal blijft grijs tot de dag om is — een halve dag ' +
-      'verdient nog geen oordeel. Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
+      'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
+      'vandaag nog op uit kunt komen, en de ring blijft in één kleur tot de dag om is — een halve dag ' +
+      'verdient nog geen oordeel. Het streepje op de ring is je drempel voor een goede dag. ' +
+      'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
       '<li><em>Water</em> scoort naar rato: 2,25 van de 3 liter is 75%. Zolang de dag loopt telt de teller ' +
       'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
       'aan bezig bent. Bij afgelopen dagen telt gewoon het deel dat je haalde.</li>' +

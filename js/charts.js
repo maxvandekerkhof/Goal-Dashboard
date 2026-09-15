@@ -23,6 +23,8 @@
    * opts.kleur: eigen kleur in plaats van de score-schaal. Voor een dag die nog
    *             loopt: rood-naar-groen is een oordeel, en een halve dag verdient
    *             nog geen oordeel.
+   * opts.drempel: streepje op de ring bij je grens voor een goede dag, zodat je
+   *             ziet of je erboven zit zonder het percentage na te rekenen.
    */
   function ring(pct, size, stroke, opts) {
     size = size || 160;
@@ -34,6 +36,10 @@
     var value = has ? GD.clamp(pct, 0, 100) : 0;
     var dash = (value / 100) * c;
     var color = opts.kleur || GD.scoreColor(has ? pct : null);
+    /* De boog is een vlak en mag fel; het getal in het midden staat op de
+       achtergrond van de pagina en heeft in de lichte modus een donkerder
+       variant nodig. */
+    var tekstkleur = opts.kleur || GD.scoreInk(has ? pct : null);
     var label = has ? Math.round(pct) + '<tspan class="ring-pct-sign">%</tspan>' : '–';
 
     var tot = opts.tot === null || opts.tot === undefined || isNaN(opts.tot)
@@ -49,6 +55,22 @@
       omschrijving += ', vandaag nog tot ' + Math.round(tot) + ' procent te halen';
     }
 
+    /* Het streepje van je drempel snijdt door de ringband heen, zodat het ook
+       leesbaar blijft als de ring er precies tot aan komt. */
+    var drempel = '';
+    if (opts.drempel !== null && opts.drempel !== undefined && !isNaN(opts.drempel)) {
+      var hoek = (GD.clamp(opts.drempel, 0, 100) / 100) * 2 * Math.PI - Math.PI / 2;
+      var mid = size / 2;
+      var binnen = r - stroke / 2 - 1;
+      var buiten = r + stroke / 2 + 1;
+      drempel = '<line x1="' + (mid + Math.cos(hoek) * binnen).toFixed(1) +
+        '" y1="' + (mid + Math.sin(hoek) * binnen).toFixed(1) +
+        '" x2="' + (mid + Math.cos(hoek) * buiten).toFixed(1) +
+        '" y2="' + (mid + Math.sin(hoek) * buiten).toFixed(1) +
+        '" class="ring-drempel"><title>' +
+        esc('Goede dag vanaf ' + Math.round(opts.drempel) + '%') + '</title></line>';
+    }
+
     return '' +
       '<svg class="ring" viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size +
       '" role="img" aria-label="' + esc(omschrijving) + '">' +
@@ -57,7 +79,8 @@
       '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '"' +
       ' stroke-width="' + stroke + '" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + (c - dash) + '"' +
       ' transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/>' +
-      '<text x="' + size / 2 + '" y="' + (size / 2 + size * 0.075) + '" text-anchor="middle" class="ring-pct" fill="' + color + '"' +
+      drempel +
+      '<text x="' + size / 2 + '" y="' + (size / 2 + size * 0.075) + '" text-anchor="middle" class="ring-pct" fill="' + tekstkleur + '"' +
       ' font-size="' + Math.round(size * 0.26) + '">' + label + '</text>' +
       '</svg>';
   }
@@ -236,11 +259,12 @@
       var has = d.pct !== null;
       var h = has ? Math.max(3, GD.clamp(d.pct, 0, 100)) : 3;
       var color = has ? GD.scoreColor(d.pct) : 'var(--track)';
+      var inkt = has ? GD.scoreInk(d.pct) : 'var(--muted)';
       var title = D.formatDate(d.date) + ' — ' + (has ? Math.round(d.pct) + '%' : 'niet ingevuld');
       return '<button class="daybar" data-date="' + d.date + '" title="' + esc(title) + '" ' + (onClickAttr || '') + '>' +
         '<span class="daybar-track"><span class="daybar-fill" style="height:' + h + '%;background:' + color + '"></span></span>' +
         '<span class="daybar-label">' + esc(D.dayName(d.date)) + '</span>' +
-        '<span class="daybar-val" style="color:' + (has ? color : 'var(--muted)') + '">' + (has ? Math.round(d.pct) : '–') + '</span>' +
+        '<span class="daybar-val" style="color:' + inkt + '">' + (has ? Math.round(d.pct) : '–') + '</span>' +
         '</button>';
     }).join('') + '</div>';
   }
@@ -284,42 +308,11 @@
     return '<div class="calendar">' + head + cells + '</div>';
   }
 
-  /**
-   * De schaal onder je score: waar je staat op de lijn van rood naar groen.
-   *
-   * opts.tot      : tweede, vage streep — waar je vandaag nog op uit kunt komen.
-   * opts.drempel  : je grens voor een goede dag, als streepje op de schaal.
-   * opts.neutraal : grijze balk in plaats van de kleurschaal. Voor een dag die
-   *                 nog loopt: rood-naar-groen is een oordeel, en een halve dag
-   *                 verdient dat nog niet.
-   */
-  function rail(pct, opts) {
-    opts = opts || {};
-    var has = pct !== null && pct !== undefined && !isNaN(pct);
-    var v = has ? GD.clamp(pct, 0, 100) : null;
-    var tot = opts.tot === null || opts.tot === undefined || isNaN(opts.tot)
-      ? null : GD.clamp(opts.tot, 0, 100);
-    var drempel = opts.drempel === null || opts.drempel === undefined || isNaN(opts.drempel)
-      ? null : GD.clamp(opts.drempel, 0, 100);
-
-    var merken = '';
-    if (drempel !== null) {
-      merken += '<span class="rail-drempel" style="left:' + drempel + '%"' +
-        ' title="' + esc('Goede dag vanaf ' + Math.round(drempel) + '%') + '"></span>';
-    }
-    if (v !== null && tot !== null && tot > v + 0.5) {
-      merken += '<span class="rail-tot" style="left:' + tot + '%"' +
-        ' title="' + esc('Vandaag nog te halen: ' + Math.round(tot) + '%') + '"></span>';
-    }
-    if (v !== null) {
-      merken += '<span class="rail-mark" style="left:' + v + '%"></span>';
-    }
-
-    var achtergrond = opts.neutraal ? 'var(--track)' : GD.scaleGradient();
-    return '<div class="rail">' +
-      '<div class="rail-track" style="background:' + achtergrond + '">' + merken + '</div>' +
-      '<div class="rail-scale"><span>0</span><span>50</span><span>100</span></div>' +
-      '</div>';
+  /** Kleurenschaal 0 -> 100, als legenda onder de kalender. */
+  function schaal() {
+    return '<div class="schaal-legenda"><span>0%</span>' +
+      '<span class="schaal-balk" style="background:' + GD.scaleGradient() + '"></span>' +
+      '<span>100%</span></div>';
   }
 
   GD.charts = {
@@ -329,7 +322,7 @@
     lijnGrafiek: lijnGrafiek,
     dayBars: dayBars,
     calendar: calendar,
-    rail: rail,
+    schaal: schaal,
     esc: esc
   };
 })(window);
