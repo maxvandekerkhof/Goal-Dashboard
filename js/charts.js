@@ -76,8 +76,9 @@
       '" role="img" aria-label="' + esc(omschrijving) + '">' +
       '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--track)" stroke-width="' + stroke + '"/>' +
       open +
-      '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '"' +
+      '<circle class="ring-boog" cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '"' +
       ' stroke-width="' + stroke + '" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + (c - dash) + '"' +
+      ' style="--boog:' + dash.toFixed(1) + '"' +
       ' transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/>' +
       drempel +
       '<text x="' + size / 2 + '" y="' + (size / 2 + size * 0.075) + '" text-anchor="middle" class="ring-pct" fill="' + tekstkleur + '"' +

@@ -131,7 +131,12 @@ input[type="number"], .sql {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   padding-top: env(safe-area-inset-top);
+  transition: box-shadow .25s ease, background .25s ease;
 }
+/* Zodra je scrolt hoort de balk zich los te maken van de inhoud, anders
+   schuift de tekst er zonder rand onderdoor. */
+.topbar-vast { box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+html[data-theme="light"] .topbar-vast { box-shadow: 0 6px 18px rgba(16, 24, 40, .10); }
 
 .topbar-inner,
 .tabs,
@@ -200,6 +205,7 @@ input[type="number"], .sql {
   cursor: pointer;
   white-space: nowrap;
 }
+.tab { transition: color .18s ease, border-color .18s ease; }
 .tab:hover { color: var(--text); }
 .tab-active { color: var(--accent); border-bottom-color: var(--accent); }
 
@@ -241,7 +247,7 @@ input[type="number"], .sql {
   transition: border-color .15s, background .15s;
 }
 .btn:hover { border-color: var(--muted); }
-.btn:active { background: var(--line); }
+.btn:active { background: var(--line); transform: translateY(1px); }
 .btn-sm { padding: 7px 11px; font-size: .8rem; }
 .btn-icon { padding: 0; width: 34px; height: 34px; flex: none; }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
@@ -483,6 +489,7 @@ textarea { resize: vertical; padding-right: 12px; }
   transition: background .15s, color .15s, border-color .15s;
 }
 .seg:hover:not(:disabled) { color: var(--text); background: var(--card); }
+.seg:active:not(:disabled) { transform: scale(.975); }
 .seg:disabled { cursor: not-allowed; }
 .seg-active {
   background: var(--seg-color, var(--accent));
@@ -602,7 +609,7 @@ html[data-theme="light"] .rv-let-op { --rv-kleur: #846a00; }
 html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
 
 .bar { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
-.bar-fill { display: block; height: 100%; border-radius: 4px; transition: width .3s ease; }
+.bar-fill { display: block; height: 100%; border-radius: 4px; transform-origin: left center; transition: width .3s ease; }
 
 /* ------------------------------- daybars ------------------------------ */
 
@@ -627,7 +634,7 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
   align-items: flex-end;
   overflow: hidden;
 }
-.daybar-fill { width: 100%; border-radius: 7px; transition: height .3s ease; }
+.daybar-fill { width: 100%; border-radius: 7px; transform-origin: bottom center; transition: height .3s ease; }
 .daybar-label { color: var(--faint); font-size: .64rem; text-transform: uppercase; letter-spacing: .1em; }
 .daybar-val { font-size: .76rem; font-weight: 700; }
 .daybar:hover .daybar-track { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -651,7 +658,9 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
   padding: 2px;
   min-height: 42px;
 }
+.cal-cell { transition: transform .12s ease; }
 .cal-cell:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cal-cell:active { transform: scale(.94); }
 .cal-empty { border: 0; cursor: default; pointer-events: none; }
 .cal-day { font-size: .78rem; font-weight: 700; }
 .cal-pct { font-size: .6rem; font-weight: 600; opacity: .9; }
@@ -885,6 +894,75 @@ ol.explain { list-style: decimal; }
 .schema-tel { font-size: .72rem; color: var(--faint); min-width: 28px; text-align: right; }
 .schema-knoppen { display: flex; gap: 3px; margin-left: auto; }
 .schema-knoppen .btn { padding: 6px 8px; }
+
+/* ------------------------------- beweging ----------------------------- */
+
+/* Alles hieronder is versiering. Wie in zijn systeeminstellingen om minder
+   beweging vraagt, krijgt hier niets van te zien — en de app doet verder
+   precies hetzelfde. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Kaarten komen omhoog zodra ze in beeld schuiven. De klassen worden alleen
+     gezet bij écht navigeren (ander tabblad, andere dag), nooit als je een
+     doel aantikt: dan zou het scherm bij elk vinkje opnieuw komen opzetten. */
+  .onthul { opacity: 0; transform: translateY(14px); }
+  .onthul-zichtbaar {
+    opacity: 1;
+    transform: none;
+    transition: opacity .5s ease, transform .55s cubic-bezier(.22, 1, .36, 1);
+    transition-delay: var(--vertraging, 0s);
+  }
+
+  /* De ring loopt vol in plaats van vol te staan. */
+  .onthul .ring-boog { stroke-dashoffset: var(--boog); }
+  .onthul-zichtbaar .ring-boog {
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s cubic-bezier(.22, 1, .36, 1);
+    transition-delay: calc(var(--vertraging, 0s) + .12s);
+  }
+
+  /* Balken groeien vanaf links, de staafjes van de week vanaf de vloer. */
+  .onthul .bar-fill { transform: scaleX(0); }
+  .onthul-zichtbaar .bar-fill {
+    transform: none;
+    transition: transform .7s cubic-bezier(.22, 1, .36, 1);
+    transition-delay: calc(var(--vertraging, 0s) + .1s);
+  }
+
+  .onthul .daybar-fill { transform: scaleY(0); }
+  .onthul-zichtbaar .daybar-fill {
+    transform: none;
+    transition: transform .6s cubic-bezier(.22, 1, .36, 1);
+  }
+  .onthul-zichtbaar .daybar:nth-child(1) .daybar-fill { transition-delay: .04s; }
+  .onthul-zichtbaar .daybar:nth-child(2) .daybar-fill { transition-delay: .09s; }
+  .onthul-zichtbaar .daybar:nth-child(3) .daybar-fill { transition-delay: .14s; }
+  .onthul-zichtbaar .daybar:nth-child(4) .daybar-fill { transition-delay: .19s; }
+  .onthul-zichtbaar .daybar:nth-child(5) .daybar-fill { transition-delay: .24s; }
+  .onthul-zichtbaar .daybar:nth-child(6) .daybar-fill { transition-delay: .29s; }
+  .onthul-zichtbaar .daybar:nth-child(7) .daybar-fill { transition-delay: .34s; }
+
+  /* De kalender legt zichzelf neer, rij voor rij. */
+  .onthul .cal-cell { opacity: 0; transform: scale(.9); }
+  .onthul-zichtbaar .cal-cell {
+    opacity: 1;
+    transform: none;
+    transition: opacity .35s ease, transform .35s cubic-bezier(.22, 1, .36, 1);
+  }
+
+  /* De lijn van je gewicht tekent zichzelf. */
+  .onthul-zichtbaar .wc-line { animation: lijntekenen 1.1s ease-out .15s backwards; }
+  .onthul-zichtbaar .wc-dot { animation: stipverschijnen .4s ease-out .7s backwards; }
+}
+
+@keyframes lijntekenen {
+  from { stroke-dasharray: 0 2000; }
+  to { stroke-dasharray: 2000 0; }
+}
+
+@keyframes stipverschijnen {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 /* ------------------------------- responsive --------------------------- */
 
@@ -3028,8 +3106,9 @@ ol.explain { list-style: decimal; }
       '" role="img" aria-label="' + esc(omschrijving) + '">' +
       '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--track)" stroke-width="' + stroke + '"/>' +
       open +
-      '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '"' +
+      '<circle class="ring-boog" cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '"' +
       ' stroke-width="' + stroke + '" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + (c - dash) + '"' +
+      ' style="--boog:' + dash.toFixed(1) + '"' +
       ' transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/>' +
       drempel +
       '<text x="' + size / 2 + '" y="' + (size / 2 + size * 0.075) + '" text-anchor="middle" class="ring-pct" fill="' + tekstkleur + '"' +
@@ -5819,6 +5898,9 @@ ol.explain { list-style: decimal; }
       : 'Nu synchroniseren — laatst bijgewerkt ' + tijdstip(st.laatst);
   }
 
+  var laatsteView = null;
+  var laatsteAnchor = null;
+
   function render() {
     var s = store.settings();
     document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
@@ -5845,8 +5927,96 @@ ol.explain { list-style: decimal; }
     else if (ui.view === 'maand') html = renderMonth();
     else html = renderSettings();
 
+    // Een klik op een doel tekent het hele scherm opnieuw. Alleen bij écht
+    // navigeren (ander tabblad, andere dag) hoort daar een animatie bij —
+    // anders zou de pagina bij elk vinkje opnieuw komen opzetten.
+    var navigatie = laatsteView !== ui.view || laatsteAnchor !== ui.anchor;
+    laatsteView = ui.view;
+    laatsteAnchor = ui.anchor;
+
     $('#view').innerHTML = html;
-    $('#view').scrollTop = 0;
+    if (navigatie) naarBoven();
+    onthulKaarten(navigatie);
+  }
+
+  /* ------------------------------ beweging ---------------------------- */
+
+  function stilAub() {
+    return typeof matchMedia === 'function' &&
+      matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function naarBoven() {
+    if (window.scrollY < 4) return;
+    try {
+      window.scrollTo({ top: 0, behavior: stilAub() ? 'auto' : 'smooth' });
+    } catch (e) {
+      window.scrollTo(0, 0);  // oudere browsers kennen het objectvorm-argument niet
+    }
+  }
+
+  /**
+   * Kaarten komen omhoog zodra ze in beeld schuiven. De eerste paar krijgen
+   * een klein verschil in vertraging, zodat het scherm zich opbouwt in plaats
+   * van in één klap te verschijnen.
+   */
+  var kijker = null;
+
+  function onthulKaarten(navigatie) {
+    if (kijker) kijker.disconnect();
+    if (!navigatie || stilAub() || typeof IntersectionObserver !== 'function') return;
+
+    var kaarten = $$('#view > .card');
+    if (!kaarten.length) return;
+
+    kaarten.forEach(function (kaart, i) {
+      kaart.classList.add('onthul');
+      kaart.style.setProperty('--vertraging', (Math.min(i, 6) * 0.05).toFixed(2) + 's');
+    });
+
+    kijker = new IntersectionObserver(function (items) {
+      items.forEach(function (item) {
+        if (!item.isIntersecting) return;
+        item.target.classList.add('onthul-zichtbaar');
+        kijker.unobserve(item.target);
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.02 });
+
+    kaarten.forEach(function (kaart) { kijker.observe(kaart); });
+
+    /* Vangnet. Een kaart die om wat voor reden ook nooit een seintje krijgt,
+       zou anders onzichtbaar blijven staan — en dan is je dag weg achter een
+       animatie die niet afging. Eerst wat in beeld staat, daarna de rest. */
+    clearTimeout(onthulKaarten._t1);
+    clearTimeout(onthulKaarten._t2);
+    onthulKaarten._t1 = setTimeout(function () {
+      kaarten.forEach(function (kaart) {
+        if (kaart.getBoundingClientRect().top < window.innerHeight) {
+          kaart.classList.add('onthul-zichtbaar');
+        }
+      });
+    }, 1200);
+    onthulKaarten._t2 = setTimeout(function () {
+      kaarten.forEach(function (kaart) { kaart.classList.add('onthul-zichtbaar'); });
+    }, 4000);
+  }
+
+  /* De bovenbalk plakt; zodra je scrolt hoort hij zich los te maken van de
+     inhoud, anders zweeft de tekst er zonder rand doorheen. */
+  function volgScroll() {
+    var balk = $('.topbar');
+    if (!balk) return;
+    var bezig = false;
+    function bijwerken() {
+      balk.classList.toggle('topbar-vast', window.scrollY > 4);
+      bezig = false;
+    }
+    window.addEventListener('scroll', function () {
+      if (bezig) return;
+      bezig = true;
+      window.requestAnimationFrame(bijwerken);
+    }, { passive: true });
+    bijwerken();
   }
 
   function isCurrentPeriod() {
@@ -6337,6 +6507,7 @@ ol.explain { list-style: decimal; }
   function init() {
     store.load();
     bind();
+    volgScroll();
     if (GD.sync) {
       // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
       GD.sync.onApplied(function () { render(); });

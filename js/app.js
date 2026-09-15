@@ -1438,6 +1438,9 @@
       : 'Nu synchroniseren — laatst bijgewerkt ' + tijdstip(st.laatst);
   }
 
+  var laatsteView = null;
+  var laatsteAnchor = null;
+
   function render() {
     var s = store.settings();
     document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
@@ -1464,8 +1467,96 @@
     else if (ui.view === 'maand') html = renderMonth();
     else html = renderSettings();
 
+    // Een klik op een doel tekent het hele scherm opnieuw. Alleen bij écht
+    // navigeren (ander tabblad, andere dag) hoort daar een animatie bij —
+    // anders zou de pagina bij elk vinkje opnieuw komen opzetten.
+    var navigatie = laatsteView !== ui.view || laatsteAnchor !== ui.anchor;
+    laatsteView = ui.view;
+    laatsteAnchor = ui.anchor;
+
     $('#view').innerHTML = html;
-    $('#view').scrollTop = 0;
+    if (navigatie) naarBoven();
+    onthulKaarten(navigatie);
+  }
+
+  /* ------------------------------ beweging ---------------------------- */
+
+  function stilAub() {
+    return typeof matchMedia === 'function' &&
+      matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function naarBoven() {
+    if (window.scrollY < 4) return;
+    try {
+      window.scrollTo({ top: 0, behavior: stilAub() ? 'auto' : 'smooth' });
+    } catch (e) {
+      window.scrollTo(0, 0);  // oudere browsers kennen het objectvorm-argument niet
+    }
+  }
+
+  /**
+   * Kaarten komen omhoog zodra ze in beeld schuiven. De eerste paar krijgen
+   * een klein verschil in vertraging, zodat het scherm zich opbouwt in plaats
+   * van in één klap te verschijnen.
+   */
+  var kijker = null;
+
+  function onthulKaarten(navigatie) {
+    if (kijker) kijker.disconnect();
+    if (!navigatie || stilAub() || typeof IntersectionObserver !== 'function') return;
+
+    var kaarten = $$('#view > .card');
+    if (!kaarten.length) return;
+
+    kaarten.forEach(function (kaart, i) {
+      kaart.classList.add('onthul');
+      kaart.style.setProperty('--vertraging', (Math.min(i, 6) * 0.05).toFixed(2) + 's');
+    });
+
+    kijker = new IntersectionObserver(function (items) {
+      items.forEach(function (item) {
+        if (!item.isIntersecting) return;
+        item.target.classList.add('onthul-zichtbaar');
+        kijker.unobserve(item.target);
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.02 });
+
+    kaarten.forEach(function (kaart) { kijker.observe(kaart); });
+
+    /* Vangnet. Een kaart die om wat voor reden ook nooit een seintje krijgt,
+       zou anders onzichtbaar blijven staan — en dan is je dag weg achter een
+       animatie die niet afging. Eerst wat in beeld staat, daarna de rest. */
+    clearTimeout(onthulKaarten._t1);
+    clearTimeout(onthulKaarten._t2);
+    onthulKaarten._t1 = setTimeout(function () {
+      kaarten.forEach(function (kaart) {
+        if (kaart.getBoundingClientRect().top < window.innerHeight) {
+          kaart.classList.add('onthul-zichtbaar');
+        }
+      });
+    }, 1200);
+    onthulKaarten._t2 = setTimeout(function () {
+      kaarten.forEach(function (kaart) { kaart.classList.add('onthul-zichtbaar'); });
+    }, 4000);
+  }
+
+  /* De bovenbalk plakt; zodra je scrolt hoort hij zich los te maken van de
+     inhoud, anders zweeft de tekst er zonder rand doorheen. */
+  function volgScroll() {
+    var balk = $('.topbar');
+    if (!balk) return;
+    var bezig = false;
+    function bijwerken() {
+      balk.classList.toggle('topbar-vast', window.scrollY > 4);
+      bezig = false;
+    }
+    window.addEventListener('scroll', function () {
+      if (bezig) return;
+      bezig = true;
+      window.requestAnimationFrame(bijwerken);
+    }, { passive: true });
+    bijwerken();
   }
 
   function isCurrentPeriod() {
@@ -1956,6 +2047,7 @@
   function init() {
     store.load();
     bind();
+    volgScroll();
     if (GD.sync) {
       // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
       GD.sync.onApplied(function () { render(); });
