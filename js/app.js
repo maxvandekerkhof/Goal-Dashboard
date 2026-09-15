@@ -97,23 +97,26 @@
       }
 
       return '<div class="bd-row' + (w === 0 ? ' bd-off' : '') + '">' +
-        '<div class="bd-name"><span class="bd-icon">' + b.goal.icon + '</span>' +
+        '<div class="bd-name"><span class="bd-icon">' + GD.icon(b.goal.icon) + '</span>' +
         '<span>' + esc(b.goal.label) + '</span>' +
         (w === 0 ? '<span class="chip chip-off">uit</span>' : '<span class="chip">×' + fmt(w, w % 1 ? 1 : 0) + '</span>') +
         '</div>' +
         '<div class="bd-bar">' + C.bar(b.pct) + '</div>' +
-        '<div class="bd-pct" style="color:' + (has ? GD.scoreColor(b.pct) : 'var(--muted)') + '">' +
+        '<div class="bd-pct" style="color:' + (has ? GD.scoreInk(b.pct) : 'var(--muted)') + '">' +
         (has ? Math.round(b.pct) + '%' : '–') + '</div>' +
         '<div class="bd-counts">' + esc(counts || '—') + '</div>' +
         '</div>';
     }).join('');
 
-    return '<section class="card"><h2>Per doel</h2><div class="breakdown">' + rows + '</div></section>';
+    return '<section class="card"><h2>' + GD.icon('vink') + 'Per doel</h2><div class="breakdown">' + rows + '</div></section>';
   }
 
   function periodStatsSection(period, totalDays) {
     var st = period.stats;
     var s = store.settings();
+    // Het eiwitdoel zoals het aan het eind van deze periode stond; beweegt het
+    // mee met je gewicht, dan is dat een ander getal dan vandaag.
+    var eiwit = S.eiwitDoel(period.days.length ? period.days[period.days.length - 1].date : null, s);
     var tiles = [
       statTile('Dagen ingevuld', period.logged + '<span class="unit">/' + totalDays + '</span>',
         period.missing ? period.missing + ' niet ingevuld' : 'compleet'),
@@ -124,7 +127,7 @@
       statTile('Gewicht', st.weightEnd !== null ? fmt(st.weightEnd, 1) + '<span class="unit">kg</span>' : '–',
         st.weightDelta !== null ? signed(st.weightDelta, 1, ' kg in periode') : 'gem. ' + fmt(st.weightAvg, 1) + ' kg'),
       statTile('Gem. eiwit', st.proteinAvg !== null ? fmt(st.proteinAvg) + '<span class="unit">g</span>' : '–',
-        'doel ' + fmt(s.eiwitDoel) + ' g'),
+        'doel ' + fmt(eiwit.doel) + ' g' + (eiwit.afgeleid ? ' · ' + fmt(eiwit.perKg, 1) + ' g/kg' : '')),
       statTile('Gem. calorieën', st.kcalAvg !== null ? fmt(st.kcalAvg) + '<span class="unit">kcal</span>' : '–',
         'doel ' + fmt(s.calorieDoel) + ' kcal'),
       statTile('Gem. water', st.waterAvg !== null ? GD.formatVolume(st.waterAvg) : '–',
@@ -161,7 +164,7 @@
         ' (' + esc(RICHTING_TEKST[t.richting] || t.richting) + ').</p>' +
         '</div>';
     } else {
-      var kleur = GD.scoreColor(t.pct);
+      var kleur = GD.scoreInk(t.pct);
       body = '<div class="trend-ring">' + C.ring(t.pct, 128, 12) + '</div>' +
         '<div class="trend-info">' +
         '<div class="trend-delta" style="color:' + kleur + '">' + signed(t.delta, 2, ' kg') + '</div>' +
@@ -176,12 +179,12 @@
         '</div>';
     }
 
-    return '<section class="card"><h2>Gewichtstrend</h2>' +
+    return '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtstrend</h2>' +
       '<div class="trend">' + body + '</div></section>';
   }
 
   /**
-   * opts.tot   : vage boog in de ring — waar je vandaag nog op uit kunt komen
+   * opts.tot   : vage streep op de schaal — waar je vandaag nog op uit kunt komen
    * opts.label : eigen kop in plaats van het oordeel, voor een dag die nog loopt
    */
   function heroSection(pct, subtitle, extra, opts) {
@@ -190,18 +193,24 @@
     // dag die af is, niet bij drie ingevulde doelen om negen uur 's ochtends.
     // Ook de kleur wacht: rood-naar-groen zegt goed of slecht, en een dag die
     // pas begonnen is verdient allebei niet.
-    var color = opts.label ? 'var(--text)' : GD.scoreColor(pct);
+    var loopt = !!opts.label;
+    var color = loopt ? 'var(--text)' : GD.scoreInk(pct);
+
     return '<section class="card hero">' +
       '<div class="hero-ring">' +
-      C.ring(pct, 190, 16, { tot: opts.tot, kleur: opts.label ? 'var(--accent)' : null }) +
+      C.ring(pct, 176, 16, {
+        tot: opts.tot,
+        kleur: loopt ? 'var(--accent)' : null,
+        // Het streepje van je drempel is informatie, geen oordeel: dat mag
+        // ook zichtbaar zijn terwijl de dag nog loopt.
+        drempel: S.num(store.settings().goedeDagDrempel)
+      }) +
       '</div>' +
       '<div class="hero-info">' +
-      '<div class="hero-label" style="color:' + color + '">' + esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
+      '<div class="hero-label" style="color:' + color + '">' +
+      esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
       '<p class="hero-sub">' + subtitle + '</p>' +
       (extra || '') +
-      // De kleurschaal hoort bij een eindcijfer; zolang de dag loopt staat de
-      // ring in één kleur en zou de balk alleen maar verwarren.
-      (opts.label ? '' : C.legend()) +
       '</div></section>';
   }
 
@@ -231,14 +240,14 @@
     var extra = '<div class="hero-chips">' +
       '<span class="chip">' + answered + '/' + relevant + ' ingevuld</span>' +
       (loopt && ov.binnen + ov.kwijt > 0
-        ? '<span class="chip" style="color:' + GD.scoreColor(day.pct) + '">' +
+        ? '<span class="chip" style="color:' + GD.scoreInk(day.pct) + '">' +
           Math.round(day.pct) + '% raak tot nu toe</span>'
         : '') +
-      '<span class="chip">🔥 ' + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
-      (day.restDay ? '<span class="chip">😴 rustdag</span>' : '') +
+      '<span class="chip">' + GD.icon('vlam', 14) + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
+      (day.restDay ? '<span class="chip">' + GD.icon('rust', 14) + 'rustdag</span>' : '') +
       '</div>' +
       (ov.open > 0 && !isFuture
-        ? '<p class="hint hint-tight">De vage ring is waar je vandaag nog op uit kunt komen.</p>'
+        ? '<p class="hint hint-tight">De vage ring eromheen is waar je vandaag nog op uit kunt komen.</p>'
         : '');
 
     var sub;
@@ -248,7 +257,7 @@
       sub = 'Nog niets ingevuld voor deze dag.';
     } else if (loopt) {
       // Niet het percentage van wat je al invulde, maar van de hele dag:
-      // anders staat de ring vol terwijl de dag nog open ligt.
+      // anders staat het cijfer op honderd terwijl de dag nog open ligt.
       sub = 'Je hebt <strong>' + fmt(ov.binnen, 1) + '</strong> van de <strong>' +
         fmt(ov.totaal, 1) + '</strong> punten van vandaag binnen. Er staat nog <strong>' +
         fmt(ov.open, 1) + '</strong> open' +
@@ -270,19 +279,27 @@
 
     /* Meetwaarden */
     var gm = S.gewichtMelding(date);
+    var eiwit = S.eiwitDoel(date, s);
     html += '<section class="card">' +
-      '<h2>Meetwaarden</h2>' +
+      '<h2>' + GD.icon('weegschaal') + 'Meetwaarden</h2>' +
       '<div class="measure-grid">' +
       measureField('gewicht', 'Gewicht', 'kg', entry.gewicht, '0.1', 'bv. 82,4') +
-      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1', 'doel ' + fmt(s.eiwitDoel),
+      measureField('eiwitGram', 'Eiwitten', 'g', entry.eiwitGram, '1',
+        'doel ' + fmt(eiwit.doel) + (eiwit.afgeleid ? ' · ' + fmt(eiwit.perKg, 1) + ' g/kg' : ''),
         voedingVoet(date, 'eiwitGram', 'g')) +
       measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel),
         voedingVoet(date, 'kcal', 'kcal')) +
       '</div>' +
       (gm.status === 'uit' || isFuture ? '' :
-        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
-        '><span class="meldregel-icoon">⚖️</span>' + esc(gm.tekst) + '</p>') +
+        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreInk(gm.pct) + '"') +
+        '><span class="meldregel-icoon">' + GD.icon('weegschaal', 16) + '</span>' + esc(gm.tekst) + '</p>') +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
+      // Een doel dat met je gewicht meebeweegt verandert vanzelf, dus het hoort
+      // ook zichtbaar te blijven als het veld al is ingevuld.
+      (eiwit.afgeleid
+        ? '<p class="hint">Eiwitdoel voor deze dag: ' + fmt(eiwit.doel) + ' g — ' +
+          fmt(eiwit.perKg, 1) + ' g per kilo bij ' + fmt(eiwit.gewicht, 1) + ' kg.</p>'
+        : '') +
       '</section>';
 
     /* Tellers (water) krijgen hun eigen kaart met snelknoppen */
@@ -298,7 +315,7 @@
     }).join('');
 
     html += '<section class="card">' +
-      '<div class="card-head"><h2>Doelen</h2>' +
+      '<div class="card-head"><h2>' + GD.icon('vink') + 'Doelen</h2>' +
       '<button class="btn btn-ghost btn-sm" data-action="copy-yesterday">Neem gisteren over</button></div>' +
       '<div class="goals">' + goalRows + '</div>' +
       '</section>';
@@ -307,7 +324,7 @@
 
     /* Notitie */
     html += '<section class="card">' +
-      '<h2>Notitie</h2>' +
+      '<h2>' + GD.icon('notitie') + 'Notitie</h2>' +
       '<textarea class="note" data-field="notitie" rows="3" placeholder="Hoe voelde de training? Wat ging goed of mis?">' +
       esc(entry.notitie || '') + '</textarea>' +
       (store.entry(date) ? '<div class="card-foot"><button class="btn btn-danger btn-sm" data-action="delete-day">Dag wissen</button></div>' : '') +
@@ -352,7 +369,7 @@
     var amount = item.amount === null ? 0 : item.amount;
     var doel = item.doel || 0;
     var pct = doel > 0 ? GD.clamp((amount / doel) * 100, 0, 100) : (amount > 0 ? 100 : 0);
-    var kleur = GD.scoreColor(pct);
+    var kleur = GD.scoreInk(pct);
     var gehaald = doel > 0 && amount >= doel;
     var rest = Math.max(0, doel - amount);
 
@@ -372,7 +389,7 @@
       : (item.reason || '');
 
     return '<section class="card">' +
-      '<div class="card-head"><h2>' + goal.icon + ' ' + esc(goal.label) + '</h2>' +
+      '<div class="card-head"><h2>' + GD.icon(goal.icon) + esc(goal.label) + '</h2>' +
       '<span class="chip"' + (item.included ? ' style="color:' + kleur + '"' : '') + '>' + esc(status) + '</span>' +
       '</div>' +
       '<div class="meter-top">' +
@@ -416,7 +433,10 @@
       return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
         ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
         (disabled || vergrendeld ? ' disabled' : '') +
-        ' style="' + (active ? '--seg-color:' + GD.scoreColor(o.score === null ? null : o.score * 100) + ';' : '') + '">' +
+        ' style="' + (active
+          ? '--seg-color:' + GD.scoreColor(o.score === null ? null : o.score * 100) +
+            ';--seg-fg:' + GD.textOn(o.score === null ? null : o.score * 100) + ';'
+          : '') + '">' +
         esc(o.label) + (isAuto ? '<span class="auto-dot" title="automatisch bepaald">auto</span>' : '') +
         '</button>';
     }).join('');
@@ -425,7 +445,7 @@
     if (disabled) status = '<span class="chip chip-off">uit</span>';
     else if (dimmed) status = '<span class="chip chip-off">' + esc(item.reason) + '</span>';
     else if (item.included) {
-      status = '<span class="chip" style="color:' + GD.scoreColor(item.score * 100) + '">+' +
+      status = '<span class="chip" style="color:' + GD.scoreInk(item.score * 100) + '">+' +
         fmt(item.score * w, 1) + ' / ' + fmt(w, w % 1 ? 1 : 0) + '</span>';
     } else if (item.reason) {
       status = '<span class="chip chip-off">' + esc(item.reason) + '</span>';
@@ -443,7 +463,7 @@
 
     return '<div class="goal' + (dimmed ? ' goal-dim' : '') + (disabled ? ' goal-off' : '') + '">' +
       '<div class="goal-head">' +
-      '<span class="goal-name"><span class="goal-icon">' + goal.icon + '</span>' + esc(goal.label) + '</span>' +
+      '<span class="goal-name"><span class="goal-icon">' + GD.icon(goal.icon) + '</span>' + esc(goal.label) + '</span>' +
       status +
       '</div>' +
       '<div class="segmented">' + opts + '</div>' +
@@ -504,7 +524,7 @@
       '<div class="lift-body">' +
       '<div class="lift-inputs">' + velden +
       (st ? '<span class="chip lift-status"' +
-        (st.pct === null ? '' : ' style="color:' + GD.scoreColor(st.pct) + '"') + '>' +
+        (st.pct === null ? '' : ' style="color:' + GD.scoreInk(st.pct) + '"') + '>' +
         esc(st.label) + '</span>' : '') +
       '</div>' +
       '<p class="lift-hist">' + geschiedenis.join(' · ') + '</p>' +
@@ -566,9 +586,9 @@
         '<span>' + r.punten.length + ' sessie' + (r.punten.length === 1 ? '' : 's') +
         ' sinds ' + esc(D.formatShort(eerste.datum)) + '</span>' +
         (groei === null ? ''
-          : '<span style="color:' + GD.scoreColor(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
+          : '<span style="color:' + GD.scoreInk(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
             signed(groei, 0, '%') + ' sinds je start</span>') +
-        '<span>🏆 ' + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
+        '<span>' + GD.icon('beker', 14) + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
         '</div>';
     }).join('');
 
@@ -605,7 +625,7 @@
       '<button class="btn btn-ghost btn-sm' + (open ? ' btn-aan' : '') + '"' +
       ' data-action="lift-grafiek" data-oef="' + esc(oid) + '"' +
       ' aria-expanded="' + (open ? 'true' : 'false') + '"' +
-      ' title="Verloop van deze oefening">📈</button>' +
+      ' title="Verloop van deze oefening">' + GD.icon('grafiek', 15) + '</button>' +
       '<button class="btn btn-ghost btn-sm" data-action="lift-clear" data-oef="' + esc(oid) + '"' +
       ' title="Deze oefening voor vandaag wissen">wissen</button>' +
       '</span>' +
@@ -628,14 +648,14 @@
     var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag';
     if (rust && !ids.length) {
       return '<section class="card card-quiet">' +
-        '<div class="card-head"><h2>🏋️ Oefeningen</h2></div>' +
+        '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2></div>' +
         '<p class="hint">Geen training vandaag, dus niets bij te houden.</p>' +
         '</section>';
     }
 
     if (!schemas.length) {
       return '<section class="card">' +
-        '<div class="card-head"><h2>🏋️ Oefeningen</h2></div>' +
+        '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2></div>' +
         '<p class="hint">Zet je trainingsschema\'s klaar, dan kun je hier per oefening je gewicht ' +
         'en reps invullen. De app onthoudt je startpunt en je vorige keer, en bepaalt daarmee zelf ' +
         'of je progressive overload hebt gehaald.</p>' +
@@ -645,16 +665,15 @@
     }
 
     var keuze = schemas.map(function (s) {
-      return '<button class="seg' + (s.id === sid ? ' seg-active' : '') + '"' +
-        ' data-action="lift-schema" data-schema="' + esc(s.id) + '"' +
-        (s.id === sid ? ' style="--seg-color:var(--accent)"' : '') + '>' +
+      return '<button class="seg seg-chalk' + (s.id === sid ? ' seg-active' : '') + '"' +
+        ' data-action="lift-schema" data-schema="' + esc(s.id) + '">' +
         esc(s.naam) + '</button>';
     }).join('');
 
     var status;
     if (res.vergeleken) {
       var pct = (res.vooruit / res.vergeleken) * 100;
-      status = '<span class="chip" style="color:' + GD.scoreColor(pct) + '">' +
+      status = '<span class="chip" style="color:' + GD.scoreInk(pct) + '">' +
         res.vooruit + ' van de ' + res.vergeleken + ' vooruit</span>';
     } else if (res.regels.length) {
       status = '<span class="chip chip-off">startpunt</span>';
@@ -685,7 +704,7 @@
       : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
 
     return '<section class="card">' +
-      '<div class="card-head"><h2>🏋️ Oefeningen</h2>' + status + '</div>' +
+      '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2>' + status + '</div>' +
       '<div class="segmented schema-keuze">' + keuze + '</div>' +
       '<div class="lifts">' + rijen + '</div>' +
       toevoegen +
@@ -710,7 +729,7 @@
 
   function reviewBlok(icoon, kop, tekst, soort) {
     return '<div class="rv-blok rv-' + soort + '">' +
-      '<div class="rv-kop"><span class="rv-icoon">' + icoon + '</span>' + esc(kop) + '</div>' +
+      '<div class="rv-kop"><span class="rv-icoon">' + GD.icon(icoon) + '</span>' + esc(kop) + '</div>' +
       '<p class="rv-tekst">' + esc(tekst) + '</p>' +
       '</div>';
   }
@@ -733,7 +752,7 @@
     opties = opties || {};
     var r = GD.review.maak(datum);
 
-    var kop = '<div class="card-head"><h2>📋 Weekafsluiting · ' + esc(r.label) + '</h2>' +
+    var kop = '<div class="card-head"><h2>' + GD.icon('rapport') + 'Weekafsluiting · ' + esc(r.label) + '</h2>' +
       '<span class="chip">ma t/m vr · ' + esc(r.periode) + '</span></div>';
 
     if (!r.ingevuld) {
@@ -743,11 +762,11 @@
     }
 
     var cijfers = '<div class="rv-cijfers">' +
-      rvCijfer(Math.round(r.pct) + '<span class="unit">%</span>', 'weekscore', GD.scoreColor(r.pct)) +
+      rvCijfer(Math.round(r.pct) + '<span class="unit">%</span>', 'weekscore', GD.scoreInk(r.pct)) +
       rvCijfer(r.goedeDagen + '<span class="unit">/' + r.geweest + '</span>', 'goede dagen') +
       rvCijfer(r.trainDagen + '<span class="unit">×</span>', 'getraind') +
       rvCijfer(r.kcalDagen + '<span class="unit">/' + r.geweest + '</span>', 'dagen calorieën',
-        GD.scoreColor(r.geweest ? (r.kcalDagen / r.geweest) * 100 : null)) +
+        GD.scoreInk(r.geweest ? (r.kcalDagen / r.geweest) * 100 : null)) +
       '</div>';
 
     var g = r.gewicht;
@@ -777,16 +796,16 @@
     }
 
     var blokken = '<div class="rv-blokken">' +
-      reviewBlok('🔥', r.eten.kop || 'Eten en gewicht', r.eten.tekst, rvSoort(r.eten.status)) +
-      reviewBlok('⚖️', 'Gewicht', gTekst,
+      reviewBlok('vlam', r.eten.kop || 'Eten en gewicht', r.eten.tekst, rvSoort(r.eten.status)) +
+      reviewBlok('weegschaal', 'Gewicht', gTekst,
         rvSoort(g.status === 'op-schema' || g.bevestigd ? g.status : 'afwachten')) +
-      reviewBlok('🍗', 'Eiwit', r.eiwit.tekst, rvSoort(r.eiwit.status)) +
+      reviewBlok('eiwit', 'Eiwit', r.eiwit.tekst, rvSoort(r.eiwit.status)) +
       (r.beste
-        ? reviewBlok('🏆', 'Sterkste punt',
+        ? reviewBlok('beker', 'Sterkste punt',
           r.beste.goal.label + ' — ' + Math.round(r.beste.pct) + '% deze week.', 'goed')
         : '') +
       (r.zwakste
-        ? reviewBlok('📉', 'Zwakste punt',
+        ? reviewBlok('daling', 'Zwakste punt',
           r.zwakste.goal.label + ' — ' + Math.round(r.zwakste.pct) +
           '%. Daar liggen je punten voor volgende week.',
           r.zwakste.pct >= 70 ? 'goed' : 'let-op')
@@ -827,7 +846,7 @@
     var html = heroSection(period.pct, sub);
     html += reviewSection(dates[0], {});
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
-    html += '<section class="card"><h2>Per dag</h2>' + C.dayBars(period.days) +
+    html += '<section class="card"><h2>' + GD.icon('week') + 'Per dag</h2>' + C.dayBars(period.days) +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
 
@@ -836,7 +855,7 @@
       dates, D.range(vorigeStart, D.addDays(vorigeStart, 6)),
       'week ' + D.isoWeek(dates[0]), 'week ' + D.isoWeek(vorigeStart), 1);
 
-    html += '<section class="card"><h2>Gewicht</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('grafiek') + 'Gewicht</h2>' +
       C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
     return html;
   }
@@ -854,7 +873,8 @@
 
     var html = heroSection(period.pct, sub);
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
-    html += '<section class="card"><h2>Kalender</h2>' + C.calendar(ui.anchor, period.days) +
+    html += '<section class="card"><h2>' + GD.icon('maand') + 'Kalender</h2>' + C.calendar(ui.anchor, period.days) +
+      C.schaal() +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
 
@@ -864,7 +884,7 @@
       dates, vorigeDates, D.monthName(ui.anchor), D.monthName(vorigeMaand),
       dates.length / 7);
 
-    html += '<section class="card"><h2>Gewicht</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('grafiek') + 'Gewicht</h2>' +
       C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
     return html;
   }
@@ -929,7 +949,7 @@
       return '<option value="' + esc(o.naam) + '"></option>';
     }).join('');
 
-    return '<section class="card"><h2>Trainingsschema\'s</h2>' +
+    return '<section class="card"><h2>' + GD.icon('gesport') + 'Trainingsschema\'s</h2>' +
       '<p class="hint">Per training kies je op de dagpagina één schema en vul je per oefening je ' +
       'beste set in. De app onthoudt je startpunt en je vorige keer, en bepaalt daaruit zelf of je ' +
       'progressive overload hebt gehaald.</p>' +
@@ -946,12 +966,48 @@
       '</section>';
   }
 
+  /**
+   * Uitleg onder de voedingsdoelen: waar het eiwitdoel van vandaag vandaan komt,
+   * of wat het zou worden als je het op je gewicht zet.
+   */
+  function eiwitUitleg(s) {
+    var info = S.eiwitDoel(null, s);
+    if (s.eiwitBasis !== 'gewicht') {
+      return '<p class="hint">Bij spieropbouw wordt 1,6 tot 2,2 gram eiwit per kilo lichaamsgewicht ' +
+        'aangehouden. Zet je het doel per kilo, dan schuift het mee zodra je aankomt of afvalt; ' +
+        'anders blijft hetzelfde getal staan terwijl jij zwaarder wordt.' +
+        (!info.gewicht || info.gewicht <= 0 ? '' :
+          ' Bij je huidige ' + fmt(info.gewicht, 1) + ' kg komt ' + fmt(info.vast) + ' g neer op ' +
+          fmt(info.vast / info.gewicht, 2) + ' g per kilo.') +
+        '</p>';
+    }
+    if (info.gewicht === null) {
+      return '<p class="hint">Er staat de afgelopen twee weken geen gewicht in het dashboard, dus ' +
+        'valt er niets af te leiden: zolang dat zo is geldt je vaste doel van ' +
+        fmt(info.vast) + ' g.</p>';
+    }
+    return '<p class="hint">Je doel is nu <strong>' + fmt(info.doel) + ' g per dag</strong>: ' +
+      fmt(info.perKg, 1) + ' × ' + fmt(info.gewicht, 1) + ' kg, afgerond op 5 g. Dat gewicht is het ' +
+      'gemiddelde van ' + info.metingen + ' weegmoment' + (info.metingen === 1 ? '' : 'en') +
+      ' in de afgelopen twee weken, zodat je doel meeschuift met de weegschaal en niet met één ' +
+      'ochtend. Weeg je twee weken lang niet, dan geldt je vaste doel van ' + fmt(info.vast) + ' g.</p>';
+  }
+
   function renderSettings() {
     var s = store.settings();
     var dates = store.allDates();
 
-    var html = '<section class="card"><h2>Voedingsdoelen</h2><div class="form-grid">' +
-      settingNumber('eiwitDoel', 'Eiwitdoel', 'g per dag', s.eiwitDoel, '1') +
+    var html = '<section class="card"><h2>' + GD.icon('eiwit') + 'Voedingsdoelen</h2><div class="form-grid">' +
+      '<label class="field"><span class="field-label">Eiwitdoel is</span>' +
+      '<select data-setting="eiwitBasis">' +
+      opt('vast', 'Een vast aantal gram', s.eiwitBasis) +
+      opt('gewicht', 'Per kilo lichaamsgewicht', s.eiwitBasis) +
+      '</select></label>' +
+      (s.eiwitBasis === 'gewicht'
+        ? settingNumber('eiwitPerKg', 'Gram per kilo', 'g/kg', s.eiwitPerKg, '0.1') : '') +
+      settingNumber('eiwitDoel',
+        s.eiwitBasis === 'gewicht' ? 'Vast doel (terugval)' : 'Eiwitdoel',
+        'g per dag', s.eiwitDoel, '1') +
       settingNumber('waterDoel', 'Waterdoel', 'ml per dag', s.waterDoel, '250') +
       settingNumber('calorieDoel', 'Caloriedoel', 'kcal per dag', s.calorieDoel, '10') +
       '<label class="field"><span class="field-label">Caloriedoel geldt als</span>' +
@@ -963,9 +1019,9 @@
       (s.calorieRichting === 'rond'
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
-      '</div></section>';
+      '</div>' + eiwitUitleg(s) + '</section>';
 
-    html += '<section class="card"><h2>Gewichtsdoel</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
       '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor — ' +
       'nooit je laatste weging, want die schommelt te veel. Een afwijking kleurt pas rood als ' +
       'hij twee weken op rij te zien is; één losse week blijft grijs. Dit staat los van je ' +
@@ -992,7 +1048,7 @@
 
     html += schemaSection();
 
-    html += '<section class="card"><h2>Scoreregels</h2><div class="form-grid">' +
+    html += '<section class="card"><h2>' + GD.icon('instellingen') + 'Scoreregels</h2><div class="form-grid">' +
       settingNumber('goedeDagDrempel', 'Drempel goede dag', '% voor streak', s.goedeDagDrempel, '5') +
       '</div>' +
       toggle('countMissingAsZero', 'Lege dagen in het verleden tellen als 0%',
@@ -1004,13 +1060,13 @@
     var weightRows = GD.GOALS.map(function (g) {
       var w = S.weightOf(g, s);
       return '<div class="weight-row">' +
-        '<span class="weight-name"><span class="goal-icon">' + g.icon + '</span>' + esc(g.label) + '</span>' +
+        '<span class="weight-name"><span class="goal-icon">' + GD.icon(g.icon) + '</span>' + esc(g.label) + '</span>' +
         '<input type="range" min="0" max="4" step="0.5" data-weight="' + g.key + '" value="' + w + '">' +
         '<span class="weight-val">' + (w === 0 ? 'uit' : '×' + fmt(w, w % 1 ? 1 : 0)) + '</span>' +
         '</div>';
     }).join('');
 
-    html += '<section class="card"><h2>Gewicht per doel</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('week') + 'Gewicht per doel</h2>' +
       '<p class="hint">Hoe zwaar telt elk doel mee in je dagscore? Op 0 telt het doel helemaal niet mee.</p>' +
       '<div class="weights">' + weightRows + '</div>' +
       '<div class="card-foot"><button class="btn btn-ghost btn-sm" data-action="reset-weights">Standaardgewichten herstellen</button></div>' +
@@ -1020,7 +1076,7 @@
     html += healthSection();
 
     /* Data */
-    html += '<section class="card"><h2>Je data</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('download') + 'Je data</h2>' +
       '<p class="hint">Alles staat lokaal in deze browser (localStorage) — er gaat niets naar een server. ' +
       'Maak dus af en toe een back-up, en gebruik die om je data op een ander apparaat te zetten.</p>' +
       '<div class="row-actions">' +
@@ -1032,7 +1088,7 @@
       (dates.length ? ' (' + esc(D.formatShort(dates[0])) + ' t/m ' + esc(D.formatShort(dates[dates.length - 1])) + ')' : '') +
       '.</p></section>';
 
-    html += '<section class="card"><h2>Hoe wordt de score berekend?</h2>' +
+    html += '<section class="card"><h2>' + GD.icon('melding') + 'Hoe wordt de score berekend?</h2>' +
       '<ul class="explain">' +
       '<li>Elk doel levert punten op: <em>Ja (eiwitrijk)</em> = vol, <em>Ja</em> = 60%, <em>Nee</em> = niets. ' +
       '<em>Deels</em> bij progressive overload telt voor de helft.</li>' +
@@ -1041,7 +1097,8 @@
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
       'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
-      'vandaag nog op uit kunt komen. Zo staat de ring niet vol na drie ingevulde doelen. ' +
+      'vandaag nog op uit kunt komen, en de ring blijft in één kleur tot de dag om is — een halve dag ' +
+      'verdient nog geen oordeel. Het streepje op de ring is je drempel voor een goede dag. ' +
       'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
       '<li><em>Water</em> scoort naar rato: 2,25 van de 3 liter is 75%. Zolang de dag loopt telt de teller ' +
       'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
@@ -1071,7 +1128,7 @@
     var st = GD.sync.status();
     var c = GD.sync.config();
 
-    var html = '<section class="card"><h2>Synchroniseren tussen apparaten</h2>';
+    var html = '<section class="card"><h2>' + GD.icon('telefoon') + 'Synchroniseren tussen apparaten</h2>';
 
     if (!st.geconfigureerd) {
       html += '<p class="hint">Vul je telefoon en laptop allebei dezelfde twee gegevens in, ' +
@@ -1131,7 +1188,7 @@
     if (st.ingelogd) {
       html += '<hr class="scheiding">' +
         '<div class="sync-status">' +
-        '<span class="chip">' + (st.bezig ? '⏳ bezig…' : '✓ ingelogd') +
+        '<span class="chip">' + (st.bezig ? GD.icon('klok', 14) + 'bezig…' : '✓ ingelogd') +
         (st.email ? ' als ' + esc(st.email) : '') + '</span>' +
         '<span class="chip">laatst bijgewerkt: ' + esc(tijdstip(st.laatst)) + '</span>' +
         '</div>' +
@@ -1237,7 +1294,7 @@
     var url = c.url || 'https://jouwproject.supabase.co';
     var sleutel = c.anonKey || 'je publishable key';
 
-    var html = '<section class="card"><h2>Voeding uit Apple Health</h2>' +
+    var html = '<section class="card"><h2>' + GD.icon('calorieen') + 'Voeding uit Apple Health</h2>' +
       '<p class="hint">MyFitnessPal schrijft je calorieën en eiwitten naar Apple Health. ' +
       'Een Shortcut op je iPhone leest daar elke avond de dagtotalen uit en zet ze in je eigen ' +
       'Supabase-project; dit dashboard haalt ze bij het synchroniseren op en vult je meetwaarden ' +
@@ -1381,6 +1438,9 @@
       : 'Nu synchroniseren — laatst bijgewerkt ' + tijdstip(st.laatst);
   }
 
+  var laatsteView = null;
+  var laatsteAnchor = null;
+
   function render() {
     var s = store.settings();
     document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
@@ -1407,8 +1467,96 @@
     else if (ui.view === 'maand') html = renderMonth();
     else html = renderSettings();
 
+    // Een klik op een doel tekent het hele scherm opnieuw. Alleen bij écht
+    // navigeren (ander tabblad, andere dag) hoort daar een animatie bij —
+    // anders zou de pagina bij elk vinkje opnieuw komen opzetten.
+    var navigatie = laatsteView !== ui.view || laatsteAnchor !== ui.anchor;
+    laatsteView = ui.view;
+    laatsteAnchor = ui.anchor;
+
     $('#view').innerHTML = html;
-    $('#view').scrollTop = 0;
+    if (navigatie) naarBoven();
+    onthulKaarten(navigatie);
+  }
+
+  /* ------------------------------ beweging ---------------------------- */
+
+  function stilAub() {
+    return typeof matchMedia === 'function' &&
+      matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function naarBoven() {
+    if (window.scrollY < 4) return;
+    try {
+      window.scrollTo({ top: 0, behavior: stilAub() ? 'auto' : 'smooth' });
+    } catch (e) {
+      window.scrollTo(0, 0);  // oudere browsers kennen het objectvorm-argument niet
+    }
+  }
+
+  /**
+   * Kaarten komen omhoog zodra ze in beeld schuiven. De eerste paar krijgen
+   * een klein verschil in vertraging, zodat het scherm zich opbouwt in plaats
+   * van in één klap te verschijnen.
+   */
+  var kijker = null;
+
+  function onthulKaarten(navigatie) {
+    if (kijker) kijker.disconnect();
+    if (!navigatie || stilAub() || typeof IntersectionObserver !== 'function') return;
+
+    var kaarten = $$('#view > .card');
+    if (!kaarten.length) return;
+
+    kaarten.forEach(function (kaart, i) {
+      kaart.classList.add('onthul');
+      kaart.style.setProperty('--vertraging', (Math.min(i, 6) * 0.05).toFixed(2) + 's');
+    });
+
+    kijker = new IntersectionObserver(function (items) {
+      items.forEach(function (item) {
+        if (!item.isIntersecting) return;
+        item.target.classList.add('onthul-zichtbaar');
+        kijker.unobserve(item.target);
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.02 });
+
+    kaarten.forEach(function (kaart) { kijker.observe(kaart); });
+
+    /* Vangnet. Een kaart die om wat voor reden ook nooit een seintje krijgt,
+       zou anders onzichtbaar blijven staan — en dan is je dag weg achter een
+       animatie die niet afging. Eerst wat in beeld staat, daarna de rest. */
+    clearTimeout(onthulKaarten._t1);
+    clearTimeout(onthulKaarten._t2);
+    onthulKaarten._t1 = setTimeout(function () {
+      kaarten.forEach(function (kaart) {
+        if (kaart.getBoundingClientRect().top < window.innerHeight) {
+          kaart.classList.add('onthul-zichtbaar');
+        }
+      });
+    }, 1200);
+    onthulKaarten._t2 = setTimeout(function () {
+      kaarten.forEach(function (kaart) { kaart.classList.add('onthul-zichtbaar'); });
+    }, 4000);
+  }
+
+  /* De bovenbalk plakt; zodra je scrolt hoort hij zich los te maken van de
+     inhoud, anders zweeft de tekst er zonder rand doorheen. */
+  function volgScroll() {
+    var balk = $('.topbar');
+    if (!balk) return;
+    var bezig = false;
+    function bijwerken() {
+      balk.classList.toggle('topbar-vast', window.scrollY > 4);
+      bezig = false;
+    }
+    window.addEventListener('scroll', function () {
+      if (bezig) return;
+      bezig = true;
+      window.requestAnimationFrame(bijwerken);
+    }, { passive: true });
+    bijwerken();
   }
 
   function isCurrentPeriod() {
@@ -1899,6 +2047,7 @@
   function init() {
     store.load();
     bind();
+    volgScroll();
     if (GD.sync) {
       // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
       GD.sync.onApplied(function () { render(); });

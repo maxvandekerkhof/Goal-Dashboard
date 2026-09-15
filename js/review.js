@@ -209,29 +209,61 @@
     return (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v).toFixed(2).replace('.', ',') + ' kg';
   }
 
-  function eiwitAdvies(gem, dagen, geweest, s) {
-    var doel = S.num(s.eiwitDoel, 0);
+  /* Onder deze verhouding gaat een vast eiwitdoel knellen: bij spieropbouw
+     wordt 1,6 tot 2,2 gram eiwit per kilo lichaamsgewicht aangehouden. */
+  var EIWIT_MIN_PER_KG = 1.6;
+
+  function getal(n, dec) {
+    return n.toFixed(dec).replace('.', ',');
+  }
+
+  /** "doel 165 g", en als het meebeweegt met je gewicht ook waar dat vandaan komt. */
+  function doelTekst(info) {
+    var t = 'doel ' + Math.round(info.doel) + ' g';
+    if (!info.afgeleid) return t;
+    return t + ' (' + getal(info.perKg, 1) + ' g per kilo bij ' + getal(info.gewicht, 1) + ' kg)';
+  }
+
+  /**
+   * Een vast eiwitdoel zakt vanzelf weg terwijl je aankomt: het getal blijft
+   * staan, jij wordt zwaarder, en de verhouding wordt stilletjes te laag.
+   * Daar zegt de afsluiting dan één keer per week iets van.
+   */
+  function eiwitAchterstand(info) {
+    if (info.afgeleid || !info.gewicht || info.gewicht <= 0 || !info.vast) return '';
+    var perKg = info.vast / info.gewicht;
+    if (perKg >= EIWIT_MIN_PER_KG) return '';
+    return ' Let op je doel zelf: ' + Math.round(info.vast) + ' g bij ' + getal(info.gewicht, 1) +
+      ' kg is ' + getal(perKg, 2) + ' g per kilo, en voor spieropbouw wordt 1,6 tot 2,2 ' +
+      'aangehouden. Zet je doel bij Instellingen op "per kilo lichaamsgewicht", dan blijft die ' +
+      'verhouding staan ook als je zwaarder wordt.';
+  }
+
+  function eiwitAdvies(gem, dagen, geweest, s, datum) {
+    var info = S.eiwitDoel(datum, s);
+    var doel = info.doel;
+    var extra = eiwitAchterstand(info);
     if (!dagen) {
-      return { status: 'onbekend', tekst: 'Je vulde deze week geen eiwitten in.' };
+      return { status: 'onbekend', tekst: 'Je vulde deze week geen eiwitten in.' + extra };
     }
     if (dagen < 3) {
       return {
         status: 'onbekend',
         tekst: 'Eiwitten maar ' + dagen + ' van de ' + geweest + ' dagen ingevuld — te weinig om ' +
-          'iets over te zeggen.'
+          'iets over te zeggen.' + extra
       };
     }
     if (doel > 0 && gem < doel * 0.9) {
       return {
         status: 'onder',
-        tekst: 'Gemiddeld ' + Math.round(gem) + ' g eiwit tegen een doel van ' + Math.round(doel) +
-          ' g. Dat is ' + Math.round(doel - gem) + ' g per dag te weinig — juist bij spieropbouw ' +
-          'is dat het cijfer dat telt.'
+        tekst: 'Gemiddeld ' + Math.round(gem) + ' g eiwit tegen een ' + doelTekst(info) +
+          '. Dat is ' + Math.round(doel - gem) + ' g per dag te weinig — juist bij spieropbouw ' +
+          'is dat het cijfer dat telt.' + extra
       };
     }
     return {
       status: 'goed',
-      tekst: 'Gemiddeld ' + Math.round(gem) + ' g eiwit per dag, doel ' + Math.round(doel) + ' g. Prima.'
+      tekst: 'Gemiddeld ' + Math.round(gem) + ' g eiwit per dag, ' + doelTekst(info) + '. Prima.' + extra
     };
   }
 
@@ -299,7 +331,7 @@
       zwakste: gesorteerd.length > 1 ? gesorteerd[gesorteerd.length - 1] : null,
       gewicht: gewicht,
       eten: eetAdvies(gewicht, st.kcalAvg, st.kcalDays, geweest.length, s),
-      eiwit: eiwitAdvies(st.proteinAvg, st.proteinDays, geweest.length, s),
+      eiwit: eiwitAdvies(st.proteinAvg, st.proteinDays, geweest.length, s, reeks[reeks.length - 1]),
       kcalDagen: st.kcalDays,
       kcalGem: st.kcalAvg,
       eiwitDagen: st.proteinDays,

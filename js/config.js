@@ -21,20 +21,20 @@
     {
       key: 'creatine',
       label: 'Creatine gepakt',
-      icon: '💊',
+      icon: 'creatine',
       weight: 1,
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
         { v: 'nee', label: 'Nee', short: 'Nee', score: 0 }
       ]
     },
-    { key: 'ontbijt', label: 'Ontbijt', icon: '🥣', weight: 1, options: MEAL_OPTIONS },
-    { key: 'lunch', label: 'Lunch', icon: '🥗', weight: 1, options: MEAL_OPTIONS },
-    { key: 'avondeten', label: 'Avondeten', icon: '🍽️', weight: 1, options: MEAL_OPTIONS },
+    { key: 'ontbijt', label: 'Ontbijt', icon: 'ontbijt', weight: 1, options: MEAL_OPTIONS },
+    { key: 'lunch', label: 'Lunch', icon: 'lunch', weight: 1, options: MEAL_OPTIONS },
+    { key: 'avondeten', label: 'Avondeten', icon: 'avondeten', weight: 1, options: MEAL_OPTIONS },
     {
       key: 'postworkout',
       label: 'Post-workout maaltijd',
-      icon: '🥤',
+      icon: 'postworkout',
       weight: 1,
       onlyIfTrained: true,
       options: MEAL_OPTIONS
@@ -42,7 +42,7 @@
     {
       key: 'gesport',
       label: 'Gesport',
-      icon: '🏋️',
+      icon: 'gesport',
       weight: 2,
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
@@ -53,7 +53,7 @@
     {
       key: 'overload',
       label: 'Progressive overload',
-      icon: '📈',
+      icon: 'overload',
       weight: 1.5,
       onlyIfTrained: true,
       options: [
@@ -70,7 +70,7 @@
       // Teller in plaats van keuzeknoppen: je telt de dag door op naar je doel.
       key: 'water',
       label: 'Water',
-      icon: '💧',
+      icon: 'water',
       weight: 1,
       type: 'meter',
       field: 'waterMl',
@@ -80,7 +80,7 @@
     {
       key: 'eiwit',
       label: 'Eiwitdoel behaald',
-      icon: '🍗',
+      icon: 'eiwit',
       weight: 2,
       macro: 'protein',
       options: [
@@ -91,7 +91,7 @@
     {
       key: 'calorieen',
       label: 'Caloriedoel behaald',
-      icon: '🔥',
+      icon: 'calorieen',
       weight: 1.5,
       macro: 'calories',
       options: [
@@ -102,7 +102,9 @@
   ];
 
   var DEFAULT_SETTINGS = {
-    eiwitDoel: 150,           // gram per dag
+    eiwitDoel: 150,           // gram per dag, bij eiwitBasis 'vast'
+    eiwitBasis: 'vast',       // 'vast' = het getal hierboven, 'gewicht' = per kilo lichaamsgewicht
+    eiwitPerKg: 1.8,          // gram eiwit per kilo, alleen bij eiwitBasis 'gewicht'
     waterDoel: 3000,          // ml per dag
     calorieDoel: 2200,        // kcal per dag
     calorieRichting: 'max',   // 'max' = onder blijven, 'min' = halen, 'rond' = binnen marge
@@ -124,28 +126,42 @@
   GOALS.forEach(function (g) { DEFAULT_SETTINGS.weights[g.key] = g.weight; });
 
   /* ------------------------------------------------------------------ *
-   * Kleurschaal: 0% donkerrood -> 100% donkergroen
+   * Kleurschaal: 0% rood -> 100% mintgroen
    * ------------------------------------------------------------------ */
+  /* Vlakken: balken, ringen, kalendervlakjes. Fel, want een score die je moet
+     aankijken hoort op te vallen — het oude donkergroen zakte 's avonds weg in
+     een zwart scherm. */
   var COLOR_STOPS = [
-    { p: 0,   c: [122, 12, 18] },   // donkerrood
-    { p: 20,  c: [178, 30, 30] },
-    { p: 40,  c: [214, 96, 20] },
-    { p: 55,  c: [217, 154, 10] },  // amber
-    { p: 70,  c: [154, 168, 20] },
-    { p: 85,  c: [77, 145, 46] },
-    { p: 100, c: [13, 82, 34] }     // donkergroen
+    { p: 0,   c: [255, 59, 48] },   // rood
+    { p: 20,  c: [255, 107, 43] },
+    { p: 40,  c: [255, 159, 10] },
+    { p: 55,  c: [255, 214, 10] },  // goud
+    { p: 70,  c: [168, 230, 43] },
+    { p: 85,  c: [47, 224, 127] },
+    { p: 100, c: [0, 229, 160] }    // mintgroen
+  ];
+
+  /* Diezelfde tinten, maar donker genoeg om als TEKST op een lichte
+     ondergrond te lezen. Fel op zwart werkt; fel op wit niet. */
+  var INK_STOPS = [
+    { p: 0,   c: [207, 42, 32] },
+    { p: 20,  c: [196, 80, 26] },
+    { p: 40,  c: [169, 101, 0] },
+    { p: 55,  c: [132, 106, 0] },
+    { p: 70,  c: [86, 130, 13] },
+    { p: 85,  c: [14, 148, 80] },
+    { p: 100, c: [0, 129, 91] }
   ];
 
   function clamp(v, min, max) { return v < min ? min : (v > max ? max : v); }
 
-  function scoreColor(pct) {
-    if (pct === null || pct === undefined || isNaN(pct)) return '#3a3f4b';
+  function meng(stops, pct) {
     var p = clamp(pct, 0, 100);
-    var a = COLOR_STOPS[0], b = COLOR_STOPS[COLOR_STOPS.length - 1];
-    for (var i = 0; i < COLOR_STOPS.length - 1; i++) {
-      if (p >= COLOR_STOPS[i].p && p <= COLOR_STOPS[i + 1].p) {
-        a = COLOR_STOPS[i];
-        b = COLOR_STOPS[i + 1];
+    var a = stops[0], b = stops[stops.length - 1];
+    for (var i = 0; i < stops.length - 1; i++) {
+      if (p >= stops[i].p && p <= stops[i + 1].p) {
+        a = stops[i];
+        b = stops[i + 1];
         break;
       }
     }
@@ -156,13 +172,45 @@
     return 'rgb(' + rgb.join(',') + ')';
   }
 
+  /** Kleur voor een vlak: balk, ring, kalendervlakje. */
+  function scoreColor(pct) {
+    if (pct === null || pct === undefined || isNaN(pct)) return '#3a4050';
+    return meng(COLOR_STOPS, pct);
+  }
+
+  function lichtThema() {
+    return typeof document !== 'undefined' &&
+      document.documentElement.getAttribute('data-theme') === 'light';
+  }
+
+  /**
+   * Kleur voor een getal of een woord dat op de achtergrond van de pagina
+   * staat. In het donker is dat dezelfde felle kleur; op een lichte
+   * achtergrond de donkere variant, anders lees je je eigen score niet.
+   */
+  function scoreInk(pct) {
+    if (pct === null || pct === undefined || isNaN(pct)) return 'var(--muted)';
+    return lichtThema() ? meng(INK_STOPS, pct) : meng(COLOR_STOPS, pct);
+  }
+
+  /* Dezelfde schaal als verloop, voor de balk onder je dagscore. Hij wordt uit
+     COLOR_STOPS opgebouwd en niet apart opgeschreven, zodat balk en cijfer
+     nooit uit elkaar kunnen lopen. */
+  function scaleGradient() {
+    return 'linear-gradient(90deg,' + COLOR_STOPS.map(function (s) {
+      return 'rgb(' + s.c.join(',') + ') ' + s.p + '%';
+    }).join(',') + ')';
+  }
+
   /* Leesbare tekstkleur op een score-achtergrond */
   function textOn(pct) {
-    if (pct === null || pct === undefined || isNaN(pct)) return '#c9cedb';
+    if (pct === null || pct === undefined || isNaN(pct)) return 'var(--muted)';
     var m = /rgb\((\d+),(\d+),(\d+)\)/.exec(scoreColor(pct));
     if (!m) return '#fff';
     var lum = (0.299 * +m[1] + 0.587 * +m[2] + 0.114 * +m[3]) / 255;
-    return lum > 0.62 ? '#14181f' : '#ffffff';
+    // De hele schaal is fel, dus staat er bijna altijd donkere tekst op. Wit
+    // op mintgroen of goud haalt bij lange na geen leesbaar verschil.
+    return lum > 0.45 ? '#0a0c10' : '#ffffff';
   }
 
   function scoreLabel(pct) {
@@ -180,6 +228,8 @@
   global.GD.GOALS = GOALS;
   global.GD.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
   global.GD.scoreColor = scoreColor;
+  global.GD.scoreInk = scoreInk;
+  global.GD.scaleGradient = scaleGradient;
   global.GD.textOn = textOn;
   global.GD.scoreLabel = scoreLabel;
   global.GD.clamp = clamp;
