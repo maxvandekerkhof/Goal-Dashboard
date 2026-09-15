@@ -293,7 +293,9 @@
       (gm.status === 'uit' || isFuture ? '' :
         '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreInk(gm.pct) + '"') +
         '><span class="meldregel-icoon">' + GD.icon('weegschaal', 16) + '</span>' + esc(gm.tekst) + '</p>') +
-      (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
+      (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel volgen uit deze getallen, en wel naar rato: ' +
+        'kom je op ' + fmt(eiwit.doel * 0.9) + ' van je ' + fmt(eiwit.doel) + ' gram, dan levert dat ' +
+        '90% van de punten op in plaats van niets. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
       // Een doel dat met je gewicht meebeweegt verandert vanzelf, dus het hoort
       // ook zichtbaar te blijven als het veld al is ingevuld.
       (eiwit.afgeleid
@@ -415,6 +417,40 @@
       '</section>';
   }
 
+  /**
+   * Hoe ver je bent met je eiwitten of calorieën, als balk onder het doel.
+   *
+   * Zonder deze regel is "Nee" alles wat je ziet, en dan lijkt 140 gram net zo
+   * veel waard als nul — terwijl het inmiddels 93% van de punten oplevert.
+   */
+  function macroVoet(item) {
+    var m = item.macro;
+    var pct = m.frac * 100;
+    var regel;
+    if (m.soort === 'calories' && m.richting !== 'min') {
+      var over = m.amount - m.doel;
+      regel = fmt(m.amount) + ' kcal · ' + (over > 0
+        ? fmt(over) + ' boven je doel van ' + fmt(m.doel)
+        : fmt(-over) + ' onder je doel van ' + fmt(m.doel));
+    } else {
+      regel = fmt(m.amount) + ' van de ' + fmt(m.doel) + ' ' + m.eenheid;
+    }
+
+    var uitleg = '';
+    if (item.reason === 'nog bezig') {
+      uitleg = m.soort === 'protein'
+        ? 'Telt vandaag nog niet mee — er kan nog eiwit bij.'
+        : 'Telt vandaag nog niet mee — je zit nog binnen je doel.';
+    }
+
+    return '<div class="macro-voort">' +
+      '<div class="macro-regel"><span>' + esc(regel) + '</span>' +
+      '<strong style="color:' + GD.scoreInk(pct) + '">' + Math.round(pct) + '%</strong></div>' +
+      C.bar(pct) +
+      (uitleg ? '<p class="hint hint-tight">' + uitleg + '</p>' : '') +
+      '</div>';
+  }
+
   function goalRow(item, day) {
     var goal = item.goal;
     var s = store.settings();
@@ -430,12 +466,17 @@
     var opts = goal.options.filter(function (o) { return !o.hidden; }).map(function (o) {
       var active = item.value === o.v;
       var isAuto = active && item.auto;
+      // Bij een voedingsdoel is het antwoord niet meer het hele verhaal: "Nee"
+      // bij 140 van de 150 gram is iets anders dan "Nee" bij 30. De knop blijft
+      // daarom neutraal — hij zegt alleen wat er genoteerd staat — en het
+      // oordeel zit in de balk eronder.
+      var segPct = (isAuto && item.macro) ? null
+        : (o.score === null ? null : o.score * 100);
       return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
         ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
         (disabled || vergrendeld ? ' disabled' : '') +
         ' style="' + (active
-          ? '--seg-color:' + GD.scoreColor(o.score === null ? null : o.score * 100) +
-            ';--seg-fg:' + GD.textOn(o.score === null ? null : o.score * 100) + ';'
+          ? '--seg-color:' + GD.scoreColor(segPct) + ';--seg-fg:' + GD.textOn(segPct) + ';'
           : '') + '">' +
         esc(o.label) + (isAuto ? '<span class="auto-dot" title="automatisch bepaald">auto</span>' : '') +
         '</button>';
@@ -452,6 +493,7 @@
     }
 
     var voet = '';
+    if (item.macro && !disabled) voet += macroVoet(item);
     if (vergrendeld) {
       var res = GD.lifts.dagResultaat(day.date);
       voet = '<p class="hint hint-tight">' + (res.vergeleken

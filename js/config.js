@@ -204,7 +204,10 @@
 
   /* Leesbare tekstkleur op een score-achtergrond */
   function textOn(pct) {
-    if (pct === null || pct === undefined || isNaN(pct)) return 'var(--muted)';
+    // Geen score, dus het neutrale grijs van scoreColor(null). Dat vlak is in
+    // beide thema's donker, dus daar hoort wit op — de gedempte tekstkleur
+    // verdween erin zodra de lichte modus aanstond.
+    if (pct === null || pct === undefined || isNaN(pct)) return '#ffffff';
     var m = /rgb\((\d+),(\d+),(\d+)\)/.exec(scoreColor(pct));
     if (!m) return '#fff';
     var lum = (0.299 * +m[1] + 0.587 * +m[2] + 0.114 * +m[3]) / 255;

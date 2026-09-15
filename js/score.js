@@ -35,24 +35,67 @@
     }
     if (!settings.autoMacro || !goal.macro) return { value: null, auto: false };
 
+    var m = macroFractie(goal, entry, settings);
+    if (!m) return { value: null, auto: false };
+    return { value: m.frac >= 1 ? 'ja' : 'nee', auto: true, macro: m };
+  }
+
+  /* Speling bij calorieën: hoe ver naast je doel je mag zitten voor er niets
+     meer van dat doel overblijft. Een deel van je doel en geen vast getal,
+     want 300 kcal naast 2000 weegt anders dan 300 naast 3500. */
+  function calorieSpeling(doel) {
+    return Math.max(200, Math.abs(doel) * 0.2);
+  }
+
+  /**
+   * Hoe dicht zat je bij je eiwit- of caloriedoel, op een schaal van 0 tot 1?
+   * -> { frac, amount, doel, open } of null als er niets gemeten is
+   *
+   * Een voedingsdoel is zelden zwart-wit: 140 van je 150 gram is geen nul.
+   * Daarom telt hier hoe ver je kwam, net als bij de waterteller, en niet
+   * alleen of je over de streep ging.
+   *
+   * `open` zegt of het vandaag nog goed kan komen. Eiwit kan er altijd nog bij.
+   * Calorieën gaan de hele dag maar één kant op: zolang je onder je maximum
+   * zit staat dat doel nog open, en zodra je eroverheen bent ligt het vast.
+   */
+  function macroFractie(goal, entry, settings) {
     if (goal.macro === 'protein') {
       var g = num(entry.eiwitGram);
-      if (g === null) return { value: null, auto: false };
+      if (g === null) return null;
       // Het doel van díé dag: staat het op gewicht, dan lag de lat vorig jaar
       // lager dan vandaag en hoort de score van toen daar ook op te rusten.
-      return { value: g >= eiwitDoel(entry.date, settings).doel ? 'ja' : 'nee', auto: true };
+      var pdoel = eiwitDoel(entry.date, settings).doel;
+      var pfrac = pdoel > 0 ? GD.clamp(g / pdoel, 0, 1) : (g > 0 ? 1 : 0);
+      return {
+        soort: 'protein', frac: pfrac, amount: g, doel: pdoel,
+        eenheid: 'g', open: pfrac < 1
+      };
     }
     if (goal.macro === 'calories') {
       var kcal = num(entry.kcal);
-      if (kcal === null) return { value: null, auto: false };
+      if (kcal === null) return null;
       var doel = num(settings.calorieDoel, 0);
-      var ok;
-      if (settings.calorieRichting === 'min') ok = kcal >= doel;
-      else if (settings.calorieRichting === 'rond') ok = Math.abs(kcal - doel) <= num(settings.calorieMarge, 0);
-      else ok = kcal <= doel;
-      return { value: ok ? 'ja' : 'nee', auto: true };
+      var richting = settings.calorieRichting || 'max';
+      var speling = calorieSpeling(doel);
+      var marge = num(settings.calorieMarge, 0);
+      var frac, open;
+      if (richting === 'min') {
+        frac = doel > 0 ? GD.clamp(kcal / doel, 0, 1) : (kcal > 0 ? 1 : 0);
+        open = frac < 1;
+      } else if (richting === 'rond') {
+        frac = GD.clamp(1 - Math.max(0, Math.abs(kcal - doel) - marge) / speling, 0, 1);
+        open = kcal <= doel + marge;
+      } else {
+        frac = GD.clamp(1 - Math.max(0, kcal - doel) / speling, 0, 1);
+        open = kcal <= doel;
+      }
+      return {
+        soort: 'calories', frac: frac, amount: kcal, doel: doel, eenheid: 'kcal',
+        richting: richting, marge: marge, speling: speling, open: open
+      };
     }
-    return { value: null, auto: false };
+    return null;
   }
 
   function num(v, fallback) {
@@ -155,7 +198,11 @@
         weight: w,
         score: null,
         included: false,
-        reason: ''
+        reason: '',
+        // Alleen gevuld bij een eiwit- of caloriedoel dat uit je eigen cijfers
+        // volgt; een doel dat je zelf aanklikte blijft gewoon ja of nee.
+        macro: res.macro || null,
+        frac: res.macro ? res.macro.frac : null
       };
 
       if (w === 0) {
@@ -171,6 +218,16 @@
           item.score = 0;
           item.included = true;
           item.reason = 'niet ingevuld';
+        }
+      } else if (res.macro) {
+        // Glijdende schaal in plaats van ja of nee. Zolang het vandaag nog
+        // goed kan komen telt het net zo min mee als een halfvolle waterfles:
+        // anders schrijft de app je avondeten om vier uur 's middags al af.
+        if (live && res.macro.open) {
+          item.reason = 'nog bezig';
+        } else {
+          item.score = res.macro.frac;
+          item.included = true;
         }
       } else if (opt.score === null) {
         item.reason = opt.reason || 'rustdag';
@@ -216,8 +273,11 @@
       var w = it.weight;
       if (!w) return; // gewicht op 0: dit doel telt niet mee
 
-      if (it.goal.type === 'meter') {
-        var frac = it.frac === null || it.frac === undefined ? 0 : it.frac;
+      // Tellers en de voedingsdoelen gaan hier dezelfde kant op: wat je al
+      // binnen hebt telt, en de rest staat nog open zolang de dag loopt.
+      var heeftFrac = it.frac !== null && it.frac !== undefined;
+      if (it.goal.type === 'meter' || heeftFrac) {
+        var frac = heeftFrac ? it.frac : 0;
         binnen += frac * w;
         if (it.reason === 'nog niet ingevuld' || it.reason === 'nog bezig') {
           open += (1 - frac) * w;
@@ -709,6 +769,7 @@
     scorePeriod: scorePeriod,
     dagOverzicht: dagOverzicht,
     resolveValue: resolveValue,
+    macroFractie: macroFractie,
     weightOf: weightOf,
     baseMax: baseMax,
     gewichtStatus: gewichtStatus,
