@@ -14,38 +14,58 @@
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Dagelijks, wekelijks en maandelijks overzicht van je sport- en voedingsdoelen, met een gekleurd percentage van donkerrood naar donkergroen.">
-  <meta name="theme-color" content="#11141a">
+  <meta name="theme-color" content="#0c0e11">
   <title>Goal Dashboard — sport &amp; voeding</title>
   <style>
-/* Goal Dashboard - stijl */
+/* Goal Dashboard - stijl "Staal"
+ *
+ * Een trainingslogboek: smalle blokletters voor de kopjes, cijfers in een
+ * tabellarische letter zodat kolommen recht onder elkaar staan, haarlijnen in
+ * plaats van kaartranden met schaduw, en nergens ronde hoeken. De enige kleur
+ * in de app is je score — rood naar groen. Al het andere is grafiet en krijt,
+ * zodat een gekleurd cijfer altijd iets betekent.
+ *
+ * Er wordt niets van buiten geladen (zie de Content-Security-Policy in
+ * index.html en de standalone-versie), dus geen webfonts: de smalle letter
+ * komt uit wat het apparaat zelf heeft, en waar die ontbreekt doen hoofdletters
+ * met ruime letterafstand het werk.
+ */
 
 :root {
-  --bg: #0e1117;
-  --bg-elev: #161b24;
-  --card: #171d27;
-  --card-2: #1d2531;
-  --border: #262f3d;
-  --text: #e7ecf5;
-  --muted: #8e9bb0;
-  --accent: #4c8dff;
-  --track: #232c3a;
+  --bg: #0c0e11;
+  --bg-elev: #12161a;
+  --card: #12161a;
+  --card-2: #12161a;
+  --border: #242931;
+  --line: #1b2026;
+  --text: #e8ebef;
+  --muted: #878f9b;
+  --faint: #6e7684;
+  --accent: #e8ebef;
+  --on-accent: #0c0e11;
+  --track: #1b2026;
   --danger: #b3261e;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .25);
-  --radius: 14px;
+  --radius: 0px;
   --maxw: 940px;
+
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-cond: "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 html[data-theme="light"] {
-  --bg: #f3f5f9;
+  --bg: #f4f5f6;
   --bg-elev: #ffffff;
   --card: #ffffff;
-  --card-2: #f1f4f9;
-  --border: #dde3ec;
-  --text: #16202e;
-  --muted: #63708a;
-  --accent: #2563eb;
-  --track: #e3e8f0;
-  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .08);
+  --card-2: #ffffff;
+  --border: #d5d8dd;
+  --line: #e4e6ea;
+  --text: #14171b;
+  --muted: #5e6773;
+  --faint: #838b96;
+  --accent: #14171b;
+  --on-accent: #ffffff;
+  --track: #e0e3e8;
 }
 
 * { box-sizing: border-box; }
@@ -56,16 +76,36 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
 }
 
-h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
-h1 { font-size: 1.15rem; }
-h2 { font-size: .95rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+/* Kopjes zijn etiketten, geen titels: klein, smal en in hoofdletters. */
+h1, h2, h3 { margin: 0; font-family: var(--font-cond); font-weight: 600; }
+h1 { font-size: 1rem; letter-spacing: .2em; text-transform: uppercase; }
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .78rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 p { margin: 0; }
+
+/* Getallen krijgen een tabellarische letter, zodat ze onder elkaar uitlijnen
+   en niet verspringen terwijl je invult. */
+.stat-value, .rv-waarde, .meter-amount, .meter-pct, .trend-delta, .bd-pct,
+.daybar-val, .cal-day, .cal-pct, .schema-tel, .weight-val, .rail-scale,
+input[type="number"], .sql {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.ico { display: block; flex: none; }
 
 /* ------------------------------- topbar ------------------------------- */
 
@@ -73,8 +113,7 @@ p { margin: 0; }
   position: sticky;
   top: 0;
   z-index: 20;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: blur(12px);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   padding-top: env(safe-area-inset-top);
 }
@@ -96,12 +135,11 @@ p { margin: 0; }
   justify-content: space-between;
   gap: 12px;
   padding-top: 12px;
-  padding-bottom: 4px;
+  padding-bottom: 8px;
 }
 
 .topbar-actions { display: flex; align-items: center; gap: 6px; }
 
-#btn-sync { font-size: 1.15rem; }
 #btn-sync:disabled { cursor: progress; opacity: .8; }
 .btn-sync-bezig { animation: draai 1s linear infinite; }
 
@@ -115,184 +153,304 @@ p { margin: 0; }
 }
 
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand-mark { font-size: 1.5rem; }
-.brand-sub { font-size: .78rem; color: var(--muted); }
+.brand-mark { display: flex; color: var(--text); }
+.brand-mark svg { width: 22px; height: 22px; display: block; }
+.brand-sub {
+  font-size: .64rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-top: 1px;
+}
 
-.tabs { display: flex; gap: 4px; padding-top: 8px; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; padding-top: 0; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 
 .tab {
-  flex: 0 0 auto;
+  flex: 1 0 auto;
   appearance: none;
   background: none;
   border: 0;
   border-bottom: 2px solid transparent;
-  color: var(--muted);
-  font: inherit;
-  font-weight: 550;
-  padding: 8px 12px 10px;
+  color: var(--faint);
+  font-family: var(--font-cond);
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  padding: 10px 14px 8px;
   cursor: pointer;
   white-space: nowrap;
 }
 .tab:hover { color: var(--text); }
-.tab-active { color: var(--text); border-bottom-color: var(--accent); }
+.tab-active { color: var(--text); border-bottom-color: var(--text); }
 
 .period-nav {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 8px;
+  padding-bottom: 8px;
   border-top: 1px solid var(--border);
-  margin-top: -1px;
 }
-.period-label { flex: 1; font-weight: 600; font-size: .95rem; text-align: center; }
+.period-label {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-cond);
+  font-weight: 600;
+  font-size: .95rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
 
 /* -------------------------------- knoppen ----------------------------- */
 
 .btn {
   appearance: none;
-  font: inherit;
-  font-weight: 550;
+  font-family: var(--font-cond);
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
   color: var(--text);
-  background: var(--card-2);
+  background: transparent;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 9px 14px;
+  border-radius: 0;
+  padding: 10px 14px;
   cursor: pointer;
-  transition: background .15s, border-color .15s, transform .05s;
+  transition: border-color .15s, background .15s;
 }
-.btn:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
-.btn:active { transform: translateY(1px); }
-.btn-sm { padding: 6px 10px; font-size: .85rem; }
-.btn-icon { padding: 6px 12px; font-size: 1.1rem; line-height: 1.2; }
-.btn-ghost { background: transparent; }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn-danger { background: transparent; color: #ef6a63; border-color: color-mix(in srgb, var(--danger) 50%, var(--border)); }
-.btn-danger:hover { background: color-mix(in srgb, var(--danger) 18%, transparent); }
+.btn:hover { border-color: var(--muted); }
+.btn:active { background: var(--line); }
+.btn-sm { padding: 6px 10px; font-size: .72rem; }
+.btn-icon {
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+.btn-ghost { border-color: transparent; color: var(--muted); }
+.btn-ghost:hover { border-color: var(--border); color: var(--text); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn-primary:hover { opacity: .88; }
+.btn-danger { color: #e0684f; border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.btn-danger:hover { background: color-mix(in srgb, var(--danger) 16%, transparent); border-color: #e0684f; }
 .btn[hidden] { display: none; }
 
 /* -------------------------------- layout ------------------------------ */
 
+/* Geen zwevende kaarten maar doorlopende stroken, gescheiden door één lijn:
+   dat leest als een logboek in plaats van als losse tegels. */
 .view {
-  padding-top: 16px;
+  padding-top: 0;
   padding-bottom: 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 
 .card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-  box-shadow: var(--shadow);
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  padding: 18px 0 20px;
+  box-shadow: none;
 }
+.view > .card:first-child { border-top: 0; padding-top: 14px; }
 
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .card-head h2 { margin: 0; }
 .card > h2 { margin-bottom: 12px; }
 .card-foot { margin-top: 12px; display: flex; justify-content: flex-end; }
 
-.hint { color: var(--muted); font-size: .84rem; margin-top: 10px; }
-.empty { color: var(--muted); font-size: .9rem; padding: 12px 0; }
+.hint { color: var(--faint); font-size: .8rem; margin-top: 10px; }
+.empty { color: var(--faint); font-size: .88rem; padding: 12px 0; }
 
-.footer { padding-bottom: calc(24px + env(safe-area-inset-bottom)); color: var(--muted); font-size: .8rem; }
+.footer {
+  padding-top: 16px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  color: var(--faint);
+  font-size: .76rem;
+}
 
 /* --------------------------------- hero ------------------------------- */
 
-.hero { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
-.hero-ring { flex: 0 0 auto; }
-.hero-info { flex: 1 1 240px; min-width: 220px; }
-.hero-label { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; }
-.hero-sub { color: var(--muted); font-size: .92rem; margin-top: 4px; }
+.hero { display: flex; flex-direction: column; }
+.hero-score { display: flex; align-items: flex-end; gap: 14px; }
+.score-num {
+  font-family: var(--font-cond);
+  font-weight: 700;
+  font-size: 5rem;
+  line-height: .78;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.score-pct { font-size: 1.5rem; font-weight: 600; color: var(--muted); }
+.score-leeg { color: var(--faint); }
+.hero-label {
+  font-family: var(--font-cond);
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  padding-bottom: 6px;
+}
+.hero-info { margin-top: 12px; }
+.hero-sub { color: var(--muted); font-size: .88rem; }
+.hero-sub strong { color: var(--text); font-weight: 600; }
 .hero-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+/* De schaal onder je score: rood links, groen rechts, jij ergens daartussen. */
+.rail { margin-top: 18px; }
+.rail-track { position: relative; height: 8px; width: 100%; }
+.rail-mark {
+  position: absolute;
+  top: -5px;
+  width: 2px;
+  height: 18px;
+  margin-left: -1px;
+  background: var(--text);
+}
+/* Wat er vandaag nog te halen valt: zichtbaar, maar duidelijk nog niet van jou. */
+.rail-tot {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  background: var(--text);
+  opacity: .4;
+}
+.rail-drempel {
+  position: absolute;
+  top: -1px;
+  width: 1px;
+  height: 10px;
+  background: var(--bg);
+  opacity: .75;
+}
+.rail-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: .64rem;
+  letter-spacing: .1em;
+  color: var(--faint);
+}
 
 .trend { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .trend-ring { flex: 0 0 auto; }
 .trend-info { flex: 1 1 220px; min-width: 200px; }
-.trend-delta { font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+.trend-delta { font-size: 1.8rem; font-weight: 600; line-height: 1.1; }
 
 .ring { display: block; }
-.ring-pct { font-weight: 700; letter-spacing: -.03em; }
+.ring-pct { font-family: var(--font-cond); font-weight: 700; letter-spacing: -.01em; }
 .ring-pct-sign { font-size: .5em; }
-/* Wat er vandaag nog te halen valt: zichtbaar, maar duidelijk nog niet van jou. */
 .ring-open { opacity: .3; }
-
-.legend { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); font-size: .72rem; }
-.legend-bar { flex: 1; height: 8px; border-radius: 999px; }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: var(--card-2);
+  gap: 5px;
+  background: transparent;
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 2px 9px;
-  font-size: .75rem;
+  border-radius: 0;
+  padding: 4px 8px;
+  font-size: .66rem;
   font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
   color: var(--muted);
   white-space: nowrap;
 }
-.chip-off { opacity: .7; }
+.chip-off { color: var(--faint); border-style: dashed; }
 
 /* -------------------------------- stats ------------------------------- */
 
+/* Eén raster van haarlijnen in plaats van losse tegels met randen. Elke tegel
+   tekent zijn eigen rechter- en onderlijn; een lege plek in de laatste rij
+   blijft daardoor ook echt leeg. */
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  gap: 0;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
 .stat {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
   padding: 12px 14px;
 }
-.stat-label { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
-.stat-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; margin-top: 2px; }
-.stat-value .unit { font-size: .8rem; font-weight: 600; color: var(--muted); margin-left: 3px; }
-.stat-sub { color: var(--muted); font-size: .78rem; }
+.stat-label {
+  color: var(--faint);
+  font-size: .62rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+.stat-value { font-size: 1.35rem; font-weight: 500; margin-top: 6px; }
+.stat-value .unit { font-family: var(--font-body); font-size: .7rem; font-weight: 600; color: var(--faint); margin-left: 3px; }
+.stat-sub { color: var(--faint); font-size: .72rem; margin-top: 3px; }
 
 /* ---------------------------- meetwaarden ----------------------------- */
 
 .measure-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .measure { display: flex; flex-direction: column; gap: 6px; }
-.measure-label { font-size: .82rem; color: var(--muted); font-weight: 600; }
+.measure-label {
+  font-family: var(--font-cond);
+  font-size: .76rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .measure-input { position: relative; display: flex; align-items: center; }
 .measure-unit {
-  position: absolute; right: 12px; color: var(--muted); font-size: .82rem; pointer-events: none;
+  position: absolute; right: 12px; color: var(--faint); font-size: .78rem; pointer-events: none;
 }
 
 input[type="number"], input[type="text"], input[type="email"], input[type="url"],
 input[type="password"], select, textarea {
   width: 100%;
   font: inherit;
+  font-size: .95rem;
   color: var(--text);
   background: var(--card-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 10px 12px;
   outline: none;
 }
-/* Herkomst van een meetwaarde: automatisch of zelf ingetikt. */
+select { font-family: var(--font-body); }
+
 .bron {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: .72rem;
+  font-size: .68rem;
   font-weight: 600;
-  color: var(--muted);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--faint);
 }
-.bron-auto { color: color-mix(in srgb, var(--accent) 75%, var(--text)); }
+.bron-auto { color: var(--muted); }
 .btn-mini {
   appearance: none;
   font: inherit;
-  font-size: .72rem;
-  font-weight: 650;
-  color: var(--accent);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text);
   background: none;
   border: 0;
   border-bottom: 1px solid currentColor;
@@ -301,137 +459,169 @@ input[type="password"], select, textarea {
 }
 
 .stappen > li { margin-bottom: 4px; }
-.stap-regels { color: var(--muted); font-size: .82rem; margin-top: 2px; }
-.stap-regels code { background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: .92em; word-break: break-all; }
+.stap-regels { color: var(--muted); font-size: .8rem; margin-top: 2px; }
+.stap-regels code { background: var(--line); padding: 1px 5px; font-size: .92em; word-break: break-all; }
 
 .meldregel {
   display: flex;
-  align-items: baseline;
-  gap: 7px;
-  margin-top: 12px;
-  font-size: .85rem;
-  font-weight: 550;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  font-size: .84rem;
   color: var(--muted);
 }
-.meldregel-icoon { flex: none; }
+.meldregel-icoon { flex: none; display: flex; margin-top: 1px; }
 
 input[type="number"] { padding-right: 46px; }
-input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+input:focus, select:focus, textarea:focus { border-color: var(--text); }
 textarea { resize: vertical; padding-right: 12px; }
 
 /* -------------------------------- doelen ------------------------------ */
 
-.goals { display: flex; flex-direction: column; gap: 14px; }
+.goals { display: flex; flex-direction: column; }
+.goal { padding: 13px 0; border-top: 1px solid var(--line); }
+.goal:first-child { border-top: 0; padding-top: 0; }
 .goal-dim { opacity: .55; }
 .goal-off { opacity: .4; }
-.goal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
-.goal-name { font-weight: 600; font-size: .95rem; display: flex; align-items: center; gap: 8px; }
-.goal-icon { font-size: 1.05rem; }
+.goal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+.goal-name { font-weight: 550; font-size: .92rem; display: flex; align-items: center; gap: 9px; }
+.goal-icon { display: flex; color: var(--faint); }
 
-.segmented { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Eén aaneengesloten balk in plaats van losse knoppen: dat leest als één
+   keuze, en hij past ook op een smal scherm. */
+.segmented { display: flex; }
 .seg {
   flex: 1 1 0;
-  min-width: 92px;
+  min-width: 0;
   appearance: none;
   font: inherit;
-  font-size: .88rem;
+  font-size: .82rem;
   font-weight: 550;
   color: var(--muted);
-  background: var(--card-2);
+  background: transparent;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 8px;
+  border-left-width: 0;
+  border-radius: 0;
+  padding: 10px 6px;
   cursor: pointer;
   position: relative;
-  transition: background .15s, color .15s, border-color .15s;
+  transition: background .15s, color .15s;
 }
-.seg:hover:not(:disabled) { color: var(--text); }
+.seg:first-child { border-left-width: 1px; }
+.seg:hover:not(:disabled) { color: var(--text); background: var(--line); }
 .seg:disabled { cursor: not-allowed; }
 .seg-active {
   background: var(--seg-color, var(--accent));
   border-color: var(--seg-color, var(--accent));
-  color: #fff;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--seg-color, var(--accent)) 40%, transparent);
+  color: var(--seg-fg, #fff);
+  font-weight: 650;
 }
+/* Het schema van vandaag is geen score, dus geen kleur uit de schaal: krijt. */
+.seg-chalk.seg-active { background: var(--text); border-color: var(--text); color: var(--bg); }
 .auto-dot {
   display: block;
-  font-size: .62rem;
+  font-size: .58rem;
   text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: .1em;
   opacity: .85;
 }
 
 /* -------------------------------- teller ------------------------------ */
 
-.meter-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-.meter-amount { font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em; }
-.meter-goal { color: var(--muted); font-size: .88rem; flex: 1; }
-.meter-pct { font-size: 1.1rem; font-weight: 700; }
+.meter-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.meter-amount { font-size: 1.9rem; font-weight: 500; }
+.meter-goal { font-family: var(--font-body); color: var(--faint); font-size: .84rem; flex: 1; }
+.meter-pct { font-size: 1rem; font-weight: 600; }
 
-.meter-buttons { display: flex; gap: 8px; margin-top: 14px; }
+.meter-buttons { display: flex; gap: 6px; margin-top: 14px; }
 .btn-add {
   flex: 1;
-  padding: 16px 8px;
-  font-size: 1rem;
-  font-weight: 650;
-  background: color-mix(in srgb, var(--accent) 16%, var(--card-2));
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  padding: 15px 6px;
+  font-size: .84rem;
 }
-.btn-add:hover { background: color-mix(in srgb, var(--accent) 28%, var(--card-2)); }
+.btn-add:hover { background: var(--line); border-color: var(--muted); }
 
 .meter-tweak { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
 .meter-manual { position: relative; display: flex; align-items: center; width: 110px; }
 .meter-manual input { padding: 6px 34px 6px 10px; font-size: .85rem; }
-.meter-manual .measure-unit { right: 10px; font-size: .75rem; }
+.meter-manual .measure-unit { right: 10px; font-size: .72rem; }
 
 /* ------------------------------ breakdown ----------------------------- */
 
-.breakdown { display: flex; flex-direction: column; gap: 10px; }
+.breakdown { display: flex; flex-direction: column; }
 .bd-row {
   display: grid;
   grid-template-columns: minmax(150px, 1.3fr) minmax(80px, 2fr) 48px;
   grid-template-areas: "name bar pct" "counts counts counts";
   align-items: center;
-  gap: 6px 10px;
+  gap: 5px 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
 }
-.bd-name { grid-area: name; display: flex; align-items: center; gap: 7px; font-size: .9rem; font-weight: 550; }
+.bd-row:first-child { border-top: 0; padding-top: 0; }
+.bd-name { grid-area: name; display: flex; align-items: center; gap: 8px; font-size: .88rem; font-weight: 500; }
 .bd-bar { grid-area: bar; }
-.bd-pct { grid-area: pct; text-align: right; font-weight: 700; font-size: .9rem; }
-.bd-counts { grid-area: counts; color: var(--muted); font-size: .75rem; }
+.bd-pct { grid-area: pct; text-align: right; font-weight: 500; font-size: .85rem; }
+.bd-counts { grid-area: counts; color: var(--faint); font-size: .72rem; }
 .bd-off { opacity: .45; }
-.bd-icon { font-size: 1rem; }
+.bd-icon { display: flex; color: var(--faint); }
 
 /* ---------------------------- weekafsluiting -------------------------- */
 
 .rv-cijfers {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
-  gap: 10px;
-  padding-bottom: 14px;
+  gap: 0;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.rv-cijfer {
+  border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+  padding: 11px 10px;
 }
-.rv-waarde { font-size: 1.4rem; font-weight: 700; letter-spacing: -.02em; }
-.rv-waarde .unit { font-size: .78rem; font-weight: 600; color: var(--muted); margin-left: 1px; }
-.rv-label { color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; }
+.rv-waarde { font-size: 1.3rem; font-weight: 500; }
+.rv-waarde .unit { font-family: var(--font-body); font-size: .72rem; font-weight: 600; color: var(--faint); margin-left: 1px; }
+.rv-label {
+  color: var(--faint);
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  margin-top: 5px;
+}
 
-.rv-blokken { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.rv-blokken { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .rv-blok {
-  background: var(--card-2);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--rv-kleur, var(--border));
-  border-radius: 10px;
-  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  border-left: 2px solid var(--rv-kleur, var(--border));
+  border-radius: 0;
+  padding: 2px 0 2px 12px;
 }
-.rv-kop { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: .92rem; }
-.rv-icoon { font-size: 1rem; }
-.rv-tekst { color: var(--muted); font-size: .86rem; margin-top: 4px; }
+.rv-kop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-cond);
+  font-weight: 600;
+  font-size: .88rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--rv-kleur, var(--text));
+}
+.rv-icoon { display: flex; }
+.rv-tekst { color: var(--muted); font-size: .85rem; margin-top: 5px; }
 
 .rv-goed { --rv-kleur: #4d912e; }
 .rv-let-op { --rv-kleur: #d99a0a; }
 .rv-slecht { --rv-kleur: #b21e1e; }
+.rv-neutraal { --rv-kleur: var(--muted); }
 
-.bar { height: 10px; background: var(--track); border-radius: 999px; overflow: hidden; }
-.bar-fill { display: block; height: 100%; border-radius: 999px; transition: width .3s ease; }
+.bar { height: 6px; background: var(--track); border-radius: 0; overflow: hidden; }
+.bar-fill { display: block; height: 100%; transition: width .3s ease; }
 
 /* ------------------------------- daybars ------------------------------ */
 
@@ -445,30 +635,30 @@ textarea { resize: vertical; padding-right: 12px; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 .daybar-track {
   width: 100%;
   height: 110px;
   background: var(--track);
-  border-radius: 8px;
+  border-radius: 0;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
 }
-.daybar-fill { width: 100%; border-radius: 8px 8px 0 0; transition: height .3s ease; }
-.daybar-label { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
-.daybar-val { font-size: .82rem; font-weight: 700; }
-.daybar:hover .daybar-track { outline: 2px solid var(--accent); outline-offset: 1px; }
+.daybar-fill { width: 100%; transition: height .3s ease; }
+.daybar-label { color: var(--faint); font-size: .64rem; text-transform: uppercase; letter-spacing: .1em; }
+.daybar-val { font-size: .76rem; font-weight: 500; }
+.daybar:hover .daybar-track { outline: 1px solid var(--text); outline-offset: 1px; }
 
 /* ------------------------------ kalender ------------------------------ */
 
-.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-.cal-head { text-align: center; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; padding-bottom: 4px; }
+.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cal-head { text-align: center; color: var(--faint); font-size: .6rem; text-transform: uppercase; letter-spacing: .12em; padding-bottom: 6px; }
 .cal-cell {
   appearance: none;
-  border: 1px solid var(--border);
-  border-radius: 9px;
+  border: 1px solid var(--line);
+  border-radius: 0;
   aspect-ratio: 1 / 1;
   display: flex;
   flex-direction: column;
@@ -480,37 +670,36 @@ textarea { resize: vertical; padding-right: 12px; }
   padding: 2px;
   min-height: 42px;
 }
-.cal-cell:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cal-cell:hover { outline: 1px solid var(--text); outline-offset: 1px; }
 .cal-empty { border: 0; cursor: default; pointer-events: none; }
-.cal-day { font-size: .82rem; font-weight: 650; }
-.cal-pct { font-size: .62rem; opacity: .85; font-weight: 600; }
-.cal-today { box-shadow: 0 0 0 2px var(--accent); }
+.cal-day { font-size: .78rem; font-weight: 500; }
+.cal-pct { font-size: .6rem; opacity: .85; }
+.cal-today { outline: 2px solid var(--text); outline-offset: -2px; }
 .cal-future { opacity: .35; }
 .cal-missing { border-style: dashed; }
 
 /* ------------------------------ grafieken ----------------------------- */
 
 .weight-chart { width: 100%; height: auto; aspect-ratio: 640 / 200; display: block; }
-.wc-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.wc-area { fill: color-mix(in srgb, var(--accent) 16%, transparent); stroke: none; }
-.wc-dot { fill: var(--accent); stroke: var(--card); stroke-width: 1.5; }
-.wc-grid { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.wc-axis { fill: var(--muted); font-size: 11px; }
-.wc-goal { stroke: #d9a30a; stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
-.wc-goal-label { fill: #d9a30a; font-size: 11px; }
+.wc-line { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.wc-area { fill: color-mix(in srgb, var(--text) 8%, transparent); stroke: none; }
+.wc-dot { fill: var(--bg); stroke: var(--text); stroke-width: 1.6; }
+.wc-grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.wc-axis { fill: var(--faint); font-family: var(--font-mono); font-size: 10px; }
+.wc-goal { stroke: #d99a0a; stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.wc-goal-label { fill: #d99a0a; font-family: var(--font-mono); font-size: 10px; }
 
 .lijn-grafiek { width: 100%; height: auto; aspect-ratio: 640 / 200; display: block; }
-.lc-line { fill: none; stroke: var(--lc-kleur, var(--accent)); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.lc-dot { fill: var(--lc-kleur, var(--accent)); stroke: var(--card-2); stroke-width: 1.5; }
-.lc-pr { stroke: var(--text); stroke-width: 2; }
-.lc-serie-1 { --lc-kleur: #d9a30a; }
-.lc-legenda { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: .75rem; margin-top: 4px; }
+.lc-line { fill: none; stroke: var(--lc-kleur, var(--text)); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.lc-dot { fill: var(--bg); stroke: var(--lc-kleur, var(--text)); stroke-width: 1.6; }
+.lc-pr { fill: var(--lc-kleur, var(--text)); stroke-width: 2; }
+.lc-serie-1 { --lc-kleur: #d99a0a; }
+.lc-legenda { display: flex; flex-wrap: wrap; gap: 12px; color: var(--faint); font-size: .72rem; margin-top: 4px; }
 .lc-merk {
   display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 3px;
-  background: var(--lc-kleur, var(--accent));
+  background: var(--lc-kleur, var(--text));
   margin-right: 5px;
   vertical-align: -1px;
 }
@@ -519,45 +708,60 @@ textarea { resize: vertical; padding-right: 12px; }
 
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
-.field-label { font-size: .82rem; color: var(--muted); font-weight: 600; }
+.field-label {
+  font-family: var(--font-cond);
+  font-size: .76rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .field-input { position: relative; display: flex; align-items: center; }
-.field-unit { position: absolute; right: 12px; color: var(--muted); font-size: .78rem; pointer-events: none; }
-.field-hint { color: var(--muted); font-size: .75rem; }
+.field-unit { position: absolute; right: 12px; color: var(--faint); font-size: .76rem; pointer-events: none; }
+.field-hint { color: var(--faint); font-size: .72rem; }
 
-.switch { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; cursor: pointer; }
-.switch input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: 0 0 auto; }
-.switch-label { display: block; font-weight: 550; font-size: .92rem; }
-.switch-hint { display: block; color: var(--muted); font-size: .8rem; }
+.switch { display: flex; gap: 11px; align-items: flex-start; margin-top: 14px; cursor: pointer; }
+.switch input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--text); flex: 0 0 auto; }
+.switch-label { display: block; font-weight: 550; font-size: .9rem; }
+.switch-hint { display: block; color: var(--faint); font-size: .78rem; }
 
-.weights { display: flex; flex-direction: column; gap: 10px; }
-.weight-row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(100px, 1.2fr) 46px; align-items: center; gap: 10px; }
-.weight-name { display: flex; align-items: center; gap: 7px; font-size: .9rem; font-weight: 550; }
-.weight-val { text-align: right; color: var(--muted); font-size: .85rem; font-weight: 650; }
-input[type="range"] { width: 100%; accent-color: var(--accent); }
+.weights { display: flex; flex-direction: column; }
+.weight-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(100px, 1.2fr) 46px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.weight-row:first-child { border-top: 0; }
+.weight-name { display: flex; align-items: center; gap: 8px; font-size: .88rem; font-weight: 500; }
+.weight-val { text-align: right; color: var(--muted); font-size: .8rem; }
+input[type="range"] { width: 100%; accent-color: var(--text); }
 
 .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
 
-.alert { border-radius: 10px; padding: 12px; font-size: .87rem; margin-top: 12px; }
-.alert-bad { background: color-mix(in srgb, var(--danger) 16%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); }
+.alert { border-radius: 0; padding: 12px; font-size: .85rem; margin-top: 12px; }
+.alert-bad { background: color-mix(in srgb, var(--danger) 14%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); }
 
-.scheiding { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
-.sync-status { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
-.uitleg { margin-top: 14px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
-.uitleg summary { cursor: pointer; font-weight: 600; font-size: .9rem; }
+.scheiding { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+.sync-status { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.uitleg { margin-top: 14px; border: 1px solid var(--border); border-radius: 0; padding: 10px 12px; }
+.uitleg summary { cursor: pointer; font-weight: 600; font-size: .88rem; }
 .uitleg[open] summary { margin-bottom: 10px; }
-.uitleg code { background: var(--card-2); padding: 1px 5px; border-radius: 5px; font-size: .85em; }
+.uitleg code { background: var(--line); padding: 1px 5px; font-size: .85em; }
 .sql {
-  background: var(--card-2);
+  background: var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px;
   overflow-x: auto;
-  font-size: .72rem;
+  font-size: .7rem;
   line-height: 1.45;
   margin: 12px 0 0;
 }
 
-.explain { margin: 0; padding-left: 20px; color: var(--muted); font-size: .88rem; display: flex; flex-direction: column; gap: 7px; }
+.explain { margin: 0; padding-left: 18px; color: var(--muted); font-size: .85rem; display: flex; flex-direction: column; gap: 8px; }
 ol.explain { list-style: decimal; }
 .explain em { color: var(--text); font-style: normal; font-weight: 600; }
 
@@ -569,13 +773,12 @@ ol.explain { list-style: decimal; }
   bottom: calc(20px + env(safe-area-inset-bottom));
   transform: translate(-50%, 20px);
   background: var(--bg-elev);
-  border: 1px solid var(--border);
+  border: 1px solid var(--text);
   color: var(--text);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 10px 16px;
-  font-size: .88rem;
+  font-size: .85rem;
   font-weight: 550;
-  box-shadow: var(--shadow);
   opacity: 0;
   pointer-events: none;
   transition: opacity .2s, transform .2s;
@@ -583,7 +786,7 @@ ol.explain { list-style: decimal; }
   max-width: calc(100vw - 32px);
 }
 .toast-show { opacity: 1; transform: translate(-50%, 0); }
-.toast-bad { border-color: color-mix(in srgb, var(--danger) 60%, var(--border)); }
+.toast-bad { border-color: #e0684f; }
 
 /* ------------------------------- oefeningen --------------------------- */
 
@@ -591,57 +794,68 @@ ol.explain { list-style: decimal; }
 .hint-tight { margin-top: 8px; }
 .schema-keuze { margin-bottom: 14px; }
 
-.lifts { display: flex; flex-direction: column; gap: 12px; }
+.lifts { display: flex; flex-direction: column; }
 
 .lift {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--card-2);
-  padding: 10px 12px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  padding: 13px 0;
 }
+.lift:first-child { border-top: 0; padding-top: 0; }
 .lift-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.lift-name { font-weight: 600; font-size: .95rem; }
+.lift-name {
+  font-family: var(--font-cond);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
 
-.lift-side { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
-.lift-side + .lift-side { border-top: 1px dashed var(--border); padding-top: 8px; }
+.lift-side { display: flex; align-items: flex-start; gap: 8px; margin-top: 9px; }
+.lift-side + .lift-side { border-top: 1px dashed var(--line); padding-top: 9px; }
 .lift-body { flex: 1; min-width: 0; }
 .lift-arm {
   flex: none;
   width: 22px;
-  margin-top: 9px;
+  margin-top: 10px;
   text-align: center;
-  font-size: .72rem;
+  font-size: .68rem;
   font-weight: 700;
-  color: var(--muted);
+  letter-spacing: .06em;
+  color: var(--faint);
 }
 
 .lift-inputs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .lift-field { position: relative; display: flex; align-items: center; width: 92px; }
-.lift-field input { padding: 8px 34px 8px 10px; font-size: .9rem; }
-.lift-field .measure-unit { right: 10px; font-size: .72rem; }
-.lift-x { color: var(--muted); font-size: .9rem; }
+.lift-field input { padding: 8px 34px 8px 10px; font-size: .95rem; }
+.lift-field .measure-unit { right: 9px; font-size: .68rem; }
+.lift-x { color: var(--faint); font-size: .9rem; }
 .lift-status { margin-left: auto; white-space: nowrap; }
 
-.lift-hist { color: var(--muted); font-size: .78rem; margin-top: 5px; }
+.lift-hist { color: var(--faint); font-size: .74rem; margin-top: 6px; }
 .lift-date { opacity: .7; }
 
-.lift-knoppen { display: flex; gap: 2px; flex: none; }
-.btn-aan { border-color: var(--accent); color: var(--text); }
+.lift-knoppen { display: flex; gap: 4px; flex: none; }
+.lift-knoppen .btn { display: inline-flex; align-items: center; justify-content: center; }
+.btn-aan { border-color: var(--text); color: var(--text); }
 
 .lift-grafiek {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--border);
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
 }
 .lg-cijfers {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px 14px;
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: .78rem;
-  font-weight: 550;
+  margin-top: 8px;
+  color: var(--faint);
+  font-size: .74rem;
 }
+.lg-cijfers span { display: inline-flex; align-items: center; gap: 5px; }
 .lg-zijde { color: var(--text); min-width: 78px; }
 
 .lift-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
@@ -650,25 +864,25 @@ ol.explain { list-style: decimal; }
 /* ---------------------------- schema-instellingen --------------------- */
 
 .schemas { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
-.schema { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--card-2); }
+.schema { border: 1px solid var(--border); border-radius: 0; padding: 12px; background: transparent; }
 .schema-head { display: flex; gap: 8px; align-items: center; }
-.schema-titel { font-weight: 650; }
-.schema-lijst { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.schema-titel { font-family: var(--font-cond); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.schema-lijst { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
 
 .schema-oef {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed var(--border);
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
 }
-.schema-oef:last-child { padding-bottom: 0; border-bottom: 0; }
+.schema-oef:first-child { border-top: 0; padding-top: 0; }
 .schema-naam { flex: 1; min-width: 130px; }
-.schema-oef select { width: auto; min-width: 120px; font-size: .82rem; padding: 6px 8px; }
-.schema-arm { display: flex; align-items: center; gap: 5px; font-size: .78rem; color: var(--muted); white-space: nowrap; }
+.schema-oef select { width: auto; min-width: 120px; font-size: .8rem; padding: 6px 8px; }
+.schema-arm { display: flex; align-items: center; gap: 5px; font-size: .74rem; color: var(--faint); white-space: nowrap; }
 .schema-arm input { width: auto; }
-.schema-tel { font-size: .75rem; color: var(--muted); min-width: 26px; text-align: right; }
+.schema-tel { font-size: .72rem; color: var(--faint); min-width: 28px; text-align: right; }
 .schema-knoppen { display: flex; gap: 2px; margin-left: auto; }
 .schema-knoppen .btn { padding: 4px 8px; }
 
@@ -678,19 +892,14 @@ ol.explain { list-style: decimal; }
   .schema-naam { min-width: 100%; }
   .schema-knoppen { margin-left: 0; }
   .lift-field { width: 84px; }
-}
 
-@media (max-width: 560px) {
-  .hero { gap: 14px; justify-content: center; }
-  .hero-ring svg { width: 150px; height: 150px; }
-  .hero-info { text-align: center; }
-  .hero-chips { justify-content: center; }
-  .trend { gap: 12px; justify-content: center; }
-  .trend-info { text-align: center; }
-  .seg { min-width: 0; font-size: .8rem; padding: 10px 4px; }
+  .score-num { font-size: 4.2rem; }
+  .hero-label { font-size: 1.05rem; }
+  .trend { gap: 12px; }
+  .seg { font-size: .76rem; padding: 10px 3px; }
+  .stat-value { font-size: 1.2rem; }
+  .rv-waarde { font-size: 1.15rem; }
   .bd-row { grid-template-columns: 1fr 44px; grid-template-areas: "name pct" "bar bar" "counts counts"; }
-  .stat-value { font-size: 1.3rem; }
-  .rv-waarde { font-size: 1.2rem; }
   .daybar-track { height: 84px; }
   .cal-pct { display: none; }
   .weight-row { grid-template-columns: 1fr 44px; grid-template-areas: "name val" "range range"; }
@@ -705,13 +914,18 @@ ol.explain { list-style: decimal; }
 }
 
   </style>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><rect width='20' height='20' fill='%230c0e11'/><g fill='none' stroke='%23e8ebef' stroke-width='1.6'><circle cx='10' cy='10' r='6.4'/><circle cx='10' cy='10' r='2.9'/></g><circle cx='10' cy='10' r='.9' fill='%23e8ebef'/></svg>">
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand">
-        <span class="brand-mark">🎯</span>
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" focusable="false">
+            <circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.2"/>
+            <circle cx="10" cy="10" r=".9" fill="currentColor" stroke="none"/>
+          </svg>
+        </span>
         <div>
           <h1>Goal Dashboard</h1>
           <p class="brand-sub">Sport &amp; voeding</p>
@@ -772,20 +986,20 @@ ol.explain { list-style: decimal; }
     {
       key: 'creatine',
       label: 'Creatine gepakt',
-      icon: '💊',
+      icon: 'creatine',
       weight: 1,
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
         { v: 'nee', label: 'Nee', short: 'Nee', score: 0 }
       ]
     },
-    { key: 'ontbijt', label: 'Ontbijt', icon: '🥣', weight: 1, options: MEAL_OPTIONS },
-    { key: 'lunch', label: 'Lunch', icon: '🥗', weight: 1, options: MEAL_OPTIONS },
-    { key: 'avondeten', label: 'Avondeten', icon: '🍽️', weight: 1, options: MEAL_OPTIONS },
+    { key: 'ontbijt', label: 'Ontbijt', icon: 'ontbijt', weight: 1, options: MEAL_OPTIONS },
+    { key: 'lunch', label: 'Lunch', icon: 'lunch', weight: 1, options: MEAL_OPTIONS },
+    { key: 'avondeten', label: 'Avondeten', icon: 'avondeten', weight: 1, options: MEAL_OPTIONS },
     {
       key: 'postworkout',
       label: 'Post-workout maaltijd',
-      icon: '🥤',
+      icon: 'postworkout',
       weight: 1,
       onlyIfTrained: true,
       options: MEAL_OPTIONS
@@ -793,7 +1007,7 @@ ol.explain { list-style: decimal; }
     {
       key: 'gesport',
       label: 'Gesport',
-      icon: '🏋️',
+      icon: 'gesport',
       weight: 2,
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
@@ -804,7 +1018,7 @@ ol.explain { list-style: decimal; }
     {
       key: 'overload',
       label: 'Progressive overload',
-      icon: '📈',
+      icon: 'overload',
       weight: 1.5,
       onlyIfTrained: true,
       options: [
@@ -821,7 +1035,7 @@ ol.explain { list-style: decimal; }
       // Teller in plaats van keuzeknoppen: je telt de dag door op naar je doel.
       key: 'water',
       label: 'Water',
-      icon: '💧',
+      icon: 'water',
       weight: 1,
       type: 'meter',
       field: 'waterMl',
@@ -831,7 +1045,7 @@ ol.explain { list-style: decimal; }
     {
       key: 'eiwit',
       label: 'Eiwitdoel behaald',
-      icon: '🍗',
+      icon: 'eiwit',
       weight: 2,
       macro: 'protein',
       options: [
@@ -842,7 +1056,7 @@ ol.explain { list-style: decimal; }
     {
       key: 'calorieen',
       label: 'Caloriedoel behaald',
-      icon: '🔥',
+      icon: 'calorieen',
       weight: 1.5,
       macro: 'calories',
       options: [
@@ -909,6 +1123,15 @@ ol.explain { list-style: decimal; }
     return 'rgb(' + rgb.join(',') + ')';
   }
 
+  /* Dezelfde schaal als verloop, voor de balk onder je dagscore. Hij wordt uit
+     COLOR_STOPS opgebouwd en niet apart opgeschreven, zodat balk en cijfer
+     nooit uit elkaar kunnen lopen. */
+  function scaleGradient() {
+    return 'linear-gradient(90deg,' + COLOR_STOPS.map(function (s) {
+      return 'rgb(' + s.c.join(',') + ') ' + s.p + '%';
+    }).join(',') + ')';
+  }
+
   /* Leesbare tekstkleur op een score-achtergrond */
   function textOn(pct) {
     if (pct === null || pct === undefined || isNaN(pct)) return '#c9cedb';
@@ -933,6 +1156,7 @@ ol.explain { list-style: decimal; }
   global.GD.GOALS = GOALS;
   global.GD.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
   global.GD.scoreColor = scoreColor;
+  global.GD.scaleGradient = scaleGradient;
   global.GD.textOn = textOn;
   global.GD.scoreLabel = scoreLabel;
   global.GD.clamp = clamp;
@@ -957,6 +1181,78 @@ ol.explain { list-style: decimal; }
     for (var i = 0; i < GOALS.length; i++) if (GOALS[i].key === key) return GOALS[i];
     return null;
   };
+})(window);
+
+  </script>
+  <script>
+/* Goal Dashboard - iconen
+ *
+ * Getekende iconen in plaats van emoji. Emoji zien er op elk apparaat anders
+ * uit, schalen niet mee met de tekst en nemen hun eigen kleur mee; deze lijnen
+ * volgen de tekstkleur en staan overal hetzelfde.
+ *
+ * Alles op één raster van 20 bij 20, met dezelfde lijndikte, zodat de set als
+ * één set leest. Gebruik: GD.icon('water') of GD.icon('water', 22).
+ */
+(function (global) {
+  'use strict';
+
+  var PADEN = {
+    /* merk */
+    doel: '<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.2"/>' +
+      '<circle cx="10" cy="10" r=".9" fill="currentColor" stroke="none"/>',
+
+    /* de doelen, met dezelfde sleutel als in GOALS */
+    creatine: '<rect x="3.2" y="7.6" width="13.6" height="6.8" rx="3.4"/><path d="M10 7.6v6.8"/>',
+    ontbijt: '<path d="M3.4 9.6h13.2a6.6 6.6 0 0 1-13.2 0Z"/><path d="M8 6.6c0-1 1-1.4 1-2.4"/>' +
+      '<path d="M11.6 6.6c0-1 1-1.4 1-2.4"/>',
+    lunch: '<path d="M16.4 3.6c0 7-4 10-9 10-1.5 0-2.5-.4-2.5-.4S4 6.6 10 4.6c2.4-.8 6.4-1 6.4-1Z"/>' +
+      '<path d="M4.2 16.4c2-4 5-6 8.4-7.4"/>',
+    avondeten: '<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.2"/>',
+    postworkout: '<path d="M6.2 7h7.6l-1 9.4a1 1 0 0 1-1 .9H8.2a1 1 0 0 1-1-.9Z"/>' +
+      '<path d="M5.6 4.2h8.8L13.8 7H6.2Z"/>',
+    gesport: '<path d="M2.6 10h14.8"/><rect x="4.4" y="6" width="3.1" height="8" rx="1"/>' +
+      '<rect x="12.5" y="6" width="3.1" height="8" rx="1"/><path d="M2.6 7.9v4.2M17.4 7.9v4.2"/>',
+    overload: '<path d="M3 14.6 8 9.2l3 3 6-6.6"/><path d="M12.8 5.6H17v4.2"/>',
+    water: '<path d="M10 3.2c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3Z"/>',
+    eiwit: '<path d="M10 3.4c3 0 5.2 4.2 5.2 7.4a5.2 5.2 0 0 1-10.4 0C4.8 7.6 7 3.4 10 3.4Z"/>',
+    calorieen: '<path d="M10 3.2s.7 2.6-1.2 4.4C7 9.4 5.6 10.6 5.6 12.6a4.4 4.4 0 0 0 8.8 0c0-2.4-1.6-3.6-2.4-5.2' +
+      '-.5 1-1.3 1.6-1.3 1.6S11.6 6 10 3.2Z"/>',
+
+    /* losse iconen in de app */
+    weegschaal: '<rect x="3.2" y="5.5" width="13.6" height="11" rx="2"/>' +
+      '<path d="M6.6 10a3.6 3.6 0 0 1 6.8 0"/><path d="M10 10 8.4 12.2"/>',
+    rapport: '<rect x="4.5" y="4.2" width="11" height="12.6" rx="1.6"/>' +
+      '<rect x="7.6" y="2.6" width="4.8" height="2.8" rx=".9"/><path d="M7.6 9.4h4.8M7.6 12.6h3.2"/>',
+    beker: '<path d="M6.5 3.2h7v3.4a3.5 3.5 0 0 1-7 0Z"/><path d="M6.5 4.4H4v1a2.5 2.5 0 0 0 2.5 2.5"/>' +
+      '<path d="M13.5 4.4H16v1A2.5 2.5 0 0 1 13.5 8"/><path d="M8 16.8h4"/><path d="M10 10.2v6.6"/>',
+    daling: '<path d="M3 5.4 8 10.8l3-3 6 6.4"/><path d="M12.8 14.4H17v-4.2"/>',
+    rust: '<path d="M15.4 12.4A6.2 6.2 0 0 1 7.6 4.6a6.2 6.2 0 1 0 7.8 7.8Z"/>',
+    grafiek: '<path d="M3.2 16.4V3.6"/><path d="M3.2 16.4h13.6"/><path d="M6 13.2l3-3.4 2.6 2.2 3.8-4.6"/>',
+    sync: '<path d="M16.2 10a6.2 6.2 0 1 1-1.9-4.4"/><path d="M16.6 3.4v3.4h-3.4"/>',
+    klok: '<circle cx="10" cy="10" r="6.8"/><path d="M10 6v4.2l2.8 1.7"/>'
+  };
+
+  /* Het vlammetje doet dubbel dienst: calorieën én je reeks goede dagen. */
+  PADEN.vlam = PADEN.calorieen;
+
+  /**
+   * @param {string} naam  sleutel uit PADEN
+   * @param {number} [px]  hoogte in pixels; standaard 18
+   * @returns {string} inline SVG, of niets als de naam niet bestaat
+   */
+  function icon(naam, px) {
+    var pad = PADEN[naam];
+    if (!pad) return '';
+    var g = px || 18;
+    return '<svg class="ico" width="' + g + '" height="' + g + '" viewBox="0 0 20 20"' +
+      ' fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"' +
+      ' stroke-linejoin="round" aria-hidden="true" focusable="false">' + pad + '</svg>';
+  }
+
+  global.GD = global.GD || {};
+  global.GD.icon = icon;
+  global.GD.ICON_PADEN = PADEN;
 })(window);
 
   </script>
@@ -2832,14 +3128,42 @@ ol.explain { list-style: decimal; }
     return '<div class="calendar">' + head + cells + '</div>';
   }
 
-  /** Kleurenlegenda 0 -> 100 */
-  function legend() {
-    var stops = [0, 25, 50, 75, 100].map(function (p) {
-      return GD.scoreColor(p) + ' ' + p + '%';
-    }).join(', ');
-    return '<div class="legend"><span>0%</span>' +
-      '<span class="legend-bar" style="background:linear-gradient(90deg,' + stops + ')"></span>' +
-      '<span>100%</span></div>';
+  /**
+   * De schaal onder je score: waar je staat op de lijn van rood naar groen.
+   *
+   * opts.tot      : tweede, vage streep — waar je vandaag nog op uit kunt komen.
+   * opts.drempel  : je grens voor een goede dag, als streepje op de schaal.
+   * opts.neutraal : grijze balk in plaats van de kleurschaal. Voor een dag die
+   *                 nog loopt: rood-naar-groen is een oordeel, en een halve dag
+   *                 verdient dat nog niet.
+   */
+  function rail(pct, opts) {
+    opts = opts || {};
+    var has = pct !== null && pct !== undefined && !isNaN(pct);
+    var v = has ? GD.clamp(pct, 0, 100) : null;
+    var tot = opts.tot === null || opts.tot === undefined || isNaN(opts.tot)
+      ? null : GD.clamp(opts.tot, 0, 100);
+    var drempel = opts.drempel === null || opts.drempel === undefined || isNaN(opts.drempel)
+      ? null : GD.clamp(opts.drempel, 0, 100);
+
+    var merken = '';
+    if (drempel !== null) {
+      merken += '<span class="rail-drempel" style="left:' + drempel + '%"' +
+        ' title="' + esc('Goede dag vanaf ' + Math.round(drempel) + '%') + '"></span>';
+    }
+    if (v !== null && tot !== null && tot > v + 0.5) {
+      merken += '<span class="rail-tot" style="left:' + tot + '%"' +
+        ' title="' + esc('Vandaag nog te halen: ' + Math.round(tot) + '%') + '"></span>';
+    }
+    if (v !== null) {
+      merken += '<span class="rail-mark" style="left:' + v + '%"></span>';
+    }
+
+    var achtergrond = opts.neutraal ? 'var(--track)' : GD.scaleGradient();
+    return '<div class="rail">' +
+      '<div class="rail-track" style="background:' + achtergrond + '">' + merken + '</div>' +
+      '<div class="rail-scale"><span>0</span><span>50</span><span>100</span></div>' +
+      '</div>';
   }
 
   GD.charts = {
@@ -2849,7 +3173,7 @@ ol.explain { list-style: decimal; }
     lijnGrafiek: lijnGrafiek,
     dayBars: dayBars,
     calendar: calendar,
-    legend: legend,
+    rail: rail,
     esc: esc
   };
 })(window);
@@ -4053,7 +4377,7 @@ ol.explain { list-style: decimal; }
       }
 
       return '<div class="bd-row' + (w === 0 ? ' bd-off' : '') + '">' +
-        '<div class="bd-name"><span class="bd-icon">' + b.goal.icon + '</span>' +
+        '<div class="bd-name"><span class="bd-icon">' + GD.icon(b.goal.icon) + '</span>' +
         '<span>' + esc(b.goal.label) + '</span>' +
         (w === 0 ? '<span class="chip chip-off">uit</span>' : '<span class="chip">×' + fmt(w, w % 1 ? 1 : 0) + '</span>') +
         '</div>' +
@@ -4140,7 +4464,7 @@ ol.explain { list-style: decimal; }
   }
 
   /**
-   * opts.tot   : vage boog in de ring — waar je vandaag nog op uit kunt komen
+   * opts.tot   : vage streep op de schaal — waar je vandaag nog op uit kunt komen
    * opts.label : eigen kop in plaats van het oordeel, voor een dag die nog loopt
    */
   function heroSection(pct, subtitle, extra, opts) {
@@ -4148,20 +4472,29 @@ ol.explain { list-style: decimal; }
     // Een lopende dag krijgt geen oordeel mee: "Uitstekend" hoort pas bij een
     // dag die af is, niet bij drie ingevulde doelen om negen uur 's ochtends.
     // Ook de kleur wacht: rood-naar-groen zegt goed of slecht, en een dag die
-    // pas begonnen is verdient allebei niet.
-    var color = opts.label ? 'var(--text)' : GD.scoreColor(pct);
+    // pas begonnen is verdient allebei niet. De schaal eronder staat dan grijs.
+    var loopt = !!opts.label;
+    var has = pct !== null && pct !== undefined && !isNaN(pct);
+    var color = loopt ? 'var(--text)' : GD.scoreColor(pct);
+
     return '<section class="card hero">' +
-      '<div class="hero-ring">' +
-      C.ring(pct, 190, 16, { tot: opts.tot, kleur: opts.label ? 'var(--accent)' : null }) +
+      '<div class="hero-score">' +
+      '<div class="score-num" style="color:' + color + '">' +
+      (has ? Math.round(pct) + '<span class="score-pct">%</span>' : '<span class="score-leeg">–</span>') +
+      '</div>' +
+      '<div class="hero-label" style="color:' + color + '">' +
+      esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
       '</div>' +
       '<div class="hero-info">' +
-      '<div class="hero-label" style="color:' + color + '">' + esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
       '<p class="hero-sub">' + subtitle + '</p>' +
       (extra || '') +
-      // De kleurschaal hoort bij een eindcijfer; zolang de dag loopt staat de
-      // ring in één kleur en zou de balk alleen maar verwarren.
-      (opts.label ? '' : C.legend()) +
-      '</div></section>';
+      '</div>' +
+      C.rail(pct, {
+        tot: opts.tot,
+        drempel: S.num(store.settings().goedeDagDrempel),
+        neutraal: loopt
+      }) +
+      '</section>';
   }
 
   /* -------------------------------- dag ------------------------------- */
@@ -4193,11 +4526,11 @@ ol.explain { list-style: decimal; }
         ? '<span class="chip" style="color:' + GD.scoreColor(day.pct) + '">' +
           Math.round(day.pct) + '% raak tot nu toe</span>'
         : '') +
-      '<span class="chip">🔥 ' + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
-      (day.restDay ? '<span class="chip">😴 rustdag</span>' : '') +
+      '<span class="chip">' + GD.icon('vlam', 14) + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
+      (day.restDay ? '<span class="chip">' + GD.icon('rust', 14) + 'rustdag</span>' : '') +
       '</div>' +
       (ov.open > 0 && !isFuture
-        ? '<p class="hint hint-tight">De vage ring is waar je vandaag nog op uit kunt komen.</p>'
+        ? '<p class="hint hint-tight">De vage streep op de schaal is waar je vandaag nog op uit kunt komen.</p>'
         : '');
 
     var sub;
@@ -4207,7 +4540,7 @@ ol.explain { list-style: decimal; }
       sub = 'Nog niets ingevuld voor deze dag.';
     } else if (loopt) {
       // Niet het percentage van wat je al invulde, maar van de hele dag:
-      // anders staat de ring vol terwijl de dag nog open ligt.
+      // anders staat het cijfer op honderd terwijl de dag nog open ligt.
       sub = 'Je hebt <strong>' + fmt(ov.binnen, 1) + '</strong> van de <strong>' +
         fmt(ov.totaal, 1) + '</strong> punten van vandaag binnen. Er staat nog <strong>' +
         fmt(ov.open, 1) + '</strong> open' +
@@ -4242,7 +4575,7 @@ ol.explain { list-style: decimal; }
       '</div>' +
       (gm.status === 'uit' || isFuture ? '' :
         '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
-        '><span class="meldregel-icoon">⚖️</span>' + esc(gm.tekst) + '</p>') +
+        '><span class="meldregel-icoon">' + GD.icon('weegschaal', 16) + '</span>' + esc(gm.tekst) + '</p>') +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
       // Een doel dat met je gewicht meebeweegt verandert vanzelf, dus het hoort
       // ook zichtbaar te blijven als het veld al is ingevuld.
@@ -4339,7 +4672,7 @@ ol.explain { list-style: decimal; }
       : (item.reason || '');
 
     return '<section class="card">' +
-      '<div class="card-head"><h2>' + goal.icon + ' ' + esc(goal.label) + '</h2>' +
+      '<div class="card-head"><h2>' + GD.icon(goal.icon) + esc(goal.label) + '</h2>' +
       '<span class="chip"' + (item.included ? ' style="color:' + kleur + '"' : '') + '>' + esc(status) + '</span>' +
       '</div>' +
       '<div class="meter-top">' +
@@ -4383,7 +4716,10 @@ ol.explain { list-style: decimal; }
       return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
         ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
         (disabled || vergrendeld ? ' disabled' : '') +
-        ' style="' + (active ? '--seg-color:' + GD.scoreColor(o.score === null ? null : o.score * 100) + ';' : '') + '">' +
+        ' style="' + (active
+          ? '--seg-color:' + GD.scoreColor(o.score === null ? null : o.score * 100) +
+            ';--seg-fg:' + GD.textOn(o.score === null ? null : o.score * 100) + ';'
+          : '') + '">' +
         esc(o.label) + (isAuto ? '<span class="auto-dot" title="automatisch bepaald">auto</span>' : '') +
         '</button>';
     }).join('');
@@ -4410,7 +4746,7 @@ ol.explain { list-style: decimal; }
 
     return '<div class="goal' + (dimmed ? ' goal-dim' : '') + (disabled ? ' goal-off' : '') + '">' +
       '<div class="goal-head">' +
-      '<span class="goal-name"><span class="goal-icon">' + goal.icon + '</span>' + esc(goal.label) + '</span>' +
+      '<span class="goal-name"><span class="goal-icon">' + GD.icon(goal.icon) + '</span>' + esc(goal.label) + '</span>' +
       status +
       '</div>' +
       '<div class="segmented">' + opts + '</div>' +
@@ -4535,7 +4871,7 @@ ol.explain { list-style: decimal; }
         (groei === null ? ''
           : '<span style="color:' + GD.scoreColor(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
             signed(groei, 0, '%') + ' sinds je start</span>') +
-        '<span>🏆 ' + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
+        '<span>' + GD.icon('beker', 14) + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
         '</div>';
     }).join('');
 
@@ -4572,7 +4908,7 @@ ol.explain { list-style: decimal; }
       '<button class="btn btn-ghost btn-sm' + (open ? ' btn-aan' : '') + '"' +
       ' data-action="lift-grafiek" data-oef="' + esc(oid) + '"' +
       ' aria-expanded="' + (open ? 'true' : 'false') + '"' +
-      ' title="Verloop van deze oefening">📈</button>' +
+      ' title="Verloop van deze oefening">' + GD.icon('grafiek', 15) + '</button>' +
       '<button class="btn btn-ghost btn-sm" data-action="lift-clear" data-oef="' + esc(oid) + '"' +
       ' title="Deze oefening voor vandaag wissen">wissen</button>' +
       '</span>' +
@@ -4595,14 +4931,14 @@ ol.explain { list-style: decimal; }
     var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag';
     if (rust && !ids.length) {
       return '<section class="card card-quiet">' +
-        '<div class="card-head"><h2>🏋️ Oefeningen</h2></div>' +
+        '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2></div>' +
         '<p class="hint">Geen training vandaag, dus niets bij te houden.</p>' +
         '</section>';
     }
 
     if (!schemas.length) {
       return '<section class="card">' +
-        '<div class="card-head"><h2>🏋️ Oefeningen</h2></div>' +
+        '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2></div>' +
         '<p class="hint">Zet je trainingsschema\'s klaar, dan kun je hier per oefening je gewicht ' +
         'en reps invullen. De app onthoudt je startpunt en je vorige keer, en bepaalt daarmee zelf ' +
         'of je progressive overload hebt gehaald.</p>' +
@@ -4612,9 +4948,8 @@ ol.explain { list-style: decimal; }
     }
 
     var keuze = schemas.map(function (s) {
-      return '<button class="seg' + (s.id === sid ? ' seg-active' : '') + '"' +
-        ' data-action="lift-schema" data-schema="' + esc(s.id) + '"' +
-        (s.id === sid ? ' style="--seg-color:var(--accent)"' : '') + '>' +
+      return '<button class="seg seg-chalk' + (s.id === sid ? ' seg-active' : '') + '"' +
+        ' data-action="lift-schema" data-schema="' + esc(s.id) + '">' +
         esc(s.naam) + '</button>';
     }).join('');
 
@@ -4652,7 +4987,7 @@ ol.explain { list-style: decimal; }
       : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
 
     return '<section class="card">' +
-      '<div class="card-head"><h2>🏋️ Oefeningen</h2>' + status + '</div>' +
+      '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2>' + status + '</div>' +
       '<div class="segmented schema-keuze">' + keuze + '</div>' +
       '<div class="lifts">' + rijen + '</div>' +
       toevoegen +
@@ -4677,7 +5012,7 @@ ol.explain { list-style: decimal; }
 
   function reviewBlok(icoon, kop, tekst, soort) {
     return '<div class="rv-blok rv-' + soort + '">' +
-      '<div class="rv-kop"><span class="rv-icoon">' + icoon + '</span>' + esc(kop) + '</div>' +
+      '<div class="rv-kop"><span class="rv-icoon">' + GD.icon(icoon) + '</span>' + esc(kop) + '</div>' +
       '<p class="rv-tekst">' + esc(tekst) + '</p>' +
       '</div>';
   }
@@ -4700,7 +5035,7 @@ ol.explain { list-style: decimal; }
     opties = opties || {};
     var r = GD.review.maak(datum);
 
-    var kop = '<div class="card-head"><h2>📋 Weekafsluiting · ' + esc(r.label) + '</h2>' +
+    var kop = '<div class="card-head"><h2>' + GD.icon('rapport') + 'Weekafsluiting · ' + esc(r.label) + '</h2>' +
       '<span class="chip">ma t/m vr · ' + esc(r.periode) + '</span></div>';
 
     if (!r.ingevuld) {
@@ -4744,16 +5079,16 @@ ol.explain { list-style: decimal; }
     }
 
     var blokken = '<div class="rv-blokken">' +
-      reviewBlok('🔥', r.eten.kop || 'Eten en gewicht', r.eten.tekst, rvSoort(r.eten.status)) +
-      reviewBlok('⚖️', 'Gewicht', gTekst,
+      reviewBlok('vlam', r.eten.kop || 'Eten en gewicht', r.eten.tekst, rvSoort(r.eten.status)) +
+      reviewBlok('weegschaal', 'Gewicht', gTekst,
         rvSoort(g.status === 'op-schema' || g.bevestigd ? g.status : 'afwachten')) +
-      reviewBlok('🍗', 'Eiwit', r.eiwit.tekst, rvSoort(r.eiwit.status)) +
+      reviewBlok('eiwit', 'Eiwit', r.eiwit.tekst, rvSoort(r.eiwit.status)) +
       (r.beste
-        ? reviewBlok('🏆', 'Sterkste punt',
+        ? reviewBlok('beker', 'Sterkste punt',
           r.beste.goal.label + ' — ' + Math.round(r.beste.pct) + '% deze week.', 'goed')
         : '') +
       (r.zwakste
-        ? reviewBlok('📉', 'Zwakste punt',
+        ? reviewBlok('daling', 'Zwakste punt',
           r.zwakste.goal.label + ' — ' + Math.round(r.zwakste.pct) +
           '%. Daar liggen je punten voor volgende week.',
           r.zwakste.pct >= 70 ? 'goed' : 'let-op')
@@ -5007,7 +5342,7 @@ ol.explain { list-style: decimal; }
     var weightRows = GD.GOALS.map(function (g) {
       var w = S.weightOf(g, s);
       return '<div class="weight-row">' +
-        '<span class="weight-name"><span class="goal-icon">' + g.icon + '</span>' + esc(g.label) + '</span>' +
+        '<span class="weight-name"><span class="goal-icon">' + GD.icon(g.icon) + '</span>' + esc(g.label) + '</span>' +
         '<input type="range" min="0" max="4" step="0.5" data-weight="' + g.key + '" value="' + w + '">' +
         '<span class="weight-val">' + (w === 0 ? 'uit' : '×' + fmt(w, w % 1 ? 1 : 0)) + '</span>' +
         '</div>';
@@ -5043,9 +5378,9 @@ ol.explain { list-style: decimal; }
       '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
-      'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
-      'vandaag nog op uit kunt komen. Zo staat de ring niet vol na drie ingevulde doelen. ' +
-      'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
+      'gedeeld door alle punten die vandaag te halen waren. De vage streep op de schaal laat zien waar ' +
+      'je vandaag nog op uit kunt komen, en de schaal blijft grijs tot de dag om is — een halve dag ' +
+      'verdient nog geen oordeel. Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
       '<li><em>Water</em> scoort naar rato: 2,25 van de 3 liter is 75%. Zolang de dag loopt telt de teller ' +
       'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
       'aan bezig bent. Bij afgelopen dagen telt gewoon het deel dat je haalde.</li>' +
@@ -5134,7 +5469,7 @@ ol.explain { list-style: decimal; }
     if (st.ingelogd) {
       html += '<hr class="scheiding">' +
         '<div class="sync-status">' +
-        '<span class="chip">' + (st.bezig ? '⏳ bezig…' : '✓ ingelogd') +
+        '<span class="chip">' + (st.bezig ? GD.icon('klok', 14) + 'bezig…' : '✓ ingelogd') +
         (st.email ? ' als ' + esc(st.email) : '') + '</span>' +
         '<span class="chip">laatst bijgewerkt: ' + esc(tijdstip(st.laatst)) + '</span>' +
         '</div>' +

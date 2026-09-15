@@ -14,16 +14,21 @@
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Dagelijks, wekelijks en maandelijks overzicht van je sport- en voedingsdoelen, met een gekleurd percentage van donkerrood naar donkergroen.">
-  <meta name="theme-color" content="#11141a">
+  <meta name="theme-color" content="#0c0e11">
   <title>Goal Dashboard — sport &amp; voeding</title>
   <link rel="stylesheet" href="css/style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><rect width='20' height='20' fill='%230c0e11'/><g fill='none' stroke='%23e8ebef' stroke-width='1.6'><circle cx='10' cy='10' r='6.4'/><circle cx='10' cy='10' r='2.9'/></g><circle cx='10' cy='10' r='.9' fill='%23e8ebef'/></svg>">
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand">
-        <span class="brand-mark">🎯</span>
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" focusable="false">
+            <circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.2"/>
+            <circle cx="10" cy="10" r=".9" fill="currentColor" stroke="none"/>
+          </svg>
+        </span>
         <div>
           <h1>Goal Dashboard</h1>
           <p class="brand-sub">Sport &amp; voeding</p>
@@ -61,6 +66,7 @@
   <input type="file" id="file-json" accept=".json,application/json" hidden>
 
   <script src="js/config.js"></script>
+  <script src="js/icons.js"></script>
   <script src="js/store.js"></script>
   <script src="js/lifts.js"></script>
   <script src="js/score.js"></script>

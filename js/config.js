@@ -21,20 +21,20 @@
     {
       key: 'creatine',
       label: 'Creatine gepakt',
-      icon: '💊',
+      icon: 'creatine',
       weight: 1,
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
         { v: 'nee', label: 'Nee', short: 'Nee', score: 0 }
       ]
     },
-    { key: 'ontbijt', label: 'Ontbijt', icon: '🥣', weight: 1, options: MEAL_OPTIONS },
-    { key: 'lunch', label: 'Lunch', icon: '🥗', weight: 1, options: MEAL_OPTIONS },
-    { key: 'avondeten', label: 'Avondeten', icon: '🍽️', weight: 1, options: MEAL_OPTIONS },
+    { key: 'ontbijt', label: 'Ontbijt', icon: 'ontbijt', weight: 1, options: MEAL_OPTIONS },
+    { key: 'lunch', label: 'Lunch', icon: 'lunch', weight: 1, options: MEAL_OPTIONS },
+    { key: 'avondeten', label: 'Avondeten', icon: 'avondeten', weight: 1, options: MEAL_OPTIONS },
     {
       key: 'postworkout',
       label: 'Post-workout maaltijd',
-      icon: '🥤',
+      icon: 'postworkout',
       weight: 1,
       onlyIfTrained: true,
       options: MEAL_OPTIONS
@@ -42,7 +42,7 @@
     {
       key: 'gesport',
       label: 'Gesport',
-      icon: '🏋️',
+      icon: 'gesport',
       weight: 2,
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
@@ -53,7 +53,7 @@
     {
       key: 'overload',
       label: 'Progressive overload',
-      icon: '📈',
+      icon: 'overload',
       weight: 1.5,
       onlyIfTrained: true,
       options: [
@@ -70,7 +70,7 @@
       // Teller in plaats van keuzeknoppen: je telt de dag door op naar je doel.
       key: 'water',
       label: 'Water',
-      icon: '💧',
+      icon: 'water',
       weight: 1,
       type: 'meter',
       field: 'waterMl',
@@ -80,7 +80,7 @@
     {
       key: 'eiwit',
       label: 'Eiwitdoel behaald',
-      icon: '🍗',
+      icon: 'eiwit',
       weight: 2,
       macro: 'protein',
       options: [
@@ -91,7 +91,7 @@
     {
       key: 'calorieen',
       label: 'Caloriedoel behaald',
-      icon: '🔥',
+      icon: 'calorieen',
       weight: 1.5,
       macro: 'calories',
       options: [
@@ -158,6 +158,15 @@
     return 'rgb(' + rgb.join(',') + ')';
   }
 
+  /* Dezelfde schaal als verloop, voor de balk onder je dagscore. Hij wordt uit
+     COLOR_STOPS opgebouwd en niet apart opgeschreven, zodat balk en cijfer
+     nooit uit elkaar kunnen lopen. */
+  function scaleGradient() {
+    return 'linear-gradient(90deg,' + COLOR_STOPS.map(function (s) {
+      return 'rgb(' + s.c.join(',') + ') ' + s.p + '%';
+    }).join(',') + ')';
+  }
+
   /* Leesbare tekstkleur op een score-achtergrond */
   function textOn(pct) {
     if (pct === null || pct === undefined || isNaN(pct)) return '#c9cedb';
@@ -182,6 +191,7 @@
   global.GD.GOALS = GOALS;
   global.GD.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
   global.GD.scoreColor = scoreColor;
+  global.GD.scaleGradient = scaleGradient;
   global.GD.textOn = textOn;
   global.GD.scoreLabel = scoreLabel;
   global.GD.clamp = clamp;

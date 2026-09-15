@@ -97,7 +97,7 @@
       }
 
       return '<div class="bd-row' + (w === 0 ? ' bd-off' : '') + '">' +
-        '<div class="bd-name"><span class="bd-icon">' + b.goal.icon + '</span>' +
+        '<div class="bd-name"><span class="bd-icon">' + GD.icon(b.goal.icon) + '</span>' +
         '<span>' + esc(b.goal.label) + '</span>' +
         (w === 0 ? '<span class="chip chip-off">uit</span>' : '<span class="chip">×' + fmt(w, w % 1 ? 1 : 0) + '</span>') +
         '</div>' +
@@ -184,7 +184,7 @@
   }
 
   /**
-   * opts.tot   : vage boog in de ring — waar je vandaag nog op uit kunt komen
+   * opts.tot   : vage streep op de schaal — waar je vandaag nog op uit kunt komen
    * opts.label : eigen kop in plaats van het oordeel, voor een dag die nog loopt
    */
   function heroSection(pct, subtitle, extra, opts) {
@@ -192,20 +192,29 @@
     // Een lopende dag krijgt geen oordeel mee: "Uitstekend" hoort pas bij een
     // dag die af is, niet bij drie ingevulde doelen om negen uur 's ochtends.
     // Ook de kleur wacht: rood-naar-groen zegt goed of slecht, en een dag die
-    // pas begonnen is verdient allebei niet.
-    var color = opts.label ? 'var(--text)' : GD.scoreColor(pct);
+    // pas begonnen is verdient allebei niet. De schaal eronder staat dan grijs.
+    var loopt = !!opts.label;
+    var has = pct !== null && pct !== undefined && !isNaN(pct);
+    var color = loopt ? 'var(--text)' : GD.scoreColor(pct);
+
     return '<section class="card hero">' +
-      '<div class="hero-ring">' +
-      C.ring(pct, 190, 16, { tot: opts.tot, kleur: opts.label ? 'var(--accent)' : null }) +
+      '<div class="hero-score">' +
+      '<div class="score-num" style="color:' + color + '">' +
+      (has ? Math.round(pct) + '<span class="score-pct">%</span>' : '<span class="score-leeg">–</span>') +
+      '</div>' +
+      '<div class="hero-label" style="color:' + color + '">' +
+      esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
       '</div>' +
       '<div class="hero-info">' +
-      '<div class="hero-label" style="color:' + color + '">' + esc(opts.label || GD.scoreLabel(pct)) + '</div>' +
       '<p class="hero-sub">' + subtitle + '</p>' +
       (extra || '') +
-      // De kleurschaal hoort bij een eindcijfer; zolang de dag loopt staat de
-      // ring in één kleur en zou de balk alleen maar verwarren.
-      (opts.label ? '' : C.legend()) +
-      '</div></section>';
+      '</div>' +
+      C.rail(pct, {
+        tot: opts.tot,
+        drempel: S.num(store.settings().goedeDagDrempel),
+        neutraal: loopt
+      }) +
+      '</section>';
   }
 
   /* -------------------------------- dag ------------------------------- */
@@ -237,11 +246,11 @@
         ? '<span class="chip" style="color:' + GD.scoreColor(day.pct) + '">' +
           Math.round(day.pct) + '% raak tot nu toe</span>'
         : '') +
-      '<span class="chip">🔥 ' + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
-      (day.restDay ? '<span class="chip">😴 rustdag</span>' : '') +
+      '<span class="chip">' + GD.icon('vlam', 14) + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
+      (day.restDay ? '<span class="chip">' + GD.icon('rust', 14) + 'rustdag</span>' : '') +
       '</div>' +
       (ov.open > 0 && !isFuture
-        ? '<p class="hint hint-tight">De vage ring is waar je vandaag nog op uit kunt komen.</p>'
+        ? '<p class="hint hint-tight">De vage streep op de schaal is waar je vandaag nog op uit kunt komen.</p>'
         : '');
 
     var sub;
@@ -251,7 +260,7 @@
       sub = 'Nog niets ingevuld voor deze dag.';
     } else if (loopt) {
       // Niet het percentage van wat je al invulde, maar van de hele dag:
-      // anders staat de ring vol terwijl de dag nog open ligt.
+      // anders staat het cijfer op honderd terwijl de dag nog open ligt.
       sub = 'Je hebt <strong>' + fmt(ov.binnen, 1) + '</strong> van de <strong>' +
         fmt(ov.totaal, 1) + '</strong> punten van vandaag binnen. Er staat nog <strong>' +
         fmt(ov.open, 1) + '</strong> open' +
@@ -286,7 +295,7 @@
       '</div>' +
       (gm.status === 'uit' || isFuture ? '' :
         '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreColor(gm.pct) + '"') +
-        '><span class="meldregel-icoon">⚖️</span>' + esc(gm.tekst) + '</p>') +
+        '><span class="meldregel-icoon">' + GD.icon('weegschaal', 16) + '</span>' + esc(gm.tekst) + '</p>') +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel worden automatisch bepaald zodra je hier waarden invult. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
       // Een doel dat met je gewicht meebeweegt verandert vanzelf, dus het hoort
       // ook zichtbaar te blijven als het veld al is ingevuld.
@@ -383,7 +392,7 @@
       : (item.reason || '');
 
     return '<section class="card">' +
-      '<div class="card-head"><h2>' + goal.icon + ' ' + esc(goal.label) + '</h2>' +
+      '<div class="card-head"><h2>' + GD.icon(goal.icon) + esc(goal.label) + '</h2>' +
       '<span class="chip"' + (item.included ? ' style="color:' + kleur + '"' : '') + '>' + esc(status) + '</span>' +
       '</div>' +
       '<div class="meter-top">' +
@@ -427,7 +436,10 @@
       return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
         ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
         (disabled || vergrendeld ? ' disabled' : '') +
-        ' style="' + (active ? '--seg-color:' + GD.scoreColor(o.score === null ? null : o.score * 100) + ';' : '') + '">' +
+        ' style="' + (active
+          ? '--seg-color:' + GD.scoreColor(o.score === null ? null : o.score * 100) +
+            ';--seg-fg:' + GD.textOn(o.score === null ? null : o.score * 100) + ';'
+          : '') + '">' +
         esc(o.label) + (isAuto ? '<span class="auto-dot" title="automatisch bepaald">auto</span>' : '') +
         '</button>';
     }).join('');
@@ -454,7 +466,7 @@
 
     return '<div class="goal' + (dimmed ? ' goal-dim' : '') + (disabled ? ' goal-off' : '') + '">' +
       '<div class="goal-head">' +
-      '<span class="goal-name"><span class="goal-icon">' + goal.icon + '</span>' + esc(goal.label) + '</span>' +
+      '<span class="goal-name"><span class="goal-icon">' + GD.icon(goal.icon) + '</span>' + esc(goal.label) + '</span>' +
       status +
       '</div>' +
       '<div class="segmented">' + opts + '</div>' +
@@ -579,7 +591,7 @@
         (groei === null ? ''
           : '<span style="color:' + GD.scoreColor(groei > 0 ? 100 : (groei < 0 ? 0 : 45)) + '">' +
             signed(groei, 0, '%') + ' sinds je start</span>') +
-        '<span>🏆 ' + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
+        '<span>' + GD.icon('beker', 14) + esc(top.label) + ' op ' + esc(D.formatShort(top.datum)) + '</span>' +
         '</div>';
     }).join('');
 
@@ -616,7 +628,7 @@
       '<button class="btn btn-ghost btn-sm' + (open ? ' btn-aan' : '') + '"' +
       ' data-action="lift-grafiek" data-oef="' + esc(oid) + '"' +
       ' aria-expanded="' + (open ? 'true' : 'false') + '"' +
-      ' title="Verloop van deze oefening">📈</button>' +
+      ' title="Verloop van deze oefening">' + GD.icon('grafiek', 15) + '</button>' +
       '<button class="btn btn-ghost btn-sm" data-action="lift-clear" data-oef="' + esc(oid) + '"' +
       ' title="Deze oefening voor vandaag wissen">wissen</button>' +
       '</span>' +
@@ -639,14 +651,14 @@
     var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag';
     if (rust && !ids.length) {
       return '<section class="card card-quiet">' +
-        '<div class="card-head"><h2>🏋️ Oefeningen</h2></div>' +
+        '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2></div>' +
         '<p class="hint">Geen training vandaag, dus niets bij te houden.</p>' +
         '</section>';
     }
 
     if (!schemas.length) {
       return '<section class="card">' +
-        '<div class="card-head"><h2>🏋️ Oefeningen</h2></div>' +
+        '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2></div>' +
         '<p class="hint">Zet je trainingsschema\'s klaar, dan kun je hier per oefening je gewicht ' +
         'en reps invullen. De app onthoudt je startpunt en je vorige keer, en bepaalt daarmee zelf ' +
         'of je progressive overload hebt gehaald.</p>' +
@@ -656,9 +668,8 @@
     }
 
     var keuze = schemas.map(function (s) {
-      return '<button class="seg' + (s.id === sid ? ' seg-active' : '') + '"' +
-        ' data-action="lift-schema" data-schema="' + esc(s.id) + '"' +
-        (s.id === sid ? ' style="--seg-color:var(--accent)"' : '') + '>' +
+      return '<button class="seg seg-chalk' + (s.id === sid ? ' seg-active' : '') + '"' +
+        ' data-action="lift-schema" data-schema="' + esc(s.id) + '">' +
         esc(s.naam) + '</button>';
     }).join('');
 
@@ -696,7 +707,7 @@
       : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
 
     return '<section class="card">' +
-      '<div class="card-head"><h2>🏋️ Oefeningen</h2>' + status + '</div>' +
+      '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2>' + status + '</div>' +
       '<div class="segmented schema-keuze">' + keuze + '</div>' +
       '<div class="lifts">' + rijen + '</div>' +
       toevoegen +
@@ -721,7 +732,7 @@
 
   function reviewBlok(icoon, kop, tekst, soort) {
     return '<div class="rv-blok rv-' + soort + '">' +
-      '<div class="rv-kop"><span class="rv-icoon">' + icoon + '</span>' + esc(kop) + '</div>' +
+      '<div class="rv-kop"><span class="rv-icoon">' + GD.icon(icoon) + '</span>' + esc(kop) + '</div>' +
       '<p class="rv-tekst">' + esc(tekst) + '</p>' +
       '</div>';
   }
@@ -744,7 +755,7 @@
     opties = opties || {};
     var r = GD.review.maak(datum);
 
-    var kop = '<div class="card-head"><h2>📋 Weekafsluiting · ' + esc(r.label) + '</h2>' +
+    var kop = '<div class="card-head"><h2>' + GD.icon('rapport') + 'Weekafsluiting · ' + esc(r.label) + '</h2>' +
       '<span class="chip">ma t/m vr · ' + esc(r.periode) + '</span></div>';
 
     if (!r.ingevuld) {
@@ -788,16 +799,16 @@
     }
 
     var blokken = '<div class="rv-blokken">' +
-      reviewBlok('🔥', r.eten.kop || 'Eten en gewicht', r.eten.tekst, rvSoort(r.eten.status)) +
-      reviewBlok('⚖️', 'Gewicht', gTekst,
+      reviewBlok('vlam', r.eten.kop || 'Eten en gewicht', r.eten.tekst, rvSoort(r.eten.status)) +
+      reviewBlok('weegschaal', 'Gewicht', gTekst,
         rvSoort(g.status === 'op-schema' || g.bevestigd ? g.status : 'afwachten')) +
-      reviewBlok('🍗', 'Eiwit', r.eiwit.tekst, rvSoort(r.eiwit.status)) +
+      reviewBlok('eiwit', 'Eiwit', r.eiwit.tekst, rvSoort(r.eiwit.status)) +
       (r.beste
-        ? reviewBlok('🏆', 'Sterkste punt',
+        ? reviewBlok('beker', 'Sterkste punt',
           r.beste.goal.label + ' — ' + Math.round(r.beste.pct) + '% deze week.', 'goed')
         : '') +
       (r.zwakste
-        ? reviewBlok('📉', 'Zwakste punt',
+        ? reviewBlok('daling', 'Zwakste punt',
           r.zwakste.goal.label + ' — ' + Math.round(r.zwakste.pct) +
           '%. Daar liggen je punten voor volgende week.',
           r.zwakste.pct >= 70 ? 'goed' : 'let-op')
@@ -1051,7 +1062,7 @@
     var weightRows = GD.GOALS.map(function (g) {
       var w = S.weightOf(g, s);
       return '<div class="weight-row">' +
-        '<span class="weight-name"><span class="goal-icon">' + g.icon + '</span>' + esc(g.label) + '</span>' +
+        '<span class="weight-name"><span class="goal-icon">' + GD.icon(g.icon) + '</span>' + esc(g.label) + '</span>' +
         '<input type="range" min="0" max="4" step="0.5" data-weight="' + g.key + '" value="' + w + '">' +
         '<span class="weight-val">' + (w === 0 ? 'uit' : '×' + fmt(w, w % 1 ? 1 : 0)) + '</span>' +
         '</div>';
@@ -1087,9 +1098,9 @@
       '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
-      'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
-      'vandaag nog op uit kunt komen. Zo staat de ring niet vol na drie ingevulde doelen. ' +
-      'Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
+      'gedeeld door alle punten die vandaag te halen waren. De vage streep op de schaal laat zien waar ' +
+      'je vandaag nog op uit kunt komen, en de schaal blijft grijs tot de dag om is — een halve dag ' +
+      'verdient nog geen oordeel. Bij afgelopen dagen telt niet-ingevuld als niet gedaan.</li>' +
       '<li><em>Water</em> scoort naar rato: 2,25 van de 3 liter is 75%. Zolang de dag loopt telt de teller ' +
       'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
       'aan bezig bent. Bij afgelopen dagen telt gewoon het deel dat je haalde.</li>' +
@@ -1178,7 +1189,7 @@
     if (st.ingelogd) {
       html += '<hr class="scheiding">' +
         '<div class="sync-status">' +
-        '<span class="chip">' + (st.bezig ? '⏳ bezig…' : '✓ ingelogd') +
+        '<span class="chip">' + (st.bezig ? GD.icon('klok', 14) + 'bezig…' : '✓ ingelogd') +
         (st.email ? ' als ' + esc(st.email) : '') + '</span>' +
         '<span class="chip">laatst bijgewerkt: ' + esc(tijdstip(st.laatst)) + '</span>' +
         '</div>' +

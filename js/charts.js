@@ -284,14 +284,42 @@
     return '<div class="calendar">' + head + cells + '</div>';
   }
 
-  /** Kleurenlegenda 0 -> 100 */
-  function legend() {
-    var stops = [0, 25, 50, 75, 100].map(function (p) {
-      return GD.scoreColor(p) + ' ' + p + '%';
-    }).join(', ');
-    return '<div class="legend"><span>0%</span>' +
-      '<span class="legend-bar" style="background:linear-gradient(90deg,' + stops + ')"></span>' +
-      '<span>100%</span></div>';
+  /**
+   * De schaal onder je score: waar je staat op de lijn van rood naar groen.
+   *
+   * opts.tot      : tweede, vage streep — waar je vandaag nog op uit kunt komen.
+   * opts.drempel  : je grens voor een goede dag, als streepje op de schaal.
+   * opts.neutraal : grijze balk in plaats van de kleurschaal. Voor een dag die
+   *                 nog loopt: rood-naar-groen is een oordeel, en een halve dag
+   *                 verdient dat nog niet.
+   */
+  function rail(pct, opts) {
+    opts = opts || {};
+    var has = pct !== null && pct !== undefined && !isNaN(pct);
+    var v = has ? GD.clamp(pct, 0, 100) : null;
+    var tot = opts.tot === null || opts.tot === undefined || isNaN(opts.tot)
+      ? null : GD.clamp(opts.tot, 0, 100);
+    var drempel = opts.drempel === null || opts.drempel === undefined || isNaN(opts.drempel)
+      ? null : GD.clamp(opts.drempel, 0, 100);
+
+    var merken = '';
+    if (drempel !== null) {
+      merken += '<span class="rail-drempel" style="left:' + drempel + '%"' +
+        ' title="' + esc('Goede dag vanaf ' + Math.round(drempel) + '%') + '"></span>';
+    }
+    if (v !== null && tot !== null && tot > v + 0.5) {
+      merken += '<span class="rail-tot" style="left:' + tot + '%"' +
+        ' title="' + esc('Vandaag nog te halen: ' + Math.round(tot) + '%') + '"></span>';
+    }
+    if (v !== null) {
+      merken += '<span class="rail-mark" style="left:' + v + '%"></span>';
+    }
+
+    var achtergrond = opts.neutraal ? 'var(--track)' : GD.scaleGradient();
+    return '<div class="rail">' +
+      '<div class="rail-track" style="background:' + achtergrond + '">' + merken + '</div>' +
+      '<div class="rail-scale"><span>0</span><span>50</span><span>100</span></div>' +
+      '</div>';
   }
 
   GD.charts = {
@@ -301,7 +329,7 @@
     lijnGrafiek: lijnGrafiek,
     dayBars: dayBars,
     calendar: calendar,
-    legend: legend,
+    rail: rail,
     esc: esc
   };
 })(window);
