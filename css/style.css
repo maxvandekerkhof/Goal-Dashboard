@@ -829,12 +829,16 @@ ol.explain { list-style: decimal; }
 
 .lift-inputs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .lift-field { position: relative; display: flex; align-items: center; width: 94px; }
-.lift-field input { padding: 9px 34px 9px 11px; font-size: .95rem; }
+/* Rechts moet "kg" passen én links een getal als 26,3 — zonder die krappere
+   binnenmarge viel de laatste decimaal onder het label. */
+.lift-field input { padding: 9px 30px 9px 9px; font-size: .95rem; }
 .lift-field .measure-unit { right: 9px; font-size: .68rem; }
 .lift-x { color: var(--faint); font-size: .9rem; }
 .lift-status { margin-left: auto; white-space: nowrap; }
 
 .lift-hist { color: var(--faint); font-size: .74rem; margin-top: 6px; }
+/* De onderbouwing van een oordeel mag opvallen naast de kale historie. */
+.lift-ruil { color: var(--muted); margin-top: 3px; }
 .lift-date { opacity: .7; }
 
 .lift-knoppen { display: flex; gap: 4px; flex: none; }

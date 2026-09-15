@@ -341,21 +341,60 @@
   }
 
   /**
-   * Vooruit als gewicht én reps gelijk of hoger zijn, met minstens één hoger.
-   * Gaat er één omhoog en de ander omlaag, dan beslist gewicht × reps.
+   * Geschatte 1RM volgens Epley: het gewicht dat je bij één herhaling zou
+   * halen. Dit is de maat waarmee sets uit verschillende repranges met elkaar
+   * te vergelijken zijn, en het is dezelfde maat als de grafiek per oefening
+   * tekent.
    */
-  function vergelijk(nu, vorige) {
+  function geschat1RM(kg, reps) {
+    return kg * (1 + reps / 30);
+  }
+
+  /* Hoeveel je geschatte 1RM mag schelen voor het vooruitgang of terugval
+     heet. Een set van acht tegen een set van vijftien omrekenen is een
+     schatting, geen meting: onder de vijf procent is het verschil kleiner dan
+     de onzekerheid van de formule zelf. */
+  var RUIL_BAND = 0.05;
+
+  /**
+   * Hoe verhoudt deze set zich tot de vorige?
+   * -> { status, ruil, nu1rm, vorig1rm, verschil }
+   *
+   * Gaan gewicht en reps dezelfde kant op, dan is er niets te wegen. Ruil je ze
+   * tegen elkaar uit — zwaarder maar minder herhalingen, of andersom — dan
+   * beslist je geschatte 1RM.
+   *
+   * Dat ging eerder op gewicht × reps, en dat weegt verkeerd: 26 kg × 8 is dan
+   * 39% minder dan 23 kg × 15, terwijl het in werkelijkheid vrijwel dezelfde
+   * set is. Volume straft zwaar-en-kort af om de verkeerde reden, namelijk
+   * omdat je minder herhalingen deed.
+   */
+  function vergelijkDetail(nu, vorige) {
     if (!nu || !vorige) return null;
+    var uit = {
+      status: 'gelijk',
+      ruil: false,
+      nu1rm: geschat1RM(nu.kg, nu.reps),
+      vorig1rm: geschat1RM(vorige.kg, vorige.reps),
+      verschil: 0
+    };
+    uit.verschil = uit.vorig1rm > 0 ? (uit.nu1rm - uit.vorig1rm) / uit.vorig1rm : 0;
+
     var dk = nu.kg - vorige.kg;
     var dr = nu.reps - vorige.reps;
-    if (dk === 0 && dr === 0) return 'gelijk';
-    if (dk >= 0 && dr >= 0) return 'vooruit';
-    if (dk <= 0 && dr <= 0) return 'terug';
-    var nuVolume = nu.kg * nu.reps;
-    var oudVolume = vorige.kg * vorige.reps;
-    if (nuVolume > oudVolume) return 'vooruit';
-    if (nuVolume < oudVolume) return 'terug';
-    return 'gelijk';
+    if (dk === 0 && dr === 0) return uit;
+    if (dk >= 0 && dr >= 0) { uit.status = 'vooruit'; return uit; }
+    if (dk <= 0 && dr <= 0) { uit.status = 'terug'; return uit; }
+
+    uit.ruil = true;
+    if (uit.verschil > RUIL_BAND) uit.status = 'vooruit';
+    else if (uit.verschil < -RUIL_BAND) uit.status = 'terug';
+    return uit;
+  }
+
+  function vergelijk(nu, vorige) {
+    var d = vergelijkDetail(nu, vorige);
+    return d ? d.status : null;
   }
 
   /**
@@ -371,6 +410,7 @@
         var nu = leesZijde(dag[oid], z.key);
         if (!nu) return;
         var ctx = context(datum, oid, z.key);
+        var detail = ctx.vorige ? vergelijkDetail(nu, ctx.vorige) : null;
         regels.push({
           id: oid,
           zijde: z,
@@ -378,7 +418,8 @@
           nu: nu,
           start: ctx.start,
           vorige: ctx.vorige,
-          status: ctx.vorige ? vergelijk(nu, ctx.vorige) : 'nieuw'
+          detail: detail,
+          status: detail ? detail.status : 'nieuw'
         });
       });
     });
@@ -441,6 +482,8 @@
     historie: historie,
     context: context,
     vergelijk: vergelijk,
+    vergelijkDetail: vergelijkDetail,
+    geschat1RM: geschat1RM,
     dagResultaat: dagResultaat,
     dagRegels: dagRegels
   };

@@ -561,6 +561,10 @@
     }
     if (!geschiedenis.length) geschiedenis.push('Nog geen eerdere sessie — dit wordt je startpunt.');
 
+    // Ruilde je reps tegen gewicht, dan valt het oordeel niet uit de twee
+    // getallen af te lezen. Dan hoort erbij waaróp het gebaseerd is.
+    var ruil = (regel && regel.detail && regel.detail.ruil) ? ruilUitleg(regel.detail) : '';
+
     return '<div class="lift-side">' +
       (zijde.key ? '<span class="lift-arm" title="' + esc(zijde.label) + '">' + esc(zijde.kort) + '</span>' : '') +
       '<div class="lift-body">' +
@@ -570,18 +574,23 @@
         esc(st.label) + '</span>' : '') +
       '</div>' +
       '<p class="lift-hist">' + geschiedenis.join(' · ') + '</p>' +
+      (ruil ? '<p class="lift-hist lift-ruil">' + esc(ruil) + '</p>' : '') +
       '</div></div>';
   }
 
-  /**
-   * Geschatte 1RM volgens Epley. Daarmee telt 40 kg × 10 als vooruitgang op
-   * 40 kg × 8, zonder dat de grafiek twee lijnen nodig heeft. Boven de tien
-   * herhalingen wordt de schatting optimistisch, maar het gaat hier om het
-   * verloop van je eigen oefening, niet om het absolute getal.
-   */
-  function geschat1RM(kg, reps) {
-    return kg * (1 + reps / 30);
+  /** Waarom een set met minder reps maar meer kilo's zo beoordeeld wordt. */
+  function ruilUitleg(d) {
+    var kern = 'Geschat 1RM ' + fmt(d.nu1rm, 0) + ' kg tegen ' + fmt(d.vorig1rm, 0) +
+      ' kg vorige keer';
+    var pct = Math.round(Math.abs(d.verschil) * 100);
+    if (d.status === 'vooruit') return kern + ': ' + pct + '% erboven.';
+    if (d.status === 'terug') return kern + ': ' + pct + '% eronder.';
+    return kern + ' — te dicht bij elkaar om vooruitgang of terugval te heten.';
   }
+
+  /* Dezelfde maat als waarmee de app vooruitgang beoordeelt, zodat de lijn en
+     het oordeel eronder niet uit elkaar kunnen lopen. */
+  var geschat1RM = GD.lifts.geschat1RM;
 
   /** Het hele verloop van één oefening, met de beste sessie gemarkeerd. */
   function liftGrafiek(oef) {
@@ -742,7 +751,9 @@
 
     var uitleg = res.vergeleken
       ? 'Vooruit telt zodra gewicht én reps gelijk of hoger zijn en er minstens één omhoog gaat. ' +
-        'Gaat de één omhoog en de ander omlaag, dan beslist gewicht × reps.'
+        'Ruil je het een tegen het ander — zwaarder met minder herhalingen, of andersom — ' +
+        'dan beslist je geschatte 1RM, dezelfde maat als de grafiek per oefening. ' +
+        'Scheelt dat minder dan 5%, dan is het te dicht bij elkaar en heet het gelijk.'
       : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
 
     return '<section class="card">' +

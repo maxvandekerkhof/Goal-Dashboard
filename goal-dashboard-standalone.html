@@ -848,12 +848,16 @@ ol.explain { list-style: decimal; }
 
 .lift-inputs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .lift-field { position: relative; display: flex; align-items: center; width: 94px; }
-.lift-field input { padding: 9px 34px 9px 11px; font-size: .95rem; }
+/* Rechts moet "kg" passen én links een getal als 26,3 — zonder die krappere
+   binnenmarge viel de laatste decimaal onder het label. */
+.lift-field input { padding: 9px 30px 9px 9px; font-size: .95rem; }
 .lift-field .measure-unit { right: 9px; font-size: .68rem; }
 .lift-x { color: var(--faint); font-size: .9rem; }
 .lift-status { margin-left: auto; white-space: nowrap; }
 
 .lift-hist { color: var(--faint); font-size: .74rem; margin-top: 6px; }
+/* De onderbouwing van een oordeel mag opvallen naast de kale historie. */
+.lift-ruil { color: var(--muted); margin-top: 3px; }
 .lift-date { opacity: .7; }
 
 .lift-knoppen { display: flex; gap: 4px; flex: none; }
@@ -2211,21 +2215,60 @@ ol.explain { list-style: decimal; }
   }
 
   /**
-   * Vooruit als gewicht én reps gelijk of hoger zijn, met minstens één hoger.
-   * Gaat er één omhoog en de ander omlaag, dan beslist gewicht × reps.
+   * Geschatte 1RM volgens Epley: het gewicht dat je bij één herhaling zou
+   * halen. Dit is de maat waarmee sets uit verschillende repranges met elkaar
+   * te vergelijken zijn, en het is dezelfde maat als de grafiek per oefening
+   * tekent.
    */
-  function vergelijk(nu, vorige) {
+  function geschat1RM(kg, reps) {
+    return kg * (1 + reps / 30);
+  }
+
+  /* Hoeveel je geschatte 1RM mag schelen voor het vooruitgang of terugval
+     heet. Een set van acht tegen een set van vijftien omrekenen is een
+     schatting, geen meting: onder de vijf procent is het verschil kleiner dan
+     de onzekerheid van de formule zelf. */
+  var RUIL_BAND = 0.05;
+
+  /**
+   * Hoe verhoudt deze set zich tot de vorige?
+   * -> { status, ruil, nu1rm, vorig1rm, verschil }
+   *
+   * Gaan gewicht en reps dezelfde kant op, dan is er niets te wegen. Ruil je ze
+   * tegen elkaar uit — zwaarder maar minder herhalingen, of andersom — dan
+   * beslist je geschatte 1RM.
+   *
+   * Dat ging eerder op gewicht × reps, en dat weegt verkeerd: 26 kg × 8 is dan
+   * 39% minder dan 23 kg × 15, terwijl het in werkelijkheid vrijwel dezelfde
+   * set is. Volume straft zwaar-en-kort af om de verkeerde reden, namelijk
+   * omdat je minder herhalingen deed.
+   */
+  function vergelijkDetail(nu, vorige) {
     if (!nu || !vorige) return null;
+    var uit = {
+      status: 'gelijk',
+      ruil: false,
+      nu1rm: geschat1RM(nu.kg, nu.reps),
+      vorig1rm: geschat1RM(vorige.kg, vorige.reps),
+      verschil: 0
+    };
+    uit.verschil = uit.vorig1rm > 0 ? (uit.nu1rm - uit.vorig1rm) / uit.vorig1rm : 0;
+
     var dk = nu.kg - vorige.kg;
     var dr = nu.reps - vorige.reps;
-    if (dk === 0 && dr === 0) return 'gelijk';
-    if (dk >= 0 && dr >= 0) return 'vooruit';
-    if (dk <= 0 && dr <= 0) return 'terug';
-    var nuVolume = nu.kg * nu.reps;
-    var oudVolume = vorige.kg * vorige.reps;
-    if (nuVolume > oudVolume) return 'vooruit';
-    if (nuVolume < oudVolume) return 'terug';
-    return 'gelijk';
+    if (dk === 0 && dr === 0) return uit;
+    if (dk >= 0 && dr >= 0) { uit.status = 'vooruit'; return uit; }
+    if (dk <= 0 && dr <= 0) { uit.status = 'terug'; return uit; }
+
+    uit.ruil = true;
+    if (uit.verschil > RUIL_BAND) uit.status = 'vooruit';
+    else if (uit.verschil < -RUIL_BAND) uit.status = 'terug';
+    return uit;
+  }
+
+  function vergelijk(nu, vorige) {
+    var d = vergelijkDetail(nu, vorige);
+    return d ? d.status : null;
   }
 
   /**
@@ -2241,6 +2284,7 @@ ol.explain { list-style: decimal; }
         var nu = leesZijde(dag[oid], z.key);
         if (!nu) return;
         var ctx = context(datum, oid, z.key);
+        var detail = ctx.vorige ? vergelijkDetail(nu, ctx.vorige) : null;
         regels.push({
           id: oid,
           zijde: z,
@@ -2248,7 +2292,8 @@ ol.explain { list-style: decimal; }
           nu: nu,
           start: ctx.start,
           vorige: ctx.vorige,
-          status: ctx.vorige ? vergelijk(nu, ctx.vorige) : 'nieuw'
+          detail: detail,
+          status: detail ? detail.status : 'nieuw'
         });
       });
     });
@@ -2311,6 +2356,8 @@ ol.explain { list-style: decimal; }
     historie: historie,
     context: context,
     vergelijk: vergelijk,
+    vergelijkDetail: vergelijkDetail,
+    geschat1RM: geschat1RM,
     dagResultaat: dagResultaat,
     dagRegels: dagRegels
   };
@@ -5099,6 +5146,10 @@ ol.explain { list-style: decimal; }
     }
     if (!geschiedenis.length) geschiedenis.push('Nog geen eerdere sessie — dit wordt je startpunt.');
 
+    // Ruilde je reps tegen gewicht, dan valt het oordeel niet uit de twee
+    // getallen af te lezen. Dan hoort erbij waaróp het gebaseerd is.
+    var ruil = (regel && regel.detail && regel.detail.ruil) ? ruilUitleg(regel.detail) : '';
+
     return '<div class="lift-side">' +
       (zijde.key ? '<span class="lift-arm" title="' + esc(zijde.label) + '">' + esc(zijde.kort) + '</span>' : '') +
       '<div class="lift-body">' +
@@ -5108,18 +5159,23 @@ ol.explain { list-style: decimal; }
         esc(st.label) + '</span>' : '') +
       '</div>' +
       '<p class="lift-hist">' + geschiedenis.join(' · ') + '</p>' +
+      (ruil ? '<p class="lift-hist lift-ruil">' + esc(ruil) + '</p>' : '') +
       '</div></div>';
   }
 
-  /**
-   * Geschatte 1RM volgens Epley. Daarmee telt 40 kg × 10 als vooruitgang op
-   * 40 kg × 8, zonder dat de grafiek twee lijnen nodig heeft. Boven de tien
-   * herhalingen wordt de schatting optimistisch, maar het gaat hier om het
-   * verloop van je eigen oefening, niet om het absolute getal.
-   */
-  function geschat1RM(kg, reps) {
-    return kg * (1 + reps / 30);
+  /** Waarom een set met minder reps maar meer kilo's zo beoordeeld wordt. */
+  function ruilUitleg(d) {
+    var kern = 'Geschat 1RM ' + fmt(d.nu1rm, 0) + ' kg tegen ' + fmt(d.vorig1rm, 0) +
+      ' kg vorige keer';
+    var pct = Math.round(Math.abs(d.verschil) * 100);
+    if (d.status === 'vooruit') return kern + ': ' + pct + '% erboven.';
+    if (d.status === 'terug') return kern + ': ' + pct + '% eronder.';
+    return kern + ' — te dicht bij elkaar om vooruitgang of terugval te heten.';
   }
+
+  /* Dezelfde maat als waarmee de app vooruitgang beoordeelt, zodat de lijn en
+     het oordeel eronder niet uit elkaar kunnen lopen. */
+  var geschat1RM = GD.lifts.geschat1RM;
 
   /** Het hele verloop van één oefening, met de beste sessie gemarkeerd. */
   function liftGrafiek(oef) {
@@ -5280,7 +5336,9 @@ ol.explain { list-style: decimal; }
 
     var uitleg = res.vergeleken
       ? 'Vooruit telt zodra gewicht én reps gelijk of hoger zijn en er minstens één omhoog gaat. ' +
-        'Gaat de één omhoog en de ander omlaag, dan beslist gewicht × reps.'
+        'Ruil je het een tegen het ander — zwaarder met minder herhalingen, of andersom — ' +
+        'dan beslist je geschatte 1RM, dezelfde maat als de grafiek per oefening. ' +
+        'Scheelt dat minder dan 5%, dan is het te dicht bij elkaar en heet het gelijk.'
       : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
 
     return '<section class="card">' +
