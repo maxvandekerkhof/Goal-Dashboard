@@ -231,6 +231,7 @@
     }).length;
 
     var streak = S.currentStreak();
+    var kr = S.kracht(date).totaal;
     /* Wat staat er al vast, en wat valt er vandaag nog te halen? */
     var ov = S.dagOverzicht(day);
     var nietsGedaan = day.pct === null && ov.binnen === 0 && ov.kwijt === 0;
@@ -244,6 +245,10 @@
           Math.round(day.pct) + '% raak tot nu toe</span>'
         : '') +
       '<span class="chip">' + GD.icon('vlam', 14) + streak + ' dag' + (streak === 1 ? '' : 'en') + ' op rij</span>' +
+      // Naast de streak, niet in plaats ervan: de streak is scherp, kracht
+      // onthoudt wat er na een slechte week nog overeind staat.
+      (kr === null ? '' : '<span class="chip" style="color:' + GD.scoreInk(kr) + '">' +
+        GD.icon('overload', 14) + 'kracht ' + Math.round(kr) + '</span>') +
       (day.restDay ? '<span class="chip">' + GD.icon('rust', 14) + 'rustdag</span>' : '') +
       '</div>' +
       (ov.open > 0 && !isFuture
@@ -575,6 +580,54 @@
       '</div>' +
       '<p class="lift-hist">' + geschiedenis.join(' · ') + '</p>' +
       (ruil ? '<p class="lift-hist lift-ruil">' + esc(ruil) + '</p>' : '') +
+      plateauMelding(oef, zijde, date) +
+      '</div></div>';
+  }
+
+  /**
+   * Staat deze oefening stil? Alleen zichtbaar als er iets te melden is.
+   *
+   * De stilstaande sessies staan erbij, zodat je ziet waarop de conclusie rust.
+   * Een melding die alleen een oordeel geeft ga je op een gegeven moment
+   * wegkijken; een melding met de getallen erbij kun je controleren.
+   */
+  function plateauMelding(oef, zijde, datum) {
+    var p = GD.lifts.plateau(oef.id, zijde.key, datum);
+    if (p.niveau === 'geen' || p.sessies <= p.gemeld) return '';
+
+    var deload = p.niveau === 'deload';
+    var pct = deload ? 10 : 45;
+    var sessies = p.reeks.map(function (r) {
+      return '<span class="plateau-sessie">' + esc(D.formatShort(r.datum)) + ' · ' +
+        esc(liftText(oef, r)) + '</span>';
+    }).join('');
+
+    var tekst;
+    if (deload) {
+      tekst = 'Zes sessies of meer rond de ' + fmt(p.laatste1rm, 0) + ' kg geschat 1RM. Zo’n ' +
+        'plateau breek je zelden door harder te duwen.' +
+        (p.deloadKg
+          ? ' Ga twee weken terug naar <strong>' + fmt(p.deloadKg, p.deloadKg % 1 ? 1 : 0) +
+            ' kg</strong> en bouw de herhalingen opnieuw op — dan kom je er meestal bovenop.'
+          : ' Bouw een paar sessies met minder herhalingen op en probeer het daarna opnieuw.');
+    } else {
+      tekst = 'Je geschatte 1RM staat al ' + p.sessies + ' sessies rond de ' +
+        fmt(p.laatste1rm, 0) + ' kg. Verander één ding: een herhaling erbij op hetzelfde ' +
+        'gewicht, of een halve minuut langer rusten tussen je sets.';
+    }
+
+    return '<div class="plateau" style="--plateau-kleur:' + GD.scoreInk(pct) + '">' +
+      '<div class="plateau-kop">' + GD.icon(deload ? 'daling' : 'melding', 16) +
+      p.sessies + ' sessies niet vooruit</div>' +
+      '<div class="plateau-sessies">' + sessies + '</div>' +
+      '<p>' + tekst + '</p>' +
+      '<div class="plateau-knoppen">' +
+      (deload
+        ? '<button class="btn btn-sm btn-primary" data-action="plateau-herstart" data-oef="' +
+          esc(oef.id) + '">Herstart vanaf vandaag</button>'
+        : '') +
+      '<button class="btn btn-ghost btn-sm" data-action="plateau-negeren" data-oef="' +
+      esc(oef.id) + '" data-sessies="' + p.sessies + '">Niet meer melden</button>' +
       '</div></div>';
   }
 
@@ -806,12 +859,192 @@
    * en hoort niet in het rapport. En bewust zaterdag en niet vrijdagavond: de
    * voeding van vrijdag komt pas 's nachts uit Apple Health binnen.
    */
+  var RICHTING_WOORD = { aankomen: 'aankomen', afvallen: 'afvallen', behouden: 'op gewicht blijven' };
+
+  /**
+   * Wat je werkelijk verbrandt, en of je caloriedoel daarbij past.
+   *
+   * De rekensom staat er uitgeschreven bij. Dit getal gaat straks je doel
+   * verzetten, dus het hoort na te rekenen te zijn in plaats van geloofd.
+   */
+  function verbruikSection(datum) {
+    var s = store.settings();
+    var v = S.verbruik(datum, s);
+    var kop = '<div class="card-head"><h2>' + GD.icon('vlam') + 'Verbruik</h2>';
+
+    if (!v.klaar) {
+      var kTekort = Math.max(0, v.minKcal - v.kcalDagen);
+      var wTekort = Math.max(0, v.minWeeg - v.weegDagen);
+      var kPct = (v.kcalDagen / v.minKcal) * 100;
+      var wPct = (v.weegDagen / v.minWeeg) * 100;
+      return '<section class="card">' + kop +
+        '<span class="chip chip-off">nog te weinig gemeten</span></div>' +
+        '<div class="macro-voort">' +
+        '<div class="macro-regel"><span>Dagen met calorieën</span>' +
+        '<strong style="color:' + GD.scoreInk(kPct) + '">' + v.kcalDagen + ' / ' + v.minKcal + '</strong></div>' +
+        C.bar(kPct) + '</div>' +
+        '<div class="macro-voort">' +
+        '<div class="macro-regel"><span>Weegmomenten</span>' +
+        '<strong style="color:' + GD.scoreInk(wPct) + '">' + v.weegDagen + ' / ' + v.minWeeg + '</strong></div>' +
+        C.bar(wPct) + '</div>' +
+        '<p class="hint">Je verbruik volgt uit het verschil tussen wat je at en wat je aankwam. ' +
+        'Over een korte periode is dat verschil kleiner dan de ruis van vocht en darminhoud — dan ' +
+        'reken ik liever nog niet. Er ' + (kTekort + wTekort === 1 ? 'ontbreekt' : 'ontbreken') + ' nog ' +
+        (kTekort ? '<strong>' + kTekort + '</strong> dag' + (kTekort === 1 ? '' : 'en') + ' met calorieën' : '') +
+        (kTekort && wTekort ? ' en ' : '') +
+        (wTekort ? '<strong>' + wTekort + '</strong> weegmoment' + (wTekort === 1 ? '' : 'en') : '') +
+        ' in de afgelopen ' + v.venster + ' dagen.</p>' +
+        '</section>';
+    }
+
+    var opslag = Math.round(Math.abs(v.opslag));
+    var aan = v.opslag >= 0;
+    var som = '<div class="verbruik-som">' +
+      '<div class="vs-regel"><span>Gemiddeld gegeten</span><strong>' +
+      Math.round(v.kcalGem) + ' kcal</strong></div>' +
+      '<div class="vs-regel"><span>Gewichtstrend</span><strong>' +
+      GD.review.kgTekst(v.perWeek) + ' per week</strong></div>' +
+      '<div class="vs-regel"><span>Daar ging dus ' + (aan ? 'in' : 'uit') + ' de opslag</span><strong>' +
+      opslag + ' kcal per dag</strong></div>' +
+      '<div class="vs-regel vs-uitkomst"><span>Blijft over: je verbruik</span>' +
+      '<strong style="color:' + GD.scoreInk(70) + '">' + Math.round(v.kcal) + ' kcal</strong></div>' +
+      '</div>';
+
+    var melding = '', voet = '';
+    if (v.advies === 'geen-doel') {
+      melding = '<p class="hint">Je houdt geen gewichtsdoel bij, dus hier valt niets aan te ' +
+        'raden. Het getal hierboven klopt wel.</p>';
+    } else if (v.advies === 'geen-doel-ingesteld') {
+      melding = meldRegel('doel', null, 'Je hebt nog geen caloriedoel staan. Voor ' +
+        (RICHTING_WOORD[v.richting] || v.richting) + ' past ongeveer <strong>' + v.doelKcal +
+        ' kcal</strong> bij dit verbruik.');
+      voet = doelKnop(v.doelKcal);
+    } else if (v.advies === 'klopt') {
+      melding = meldRegel('vink', 95, 'Je doel van <strong>' + v.huidigDoel + ' kcal</strong> past ' +
+        'bij wat je verbruikt en bij je tempo. Niets doen.');
+    } else {
+      // Bewust over het dóél en niet over wat je at: deze kaart controleert of
+      // het getal in je instellingen klopt met je verbruik. Of je dat doel ook
+      // haalde is een andere vraag, en die staat in het blok hierboven.
+      var meer = v.advies === 'meer-eten';
+      var tempo = Math.abs(S.num(s.gewichtTempo, 0.25));
+      melding = meldRegel('melding', meer ? 35 : 40,
+        'Je doel staat op <strong>' + v.huidigDoel + ' kcal</strong>. Voor ' +
+        GD.review.kgTekst(v.richting === 'afvallen' ? -tempo : tempo) +
+        ' per week hoort daar ongeveer <strong>' + v.doelKcal + ' kcal</strong> bij: ' +
+        'je doel staat te ' + (meer ? 'laag' : 'hoog') + ' voor wat je verbruikt.' +
+        (Math.abs(v.verschil) >= 300
+          ? ' Dit voorstel is afgetopt op 300 kcal — volgende week kan er weer een stap bij.'
+          : ''));
+      voet = doelKnop(v.doelKcal);
+    }
+
+    return '<section class="card">' + kop +
+      '<span class="chip">' + v.venster + ' dagen</span></div>' +
+      '<div class="meter-top">' +
+      '<span class="meter-amount" style="color:' + GD.scoreInk(70) + '">' + Math.round(v.kcal) + '</span>' +
+      '<span class="meter-goal">kcal per dag</span>' +
+      '</div>' + som +
+      '<p class="hint">Niet uit een formule met je lengte, leeftijd en een gokje over hoe actief je ' +
+      'bent, maar uit wat jij at en wat de weegschaal daarmee deed. Gebaseerd op ' + v.kcalDagen +
+      ' dagen calorieën en ' + v.weegDagen + ' weegmomenten, waarbij recente dagen zwaarder wegen.</p>' +
+      melding + voet +
+      '</section>';
+  }
+
+  function meldRegel(ico, pct, html) {
+    return '<p class="meldregel"' + (pct === null ? '' : ' style="color:' + GD.scoreInk(pct) + '"') +
+      '><span class="meldregel-icoon">' + GD.icon(ico, 16) + '</span><span>' + html + '</span></p>';
+  }
+
+  function doelKnop(kcal) {
+    return '<div class="card-foot">' +
+      '<button class="btn btn-primary btn-sm" data-action="verbruik-doel" data-kcal="' + kcal + '">' +
+      'Zet doel op ' + kcal + '</button></div>';
+  }
+
+  /** Het verloop van je verbruik, zodat een dalend onderhoud zichtbaar wordt. */
+  function verbruikGrafiek(datum) {
+    var punten = S.verbruikVerloop(datum, 12, 7).map(function (p) {
+      return { datum: p.datum, v: p.kcal, label: Math.round(p.kcal) + ' kcal' };
+    });
+    if (punten.length < 2) return '';
+    return '<section class="card">' +
+      '<div class="card-head"><h2>' + GD.icon('grafiek') + 'Verloop van je verbruik</h2>' +
+      '<span class="chip">12 weken</span></div>' +
+      C.lijnGrafiek([{ naam: 'verbruik', punten: punten }], { eenheid: 'kcal' }) +
+      '<p class="hint">Zakt deze lijn terwijl je eet wat je at, dan past je lichaam zich aan en ' +
+      'moet er eten bij. Dát is wat een vaste formule je nooit vertelt.</p>' +
+      '</section>';
+  }
+
+  /**
+   * Gewoontekracht: welke gewoonte staat er echt?
+   *
+   * Je weekscore zegt hoe de week ging, je streak of je hem volhield. Geen van
+   * beide overleeft een griepweek. Kracht wel — die zakt en klimt weer.
+   */
+  function krachtSection(datum) {
+    var k = S.kracht(datum);
+    if (k.totaal === null) return '';
+    var eerder = S.krachtEerder(datum, 7);
+
+    var verloop = k.reeks.filter(function (r, i) {
+      return r.waarde !== null && (i % 7 === 0 || i === k.reeks.length - 1);
+    }).map(function (r) {
+      return { datum: r.datum, v: r.waarde, label: Math.round(r.waarde) };
+    });
+
+    var rijen = k.perDoel.map(function (d) {
+      var verschil = Math.round(d.delta === null ? 0 : d.delta);
+      var delta = d.delta === null ? ''
+        : '<span class="kracht-delta">' +
+          (verschil === 0 ? 'gelijk' : (verschil > 0 ? '+' : '−') + Math.abs(verschil)) + '</span>';
+      return '<div class="kracht-rij">' +
+        '<div class="kracht-kop">' +
+        '<span class="kracht-naam">' + GD.icon(d.goal.icon, 16) + esc(d.goal.label) + '</span>' +
+        '<span><span class="kracht-getal" style="color:' + GD.scoreInk(d.pct) + '">' +
+        Math.round(d.pct) + '</span>' + delta + '</span>' +
+        '</div>' + C.bar(d.pct) + '</div>';
+    }).join('');
+
+    var zwakste = k.perDoel.length ? k.perDoel[k.perDoel.length - 1] : null;
+    var slot = zwakste && zwakste.pct < 65
+      ? meldRegel(zwakste.goal.icon, zwakste.pct, '<strong>' + esc(zwakste.goal.label) +
+        '</strong> is je zwakste gewoonte. Eén doel tegelijk repareren werkt beter dan alles tegelijk.')
+      : '';
+
+    var verschil = eerder === null ? '' : ' · vorige week ' + Math.round(eerder);
+
+    return '<section class="card">' +
+      '<div class="card-head"><h2>' + GD.icon('overload') + 'Gewoontekracht</h2>' +
+      '<span class="chip">' + k.dagen + ' dagen</span></div>' +
+      '<div class="kracht-top">' +
+      '<span class="kracht-waarde" style="color:' + GD.scoreInk(k.totaal) + '">' +
+      Math.round(k.totaal) + '</span>' +
+      '<span class="kracht-sub">van de 100' + esc(verschil) + '</span>' +
+      '</div>' +
+      (verloop.length > 1
+        ? C.lijnGrafiek([{ naam: 'kracht', punten: verloop }], { eenheid: '' })
+        : '') +
+      '<p class="hint">Elke dag telt mee, maar hoe langer geleden hoe minder zwaar: een dag van ' +
+      k.halfwaarde + ' dagen terug weegt nog half zo zwaar als vandaag. Eén gemiste dag is daardoor ' +
+      'een deuk van een paar punten en geen reset, zoals bij je streak.</p>' +
+      '<div class="kracht-lijst">' + rijen + '</div>' + slot +
+      '</section>';
+  }
+
   function reviewSection(datum, opties) {
     opties = opties || {};
     var r = GD.review.maak(datum);
 
     var kop = '<div class="card-head"><h2>' + GD.icon('rapport') + 'Weekafsluiting · ' + esc(r.label) + '</h2>' +
       '<span class="chip">ma t/m vr · ' + esc(r.periode) + '</span></div>';
+
+    // Het venster van verbruik en plateaus loopt tot en met de laatste dag die
+    // echt geweest is; anders rekent een week uit het verleden met dagen erna.
+    var tot = r.dagen[r.dagen.length - 1];
+    if (tot > D.today()) tot = D.today();
 
     if (!r.ingevuld) {
       return '<section class="card review">' + kop +
@@ -868,6 +1101,7 @@
           '%. Daar liggen je punten voor volgende week.',
           r.zwakste.pct >= 70 ? 'goed' : 'let-op')
         : '') +
+      plateauBlok(tot) +
       '</div>';
 
     var knoppen = opties.dagkaart
@@ -885,7 +1119,29 @@
           'op de kilo nauwkeurig te rekenen.'
         : '') + '</p>';
 
-    return '<section class="card review">' + kop + cijfers + blokken + knoppen + voet + '</section>';
+    return '<section class="card review">' + kop + cijfers + blokken + knoppen + voet + '</section>' +
+      verbruikSection(tot);
+  }
+
+  /** Oefeningen die stilstaan, als regel in de weekafsluiting. */
+  function plateauBlok(datum) {
+    var lijst = GD.lifts.plateaus(datum);
+    if (!lijst.length) return '';
+
+    var namen = lijst.map(function (p) {
+      return p.oef.naam + (p.zijde.kort ? ' (' + p.zijde.kort + ')' : '') +
+        ' ' + p.plateau.sessies + ' sessies';
+    });
+    var deload = lijst.filter(function (p) { return p.plateau.niveau === 'deload'; });
+
+    var tekst = (namen.length === 1 ? 'Eén oefening staat stil: ' : 'Deze staan stil: ') +
+      namen.join(', ') + '. ' +
+      (deload.length
+        ? 'Bij ' + (deload.length === 1 ? deload[0].oef.naam : deload.length + ' daarvan') +
+          ' is een week terug in gewicht het overwegen waard — dat staat bij de oefening zelf.'
+        : 'Nog te vroeg om terug te gaan in gewicht; probeer eerst één ding te veranderen.');
+
+    return reviewBlok('melding', 'Vastgelopen', tekst, deload.length ? 'let-op' : 'neutraal');
   }
 
   /* ------------------------------- week ------------------------------- */
@@ -907,6 +1163,10 @@
     html += '<section class="card"><h2>' + GD.icon('week') + 'Per dag</h2>' + C.dayBars(period.days) +
       '<p class="hint">Klik op een dag om hem in te vullen.</p></section>';
     html += breakdownList(period.breakdown);
+
+    var tot = dates[dates.length - 1] > D.today() ? D.today() : dates[dates.length - 1];
+    html += krachtSection(tot);
+    html += verbruikGrafiek(tot);
 
     var vorigeStart = D.addDays(dates[0], -7);
     html += weightTrendSection(
@@ -1779,6 +2039,31 @@
     if (action === 'oef-reset') {
       if (confirm('Opnieuw beginnen met tellen voor "' + GD.lifts.naam(el.dataset.oef) +
         '"? Je eerstvolgende sessie wordt je nieuwe startpunt.')) {
+        GD.lifts.resetStart(el.dataset.oef, D.today());
+        toast('Startpunt opnieuw gezet.');
+        render();
+      }
+      return;
+    }
+    if (action === 'verbruik-doel') {
+      var nieuw = S.num(el.dataset.kcal);
+      if (nieuw !== null) {
+        store.setSetting('calorieDoel', nieuw);
+        toast('Caloriedoel staat op ' + nieuw + ' kcal.');
+        render();
+      }
+      return;
+    }
+    if (action === 'plateau-negeren') {
+      GD.lifts.plateauWegklikken(el.dataset.oef, S.num(el.dataset.sessies) || 0);
+      toast('Gemeld zodra het langer stilstaat.');
+      render();
+      return;
+    }
+    if (action === 'plateau-herstart') {
+      if (confirm('Opnieuw beginnen met tellen voor "' + GD.lifts.naam(el.dataset.oef) +
+        '"? Je eerstvolgende sessie wordt je nieuwe startpunt, zodat een lichtere week niet ' +
+        'als terugval telt.')) {
         GD.lifts.resetStart(el.dataset.oef, D.today());
         toast('Startpunt opnieuw gezet.');
         render();

@@ -469,6 +469,100 @@
     return { regels: regels, vergeleken: vergeleken, vooruit: vooruit, waarde: waarde };
   }
 
+  /* ------------------------------- plateau -------------------------------- *
+   *
+   * Een oefening die niet meer vooruitgaat zie je zelf pas als je terugbladert.
+   * Hieronder telt de app hoeveel sessies op rij er geen vooruitgang was.
+   *
+   * Twee drempels, want het advies verschilt. Bij drie sessies is er iets aan
+   * de hand maar is terugvallen in gewicht een te zwaar middel — dan is de
+   * boodschap: verander één ding. Pas bij zes sessies is een deload op zijn
+   * plaats, want dan heb je bewezen dat harder duwen niet werkt.
+   * ------------------------------------------------------------------------- */
+
+  var PLATEAU_LET_OP = 3;
+  var PLATEAU_DELOAD = 6;
+  var DELOAD_DEEL = 0.9;
+
+  /* Terug in gewicht met een stap die in jouw sportschool bestaat. Welke dat is
+     weet de app niet, dus volgt hij jouw eigen getallen: til je in veelvouden
+     van 2,5 kg, dan is het advies dat ook. */
+  function deloadGewicht(kg) {
+    var doel = kg * DELOAD_DEEL;
+    var stap = Math.abs(kg % 2.5) < 1e-9 ? 2.5 : 0.5;
+    var uit = Math.floor(doel / stap) * stap;
+    return Math.round(uit * 100) / 100;
+  }
+
+  /**
+   * Hoe lang staat deze oefening stil?
+   * -> { sessies, niveau, reeks[], laatste1rm, deloadKg, gemeld }
+   *
+   * `niveau` is 'geen', 'let-op' of 'deload'. `reeks` zijn de stilstaande
+   * sessies, oudste eerst, zodat de app kan laten zien waar dat oordeel op
+   * rust in plaats van alleen een conclusie te melden.
+   */
+  function plateau(oid, zijdeKey, datum) {
+    var oef = byId(oid);
+    var vanaf = oef && oef.startDatum ? oef.startDatum : null;
+    var h = historie(oid, zijdeKey).filter(function (r) {
+      return (!vanaf || r.datum >= vanaf) && (!datum || r.datum <= datum);
+    });
+
+    var uit = {
+      sessies: 0, niveau: 'geen', reeks: [], laatste1rm: null,
+      deloadKg: null, gemeld: 0, drempel: PLATEAU_LET_OP
+    };
+    if (h.length < 2) return uit;
+
+    // Het zwaarste vóór elke sessie, zodat de recordregel hier hetzelfde
+    // oordeelt als op de dagpagina.
+    var records = [];
+    var zwaarste = null;
+    h.forEach(function (r) {
+      records.push(zwaarste);
+      if (zwaarste === null || r.kg > zwaarste) zwaarste = r.kg;
+    });
+
+    for (var i = h.length - 1; i >= 1; i--) {
+      if (vergelijk(h[i], h[i - 1], records[i]) === 'vooruit') break;
+      uit.reeks.unshift(h[i]);
+      uit.sessies++;
+    }
+
+    if (!uit.sessies) return uit;
+    var laatste = h[h.length - 1];
+    uit.laatste1rm = geschat1RM(laatste.kg, laatste.reps);
+    uit.gemeld = oef && oef.plateauGemeld ? num(oef.plateauGemeld) || 0 : 0;
+
+    if (uit.sessies >= PLATEAU_DELOAD) {
+      uit.niveau = 'deload';
+      uit.drempel = PLATEAU_DELOAD;
+      if (laatste.kg > 0) uit.deloadKg = deloadGewicht(laatste.kg);
+    } else if (uit.sessies >= PLATEAU_LET_OP) {
+      uit.niveau = 'let-op';
+    }
+    return uit;
+  }
+
+  /** "Niet meer melden", tot deze oefening weer een keer vooruitgaat. */
+  function plateauWegklikken(oid, sessies) {
+    updateOefening(oid, { plateauGemeld: sessies });
+  }
+
+  /** Alle oefeningen die op `datum` stilstaan, de langste eerst. */
+  function plateaus(datum) {
+    var uit = [];
+    oefeningen().forEach(function (oef) {
+      zijden(oef).forEach(function (z) {
+        var p = plateau(oef.id, z.key, datum);
+        if (p.niveau === 'geen') return;
+        uit.push({ oef: oef, zijde: z, plateau: p });
+      });
+    });
+    return uit.sort(function (a, b) { return b.plateau.sessies - a.plateau.sessies; });
+  }
+
   /** Zoals de dag hem toont: eerst het gekozen schema, daarna de rest. */
   function dagRegels(datum) {
     var dag = dagOefeningen(datum);
@@ -512,6 +606,10 @@
     vergelijkDetail: vergelijkDetail,
     geschat1RM: geschat1RM,
     dagResultaat: dagResultaat,
-    dagRegels: dagRegels
+    dagRegels: dagRegels,
+    plateau: plateau,
+    plateaus: plateaus,
+    plateauWegklikken: plateauWegklikken,
+    deloadGewicht: deloadGewicht
   };
 })(window);

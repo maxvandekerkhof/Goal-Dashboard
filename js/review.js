@@ -9,8 +9,9 @@
 
   /* Eén kilo lichaamsgewicht komt ruwweg overeen met 7700 kcal. Een vuistregel,
      geen natuurwet: hij is goed genoeg om te zien of je bij moet sturen, niet
-     om op de kilo nauwkeurig te rekenen. */
-  var KCAL_PER_KG = 7700;
+     om op de kilo nauwkeurig te rekenen. Staat in score.js, want je verbruik
+     rekent er ook mee en die twee mogen nooit uit elkaar lopen. */
+  var KCAL_PER_KG = S.KCAL_PER_KG;
 
   /* Het rapport gaat over maandag t/m vrijdag: het weekend is bewust de vrije
      ruimte en hoort er niet in. Maar het verschijnt pas op zaterdag, want de
