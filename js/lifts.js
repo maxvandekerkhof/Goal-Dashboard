@@ -424,9 +424,24 @@
     return d ? d.status : null;
   }
 
+  /* Wat één oefening bijdraagt aan het dagcijfer. Gelijk blijven is geen
+     vooruitgang, maar ook geen mislukking: je hield hetzelfde gewicht bij
+     dezelfde herhalingen. Dat hoort ergens tussen ja en nee te landen, en
+     niet even zwaar te wegen als een set die echt inzakte. */
+  var PUNT_VOORUIT = 1;
+  var PUNT_GELIJK = 0.4;
+
+  /* Bij welk deel van je oefeningen het doel vol staat. Op álles vooruitgaan,
+     elke sessie, kan niet: na de eerste maanden gaat dat fysiek niet meer.
+     Een eis die niemand kan halen meet niets, dus ging het grootste deel
+     vooruit, dan was dit een sessie met progressive overload — ook als er
+     één oefening tegenzat. Die ene zie je nog steeds bij de oefening zelf
+     staan, en blijft hij hangen dan pikt de plateaumelding hem op. */
+  var OVERLOAD_DREMPEL = 0.8;
+
   /**
    * Alles wat op één dag is ingevuld, met per regel het oordeel.
-   * -> { regels[], vergeleken, vooruit, waarde }
+   * -> { regels[], vergeleken, vooruit, gelijk, terug, deel, waarde }
    */
   function dagResultaat(datum) {
     var dag = dagOefeningen(datum);
@@ -451,22 +466,28 @@
       });
     });
 
-    var vergeleken = 0, vooruit = 0;
+    var vergeleken = 0, vooruit = 0, gelijk = 0, terug = 0, punten = 0;
     regels.forEach(function (r) {
       if (r.status === 'nieuw') return;
       vergeleken++;
-      if (r.status === 'vooruit') vooruit++;
+      if (r.status === 'vooruit') { vooruit++; punten += PUNT_VOORUIT; }
+      else if (r.status === 'gelijk') { gelijk++; punten += PUNT_GELIJK; }
+      else terug++;
     });
 
-    var waarde = null;
+    var deel = null, waarde = null;
     if (vergeleken > 0) {
-      waarde = vooruit === vergeleken ? 'ja' : (vooruit === 0 ? 'nee' : 'deels');
+      deel = GD.clamp((punten / vergeleken) / OVERLOAD_DREMPEL, 0, 1);
+      waarde = deel >= 1 ? 'ja' : (deel <= 0 ? 'nee' : 'deels');
     } else if (regels.length) {
       // Alles voor het eerst: er valt nog niets te vergelijken.
       waarde = 'nieuw';
     }
 
-    return { regels: regels, vergeleken: vergeleken, vooruit: vooruit, waarde: waarde };
+    return {
+      regels: regels, vergeleken: vergeleken, vooruit: vooruit,
+      gelijk: gelijk, terug: terug, deel: deel, waarde: waarde
+    };
   }
 
   /* ------------------------------- plateau -------------------------------- *

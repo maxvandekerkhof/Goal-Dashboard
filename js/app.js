@@ -456,6 +456,31 @@
       '</div>';
   }
 
+  /**
+   * Hoe het oordeel bij progressive overload tot stand kwam: de telling, het
+   * percentage en de balk. Dezelfde opmaak als bij eiwit en calorieën, want
+   * het is hetzelfde verhaal — een doel dat je voor een deel haalt.
+   */
+  function overloadVoet(res) {
+    if (res.deel === null) {
+      return '<p class="hint hint-tight">' + (res.regels.length
+        ? 'Je vult deze oefeningen voor het eerst in, dus er valt nog niets te vergelijken.'
+        : 'Volgt zodra je hieronder je oefeningen invult.') + '</p>';
+    }
+    var pct = res.deel * 100;
+    var delen = [res.vooruit + ' van de ' + res.vergeleken + ' vooruit'];
+    if (res.gelijk) delen.push(res.gelijk + ' gelijk');
+    if (res.terug) delen.push(res.terug + ' terug');
+
+    return '<div class="macro-voort">' +
+      '<div class="macro-regel"><span>' + esc(delen.join(' · ')) + '</span>' +
+      '<strong style="color:' + GD.scoreInk(pct) + '">' + Math.round(pct) + '%</strong></div>' +
+      C.bar(pct) +
+      '<p class="hint hint-tight">Uit je oefeningen hieronder. Gelijk blijven telt voor een deel ' +
+      'mee, en voor een volle score hoeft niet élke oefening vooruit te gaan.</p>' +
+      '</div>';
+  }
+
   function goalRow(item, day) {
     var goal = item.goal;
     var s = store.settings();
@@ -475,7 +500,11 @@
       // bij 140 van de 150 gram is iets anders dan "Nee" bij 30. De knop blijft
       // daarom neutraal — hij zegt alleen wat er genoteerd staat — en het
       // oordeel zit in de balk eronder.
+      // Bij progressive overload staat hetzelfde te gebeuren: "Deels" dekt
+      // alles tussen één van de zes en vijf van de zes. De knop krijgt daarom
+      // de kleur van wat je werkelijk haalde, niet die van het woord.
       var segPct = (isAuto && item.macro) ? null
+        : (isAuto && item.lifts && item.lifts.deel !== null) ? item.lifts.deel * 100
         : (o.score === null ? null : o.score * 100);
       return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
         ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
@@ -499,14 +528,7 @@
 
     var voet = '';
     if (item.macro && !disabled) voet += macroVoet(item);
-    if (vergrendeld) {
-      var res = GD.lifts.dagResultaat(day.date);
-      voet = '<p class="hint hint-tight">' + (res.vergeleken
-        ? res.vooruit + ' van de ' + res.vergeleken + ' vergeleken ' +
-          (res.vergeleken === 1 ? 'oefening ging' : 'oefeningen gingen') + ' vooruit.'
-        : 'Je vult deze oefeningen voor het eerst in, dus er valt nog niets te vergelijken.') +
-        ' Bepaald uit je oefeningen hieronder.</p>';
-    }
+    if (vergrendeld) voet = overloadVoet(GD.lifts.dagResultaat(day.date));
 
     return '<div class="goal' + (dimmed ? ' goal-dim' : '') + (disabled ? ' goal-off' : '') + '">' +
       '<div class="goal-head">' +
@@ -780,7 +802,7 @@
 
     var status;
     if (res.vergeleken) {
-      var pct = (res.vooruit / res.vergeleken) * 100;
+      var pct = res.deel * 100;
       status = '<span class="chip" style="color:' + GD.scoreInk(pct) + '">' +
         res.vooruit + ' van de ' + res.vergeleken + ' vooruit</span>';
     } else if (res.regels.length) {
@@ -811,7 +833,9 @@
         'Ruil je het een tegen het ander, dan telt een nieuw record op deze oefening altijd als ' +
         'vooruitgang, zolang je er minstens de helft van je vorige herhalingen mee haalde. ' +
         'Lukt dat niet, dan beslist je geschatte 1RM — dezelfde maat als de grafiek. ' +
-        'Daar telt elke stijging, en pas een daling van meer dan 5% heet terugval.'
+        'Daar telt elke stijging, en pas een daling van meer dan 5% heet terugval. ' +
+        'Voor het dagdoel hoeft niet élke oefening vooruit te gaan: ging het grootste deel ' +
+        'vooruit, dan staat dat doel vol. Gelijk blijven telt voor een deel mee.'
       : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
 
     return '<section class="card">' +
@@ -1408,8 +1432,11 @@
 
     html += '<section class="card"><h2>' + GD.icon('melding') + 'Hoe wordt de score berekend?</h2>' +
       '<ul class="explain">' +
-      '<li>Elk doel levert punten op: <em>Ja (eiwitrijk)</em> = vol, <em>Ja</em> = 60%, <em>Nee</em> = niets. ' +
-      '<em>Deels</em> bij progressive overload telt voor de helft.</li>' +
+      '<li>Elk doel levert punten op: <em>Ja (eiwitrijk)</em> = vol, <em>Ja</em> = 60%, <em>Nee</em> = niets.</li>' +
+      '<li>Eiwit, calorieën en progressive overload gaan niet op ja of nee maar op hoe ver je kwam: ' +
+      '140 van de 150 gram is geen nul, en vijf van je zes oefeningen vooruit is geen halve dag. ' +
+      'Bij overload staat het doel vol zodra het grootste deel vooruitging — op álles vooruitgaan, ' +
+      'elke sessie, kan nu eenmaal niet.</li>' +
       '<li>Je score is <em>behaalde punten ÷ haalbare punten</em>, met de gewichten hierboven.</li>' +
       '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +

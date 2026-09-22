@@ -283,9 +283,14 @@
        nog eens tegen de week dáárvoor. Eén week weegschaal zegt te weinig om je
        eten op bij te stellen; pas als beide vergelijkingen hetzelfde zeggen is
        het een trend. */
-    var nu = S.weightAvg(reeks);
-    var vorig = S.weightAvg(reeks.map(function (d) { return D.addDays(d, -7); }));
-    var eerder = S.weightAvg(reeks.map(function (d) { return D.addDays(d, -14); }));
+    /* Alleen de dagen die al geweest zijn, en een week eerder diezelfde dagen.
+       Kijk je op dinsdag, dan stond je deze week twee keer op de weegschaal en
+       vorige week zeven keer; die twee tegen dat weekgemiddelde afzetten meet
+       het verschil tussen dinsdag en het weekend, niet je voortgang. */
+    var meet = geweest.length ? geweest : reeks;
+    var nu = S.weightAvg(meet);
+    var vorig = S.weightAvg(meet.map(function (d) { return D.addDays(d, -7); }));
+    var eerder = S.weightAvg(meet.map(function (d) { return D.addDays(d, -14); }));
     var tempo = Math.abs(S.num(s.gewichtTempo, 0.25));
     var richting = s.gewichtRichting || 'uit';
     var gewicht = {

@@ -202,7 +202,9 @@
         // Alleen gevuld bij een eiwit- of caloriedoel dat uit je eigen cijfers
         // volgt; een doel dat je zelf aanklikte blijft gewoon ja of nee.
         macro: res.macro || null,
-        frac: res.macro ? res.macro.frac : null
+        frac: res.macro ? res.macro.frac : null,
+        // Idem voor progressive overload: het oordeel volgt uit je sets.
+        lifts: res.lifts || null
       };
 
       if (w === 0) {
@@ -229,6 +231,12 @@
           item.score = res.macro.frac;
           item.included = true;
         }
+      } else if (res.lifts && res.lifts.deel !== null) {
+        // Ook hier een glijdende schaal: vijf van de zes oefeningen vooruit is
+        // geen halve dag. Zie GD.lifts voor hoe dat deel tot stand komt.
+        item.frac = res.lifts.deel;
+        item.score = res.lifts.deel;
+        item.included = true;
       } else if (opt.score === null) {
         item.reason = opt.reason || 'rustdag';
       } else {
