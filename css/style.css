@@ -264,8 +264,13 @@ html[data-theme="light"] .topbar-vast { box-shadow: 0 6px 18px rgba(16, 24, 40, 
 }
 .view > .card:first-child { border-top: 0; padding-top: 16px; }
 
-.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.card-head h2 { margin: 0; }
+/* Mag afbreken: "Weekafsluiting · week 38" met daarnaast een datumbereik past
+   op 390 px niet op één regel, en duwde zijn eigen chip het scherm af. */
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.card-head h2 { margin: 0; min-width: 0; }
 .card > h2 { margin-bottom: 14px; }
 .card-foot { margin-top: 12px; display: flex; justify-content: flex-end; }
 
@@ -487,6 +492,70 @@ textarea { resize: vertical; padding-right: 12px; }
   letter-spacing: .1em;
   opacity: .85;
 }
+
+/* Voortgang onder een voedingsdoel: hoe ver je bent, niet alleen of je er bent. */
+.macro-voort { margin-top: 10px; }
+.macro-regel {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  font-size: .8rem;
+  color: var(--muted);
+}
+.macro-regel strong { font-size: .95rem; font-variant-numeric: tabular-nums; }
+
+/* ------------------------------- verbruik ----------------------------- */
+
+/* De rekensom uitgeschreven: gegeten min opgeslagen is verbruikt. Zichtbaar,
+   zodat het getal na te rekenen is in plaats van te geloven. */
+.verbruik-som { margin-top: 14px; }
+.vs-regel {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 7px 0; border-top: 1px solid var(--line); font-size: .82rem; color: var(--muted);
+}
+.vs-regel:first-child { border-top: 0; }
+.vs-regel strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.vs-uitkomst { border-top-color: var(--border); padding-top: 10px; }
+.vs-uitkomst span { color: var(--text); font-weight: 600; }
+.vs-uitkomst strong { font-size: 1.05rem; }
+
+/* ---------------------------- gewoontekracht -------------------------- */
+
+.kracht-top { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }
+.kracht-waarde { font-size: 2.6rem; font-weight: 700; line-height: 1; }
+.kracht-sub { color: var(--faint); font-size: .78rem; }
+.kracht-rij { padding: 10px 0; border-top: 1px solid var(--line); }
+.kracht-rij:first-child { border-top: 0; }
+.kracht-kop {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 7px; font-size: .86rem;
+}
+.kracht-naam { display: flex; align-items: center; gap: 9px; font-weight: 600; min-width: 0; }
+.kracht-getal { font-variant-numeric: tabular-nums; font-weight: 700; font-size: .95rem; }
+.kracht-delta { font-size: .72rem; color: var(--faint); margin-left: 6px; font-weight: 500; }
+
+/* ------------------------------- plateau ------------------------------ */
+
+.plateau {
+  margin-top: 10px; padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--plateau-kleur, var(--border));
+  border-radius: var(--radius-s); background: var(--card);
+}
+.plateau-kop {
+  display: flex; align-items: center; gap: 9px;
+  font-size: .82rem; font-weight: 700; color: var(--plateau-kleur, var(--text));
+}
+.plateau p { margin: 6px 0 0; font-size: .78rem; color: var(--muted); line-height: 1.5; }
+.plateau-sessies { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.plateau-sessie {
+  font-size: .7rem; padding: 3px 7px; border: 1px solid var(--line);
+  border-radius: 999px; color: var(--faint); font-variant-numeric: tabular-nums;
+}
+.plateau-knoppen { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
 
 /* -------------------------------- teller ------------------------------ */
 
@@ -815,12 +884,16 @@ ol.explain { list-style: decimal; }
 
 .lift-inputs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .lift-field { position: relative; display: flex; align-items: center; width: 94px; }
-.lift-field input { padding: 9px 34px 9px 11px; font-size: .95rem; }
+/* Rechts moet "kg" passen én links een getal als 26,3 — zonder die krappere
+   binnenmarge viel de laatste decimaal onder het label. */
+.lift-field input { padding: 9px 30px 9px 9px; font-size: .95rem; }
 .lift-field .measure-unit { right: 9px; font-size: .68rem; }
 .lift-x { color: var(--faint); font-size: .9rem; }
 .lift-status { margin-left: auto; white-space: nowrap; }
 
 .lift-hist { color: var(--faint); font-size: .74rem; margin-top: 6px; }
+/* De onderbouwing van een oordeel mag opvallen naast de kale historie. */
+.lift-ruil { color: var(--muted); margin-top: 3px; }
 .lift-date { opacity: .7; }
 
 .lift-knoppen { display: flex; gap: 4px; flex: none; }

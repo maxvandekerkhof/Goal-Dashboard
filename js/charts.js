@@ -185,8 +185,9 @@
 
     if (!alle.length) return '<p class="empty">' + esc(opts.leeg || 'Nog niets ingevuld.') + '</p>';
     if (alle.length === 1) {
-      return '<p class="empty">Eén sessie: <strong>' + esc(alle[0].label) + '</strong> op ' +
-        esc(D.formatShort(alle[0].datum)) + '. Vul deze oefening nog een keer in, dan tekent de app een lijn.</p>';
+      return '<p class="empty">Eén meting: <strong>' + esc(alle[0].label) + '</strong> op ' +
+        esc(D.formatShort(alle[0].datum)) + '. ' +
+        esc(opts.enkel || 'Vul deze oefening nog een keer in, dan tekent de app een lijn.') + '</p>';
     }
 
     var vals = alle.map(function (p) { return p.v; });

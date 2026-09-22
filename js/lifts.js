@@ -324,43 +324,124 @@
   /**
    * Startpunt en de laatste sessie vóór `datum`. Het startpunt is je eerste
    * ingevulde sessie, of de eerste na een handmatige herstart.
+   *
+   * `recordKg` is het zwaarste dat je vóór `datum` tilde. Vandaag telt daar
+   * niet in mee: anders is elk gewicht zijn eigen record.
    */
   function context(datum, oid, zijdeKey) {
     var oef = byId(oid);
     var vanaf = oef && oef.startDatum ? oef.startDatum : null;
     var h = historie(oid, zijdeKey);
-    var start = null, vorige = null, aantal = 0;
+    var start = null, vorige = null, aantal = 0, recordKg = null;
     for (var i = 0; i < h.length; i++) {
       var r = h[i];
       if (vanaf && r.datum < vanaf) continue;
       if (!start) start = r;
       aantal++;
-      if (r.datum < datum) vorige = r;
+      if (r.datum < datum) {
+        vorige = r;
+        if (recordKg === null || r.kg > recordKg) recordKg = r.kg;
+      }
     }
-    return { start: start, vorige: vorige, aantal: aantal };
+    return { start: start, vorige: vorige, aantal: aantal, recordKg: recordKg };
   }
 
   /**
-   * Vooruit als gewicht én reps gelijk of hoger zijn, met minstens één hoger.
-   * Gaat er één omhoog en de ander omlaag, dan beslist gewicht × reps.
+   * Geschatte 1RM volgens Epley: het gewicht dat je bij één herhaling zou
+   * halen. Dit is de maat waarmee sets uit verschillende repranges met elkaar
+   * te vergelijken zijn, en het is dezelfde maat als de grafiek per oefening
+   * tekent.
    */
-  function vergelijk(nu, vorige) {
+  function geschat1RM(kg, reps) {
+    return kg * (1 + reps / 30);
+  }
+
+  /* Hoe ver je geschatte 1RM mag zakken voor het terugval heet. Bewust alleen
+     naar beneden: een set van acht tegen een set van vijftien omrekenen is een
+     schatting, en het voordeel van de twijfel hoort naar jou te gaan. Gaat je
+     1RM omhoog, dan is dat vooruitgang, hoe klein ook. */
+  var TERUG_BAND = 0.05;
+
+  /* Een nieuw record telt alleen als je er een echte set mee maakte. Niet een
+     vast getal maar de helft van je vorige keer, want vijf herhalingen is bij
+     een curl iets heel anders dan bij een deadlift. */
+  var REPS_ONDERGRENS = 0.5;
+
+  /**
+   * Hoe verhoudt deze set zich tot de vorige?
+   * -> { status, ruil, record, nu1rm, vorig1rm, verschil }
+   *
+   * Gaan gewicht en reps dezelfde kant op, dan is er niets te wegen. Ruil je ze
+   * tegen elkaar uit — zwaarder maar minder herhalingen, of andersom — dan
+   * gelden er twee regels, in deze volgorde.
+   *
+   * 1. Til je zwaarder dan je ooit op deze oefening deed, en hield je er een
+   *    fatsoenlijke set mee vol, dan is dat vooruitgang. Punt. Gewicht erbij en
+   *    herhalingen tijdelijk omlaag is hoe je zwaarder leert tillen, en een
+   *    rekensom die dat afstraft meet het verkeerde.
+   * 2. Anders beslist je geschatte 1RM.
+   *
+   * Dat ging eerder op gewicht × reps, en dat weegt verkeerd: 26 kg × 8 is
+   * daarin 39% minder dan 23 kg × 15, terwijl het in werkelijkheid vrijwel
+   * dezelfde set is. Volume straft zwaar-en-kort af om de verkeerde reden,
+   * namelijk omdat je minder herhalingen deed.
+   *
+   * `recordKg` is het zwaarste dat je vóór vandaag op deze oefening tilde.
+   */
+  function vergelijkDetail(nu, vorige, recordKg) {
     if (!nu || !vorige) return null;
+    var uit = {
+      status: 'gelijk',
+      ruil: false,
+      record: false,
+      recordKg: recordKg === undefined ? null : recordKg,
+      nu1rm: geschat1RM(nu.kg, nu.reps),
+      vorig1rm: geschat1RM(vorige.kg, vorige.reps),
+      verschil: 0
+    };
+    uit.verschil = uit.vorig1rm > 0 ? (uit.nu1rm - uit.vorig1rm) / uit.vorig1rm : 0;
+
     var dk = nu.kg - vorige.kg;
     var dr = nu.reps - vorige.reps;
-    if (dk === 0 && dr === 0) return 'gelijk';
-    if (dk >= 0 && dr >= 0) return 'vooruit';
-    if (dk <= 0 && dr <= 0) return 'terug';
-    var nuVolume = nu.kg * nu.reps;
-    var oudVolume = vorige.kg * vorige.reps;
-    if (nuVolume > oudVolume) return 'vooruit';
-    if (nuVolume < oudVolume) return 'terug';
-    return 'gelijk';
+    if (dk === 0 && dr === 0) return uit;
+    if (dk >= 0 && dr >= 0) { uit.status = 'vooruit'; return uit; }
+    if (dk <= 0 && dr <= 0) { uit.status = 'terug'; return uit; }
+
+    uit.ruil = true;
+    if (nu.kg > 0 && uit.recordKg !== null && nu.kg > uit.recordKg &&
+        nu.reps >= vorige.reps * REPS_ONDERGRENS) {
+      uit.record = true;
+      uit.status = 'vooruit';
+      return uit;
+    }
+    if (uit.verschil > 0) uit.status = 'vooruit';
+    else if (uit.verschil < -TERUG_BAND) uit.status = 'terug';
+    return uit;
   }
+
+  function vergelijk(nu, vorige, recordKg) {
+    var d = vergelijkDetail(nu, vorige, recordKg);
+    return d ? d.status : null;
+  }
+
+  /* Wat één oefening bijdraagt aan het dagcijfer. Gelijk blijven is geen
+     vooruitgang, maar ook geen mislukking: je hield hetzelfde gewicht bij
+     dezelfde herhalingen. Dat hoort ergens tussen ja en nee te landen, en
+     niet even zwaar te wegen als een set die echt inzakte. */
+  var PUNT_VOORUIT = 1;
+  var PUNT_GELIJK = 0.4;
+
+  /* Bij welk deel van je oefeningen het doel vol staat. Op álles vooruitgaan,
+     elke sessie, kan niet: na de eerste maanden gaat dat fysiek niet meer.
+     Een eis die niemand kan halen meet niets, dus ging het grootste deel
+     vooruit, dan was dit een sessie met progressive overload — ook als er
+     één oefening tegenzat. Die ene zie je nog steeds bij de oefening zelf
+     staan, en blijft hij hangen dan pikt de plateaumelding hem op. */
+  var OVERLOAD_DREMPEL = 0.8;
 
   /**
    * Alles wat op één dag is ingevuld, met per regel het oordeel.
-   * -> { regels[], vergeleken, vooruit, waarde }
+   * -> { regels[], vergeleken, vooruit, gelijk, terug, deel, waarde }
    */
   function dagResultaat(datum) {
     var dag = dagOefeningen(datum);
@@ -371,6 +452,7 @@
         var nu = leesZijde(dag[oid], z.key);
         if (!nu) return;
         var ctx = context(datum, oid, z.key);
+        var detail = ctx.vorige ? vergelijkDetail(nu, ctx.vorige, ctx.recordKg) : null;
         regels.push({
           id: oid,
           zijde: z,
@@ -378,27 +460,128 @@
           nu: nu,
           start: ctx.start,
           vorige: ctx.vorige,
-          status: ctx.vorige ? vergelijk(nu, ctx.vorige) : 'nieuw'
+          detail: detail,
+          status: detail ? detail.status : 'nieuw'
         });
       });
     });
 
-    var vergeleken = 0, vooruit = 0;
+    var vergeleken = 0, vooruit = 0, gelijk = 0, terug = 0, punten = 0;
     regels.forEach(function (r) {
       if (r.status === 'nieuw') return;
       vergeleken++;
-      if (r.status === 'vooruit') vooruit++;
+      if (r.status === 'vooruit') { vooruit++; punten += PUNT_VOORUIT; }
+      else if (r.status === 'gelijk') { gelijk++; punten += PUNT_GELIJK; }
+      else terug++;
     });
 
-    var waarde = null;
+    var deel = null, waarde = null;
     if (vergeleken > 0) {
-      waarde = vooruit === vergeleken ? 'ja' : (vooruit === 0 ? 'nee' : 'deels');
+      deel = GD.clamp((punten / vergeleken) / OVERLOAD_DREMPEL, 0, 1);
+      waarde = deel >= 1 ? 'ja' : (deel <= 0 ? 'nee' : 'deels');
     } else if (regels.length) {
       // Alles voor het eerst: er valt nog niets te vergelijken.
       waarde = 'nieuw';
     }
 
-    return { regels: regels, vergeleken: vergeleken, vooruit: vooruit, waarde: waarde };
+    return {
+      regels: regels, vergeleken: vergeleken, vooruit: vooruit,
+      gelijk: gelijk, terug: terug, deel: deel, waarde: waarde
+    };
+  }
+
+  /* ------------------------------- plateau -------------------------------- *
+   *
+   * Een oefening die niet meer vooruitgaat zie je zelf pas als je terugbladert.
+   * Hieronder telt de app hoeveel sessies op rij er geen vooruitgang was.
+   *
+   * Twee drempels, want het advies verschilt. Bij drie sessies is er iets aan
+   * de hand maar is terugvallen in gewicht een te zwaar middel — dan is de
+   * boodschap: verander één ding. Pas bij zes sessies is een deload op zijn
+   * plaats, want dan heb je bewezen dat harder duwen niet werkt.
+   * ------------------------------------------------------------------------- */
+
+  var PLATEAU_LET_OP = 3;
+  var PLATEAU_DELOAD = 6;
+  var DELOAD_DEEL = 0.9;
+
+  /* Terug in gewicht met een stap die in jouw sportschool bestaat. Welke dat is
+     weet de app niet, dus volgt hij jouw eigen getallen: til je in veelvouden
+     van 2,5 kg, dan is het advies dat ook. */
+  function deloadGewicht(kg) {
+    var doel = kg * DELOAD_DEEL;
+    var stap = Math.abs(kg % 2.5) < 1e-9 ? 2.5 : 0.5;
+    var uit = Math.floor(doel / stap) * stap;
+    return Math.round(uit * 100) / 100;
+  }
+
+  /**
+   * Hoe lang staat deze oefening stil?
+   * -> { sessies, niveau, reeks[], laatste1rm, deloadKg, gemeld }
+   *
+   * `niveau` is 'geen', 'let-op' of 'deload'. `reeks` zijn de stilstaande
+   * sessies, oudste eerst, zodat de app kan laten zien waar dat oordeel op
+   * rust in plaats van alleen een conclusie te melden.
+   */
+  function plateau(oid, zijdeKey, datum) {
+    var oef = byId(oid);
+    var vanaf = oef && oef.startDatum ? oef.startDatum : null;
+    var h = historie(oid, zijdeKey).filter(function (r) {
+      return (!vanaf || r.datum >= vanaf) && (!datum || r.datum <= datum);
+    });
+
+    var uit = {
+      sessies: 0, niveau: 'geen', reeks: [], laatste1rm: null,
+      deloadKg: null, gemeld: 0, drempel: PLATEAU_LET_OP
+    };
+    if (h.length < 2) return uit;
+
+    // Het zwaarste vóór elke sessie, zodat de recordregel hier hetzelfde
+    // oordeelt als op de dagpagina.
+    var records = [];
+    var zwaarste = null;
+    h.forEach(function (r) {
+      records.push(zwaarste);
+      if (zwaarste === null || r.kg > zwaarste) zwaarste = r.kg;
+    });
+
+    for (var i = h.length - 1; i >= 1; i--) {
+      if (vergelijk(h[i], h[i - 1], records[i]) === 'vooruit') break;
+      uit.reeks.unshift(h[i]);
+      uit.sessies++;
+    }
+
+    if (!uit.sessies) return uit;
+    var laatste = h[h.length - 1];
+    uit.laatste1rm = geschat1RM(laatste.kg, laatste.reps);
+    uit.gemeld = oef && oef.plateauGemeld ? num(oef.plateauGemeld) || 0 : 0;
+
+    if (uit.sessies >= PLATEAU_DELOAD) {
+      uit.niveau = 'deload';
+      uit.drempel = PLATEAU_DELOAD;
+      if (laatste.kg > 0) uit.deloadKg = deloadGewicht(laatste.kg);
+    } else if (uit.sessies >= PLATEAU_LET_OP) {
+      uit.niveau = 'let-op';
+    }
+    return uit;
+  }
+
+  /** "Niet meer melden", tot deze oefening weer een keer vooruitgaat. */
+  function plateauWegklikken(oid, sessies) {
+    updateOefening(oid, { plateauGemeld: sessies });
+  }
+
+  /** Alle oefeningen die op `datum` stilstaan, de langste eerst. */
+  function plateaus(datum) {
+    var uit = [];
+    oefeningen().forEach(function (oef) {
+      zijden(oef).forEach(function (z) {
+        var p = plateau(oef.id, z.key, datum);
+        if (p.niveau === 'geen') return;
+        uit.push({ oef: oef, zijde: z, plateau: p });
+      });
+    });
+    return uit.sort(function (a, b) { return b.plateau.sessies - a.plateau.sessies; });
   }
 
   /** Zoals de dag hem toont: eerst het gekozen schema, daarna de rest. */
@@ -441,7 +624,13 @@
     historie: historie,
     context: context,
     vergelijk: vergelijk,
+    vergelijkDetail: vergelijkDetail,
+    geschat1RM: geschat1RM,
     dagResultaat: dagResultaat,
-    dagRegels: dagRegels
+    dagRegels: dagRegels,
+    plateau: plateau,
+    plateaus: plateaus,
+    plateauWegklikken: plateauWegklikken,
+    deloadGewicht: deloadGewicht
   };
 })(window);
