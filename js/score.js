@@ -614,16 +614,23 @@
       richting: s.gewichtRichting || 'uit', advies: 'te-weinig'
     };
 
-    if (kcalDagen < VERBRUIK_MIN_KCAL || punten.length < VERBRUIK_MIN_WEEG) return uit;
+    /* De trendlijn hangt alleen aan je weegmomenten. Die is er dus al voordat
+       er genoeg dagen met calorieën staan om een verbruik uit te rekenen, en
+       de gewichtsmelding leunt erop. Daarom hier al invullen, en pas daarna
+       kijken of de calorieënkant ook rond is. */
+    if (punten.length >= VERBRUIK_MIN_WEEG) {
+      var helling = trendHelling(punten);
+      if (helling !== null) {
+        uit.helling = helling;
+        uit.perWeek = helling * 7;
+      }
+    }
 
-    var helling = trendHelling(punten);
-    if (helling === null) return uit;
+    if (kcalDagen < VERBRUIK_MIN_KCAL || uit.helling === null) return uit;
 
     uit.klaar = true;
     uit.kcalGem = kcalSom / kcalGewicht;
-    uit.helling = helling;
-    uit.perWeek = helling * 7;
-    uit.opslag = helling * KCAL_PER_KG;
+    uit.opslag = uit.helling * KCAL_PER_KG;
     uit.kcal = uit.kcalGem - uit.opslag;
 
     if (uit.richting === 'uit') {
@@ -910,6 +917,21 @@
   }
 
   /**
+   * Wat een afwijking van je tempo per dag aan calorieën waard is.
+   * -> kcal per dag; positief = je eet te veel voor dit tempo
+   *
+   * Eén kilo lichaamsgewicht staat voor ongeveer 7700 kcal. Ga je 0,19 kg per
+   * week harder omhoog dan de bedoeling, dan is dat 0,19 × 7700 ÷ 7 ≈ 210 kcal
+   * per dag. Dat is de enige rekensom hier, en hij heeft geen caloriegegevens
+   * nodig: het verschil met je tempo is genoeg.
+   */
+  function kcalBijstelling(perWeek, richting, tempo) {
+    var gewenst = richting === 'aankomen' ? tempo
+      : (richting === 'afvallen' ? -tempo : 0);
+    return ((perWeek - gewenst) * KCAL_PER_KG) / 7;
+  }
+
+  /**
    * Eén regel over je gewicht: de laatste zeven dagen tegenover de zeven dagen
    * daarvoor, afgezet tegen je tempo.
    *
@@ -924,8 +946,20 @@
    *
    * Het venster rolt mee met de dag in plaats van op hele kalenderweken te
    * zitten, zodat de melding ook op een dinsdag ergens op slaat.
+   *
+   * Zodra er genoeg weegmomenten staan, geeft niet die ene week het oordeel
+   * maar de trendlijn over drie weken. Eén week tegen één week gaat namelijk
+   * mis op precies de plek waar het ertoe doet: bouw je gestaag op, dan is er
+   * altijd wel een week die vlak uitvalt omdat de wéék ervóór al hoog lag, en
+   * dan stond hier "je komt niet aan" terwijl er een kilo per drie weken bij
+   * kwam. De lijn door al je wegingen heeft dat probleem niet, en hoeft ook
+   * niet nog een week bevestigd te worden — die bevestiging ís hij al.
+   *
+   * Wijkt die lijn van je tempo af, dan volgt er meteen uit hoeveel calorieën
+   * dat per dag scheelt; zie `kcalBijstelling`.
    */
-  function gewichtMelding(datum) {
+  function gewichtMelding(peildatum) {
+    var datum = peildatum || D.today();
     var s = store.settings();
     var richting = s.gewichtRichting || 'uit';
     var tempo = Math.abs(num(s.gewichtTempo, 0.25));
@@ -933,7 +967,9 @@
       richting: richting, status: 'uit', delta: null, doelDelta: tempo,
       pct: null, tekst: '', metingen: 0, vorigeMetingen: 0, avg: null, vorigeAvg: null,
       bevestigd: false, waarschuwing: false,
-      vorigeStatus: null, vorigeDelta: null, eerdereMetingen: 0, eerdereAvg: null
+      vorigeStatus: null, vorigeDelta: null, eerdereMetingen: 0, eerdereAvg: null,
+      trendPerWeek: null, trendDagen: 0, trendVenster: VERBRUIK_VENSTER,
+      uitTrend: false, advies: null
     };
     if (richting === 'uit') return out;
 
@@ -957,24 +993,41 @@
 
     var delta = nu.avg - vorig.avg;
     out.delta = delta;
-    var oordeel = gewichtStatus(delta, richting, tempo);
-    out.status = oordeel.status;
 
-    // Dezelfde vergelijking een week terug. Pas als die hetzelfde oordeel geeft
-    // is het een trend en geen schommeling.
+    /* De lijn door je wegingen van de laatste drie weken. Die staat er zodra er
+       genoeg gewogen is, ook als er nog te weinig dagen met calorieën in staan
+       voor een verbruikschatting. */
+    var v = verbruik(datum, s);
+    out.trendDagen = v.weegDagen;
+    out.trendPerWeek = v.perWeek;
+    out.uitTrend = v.perWeek !== null;
+
+    // Dezelfde weekvergelijking een week terug. Die draagt het oordeel zolang
+    // er nog geen trendlijn is: dan is twee keer hetzelfde het enige houvast.
     if (eerder.avg !== null) {
       out.vorigeDelta = vorig.avg - eerder.avg;
       out.vorigeStatus = gewichtStatus(out.vorigeDelta, richting, tempo).status;
     }
-    out.bevestigd = out.vorigeStatus === oordeel.status;
-    out.waarschuwing = oordeel.status !== 'op-schema' && out.bevestigd;
-    // Kleur alleen bij goed nieuws of bij een bevestigde afwijking; een losse
-    // week blijft grijs, anders schrik je van ruis.
+
+    var oordeel = gewichtStatus(out.uitTrend ? out.trendPerWeek : delta, richting, tempo);
+    out.status = oordeel.status;
+
+    if (out.uitTrend) {
+      out.bevestigd = true;
+      out.waarschuwing = oordeel.status !== 'op-schema';
+    } else {
+      out.bevestigd = out.vorigeStatus === oordeel.status;
+      out.waarschuwing = oordeel.status !== 'op-schema' && out.bevestigd;
+    }
+    // Kleur alleen bij goed nieuws of bij een afwijking die vaststaat; een
+    // losse week blijft grijs, anders schrik je van ruis.
     out.pct = (oordeel.status === 'op-schema' || out.waarschuwing) ? oordeel.pct : null;
 
     var doel = (richting === 'aankomen' ? '+' : '−') + tempo.toFixed(2).replace('.', ',');
     var marge = tempo > 0 ? tempo : 0.25;
-    var kop = kgTekst(delta) + ' deze week — ';
+    var kop = out.uitTrend
+      ? kgTekst(out.trendPerWeek) + ' per week over ' + out.trendVenster + ' dagen — '
+      : kgTekst(delta) + ' deze week — ';
 
     if (oordeel.status === 'op-schema') {
       out.tekst = kop + (richting === 'behouden'
@@ -992,11 +1045,16 @@
         out.tekst = kop + 'sneller dan je tempo van ' + doel + ' per week.';
       }
 
-      if (out.waarschuwing) {
-        out.tekst += ' Twee weken op rij, dus dit is geen schommeling meer.' +
-          (oordeel.status !== 'snel' ? '' : richting === 'aankomen'
-            ? ' Zo komt er vooral vet bij.'
-            : ' Let op je spierbehoud.');
+      var vetSpier = oordeel.status !== 'snel' ? '' : (richting === 'aankomen'
+        ? ' Zo komt er vooral vet bij.'
+        : ' Let op je spierbehoud.');
+
+      if (out.uitTrend) {
+        // Een lijn door al je wegingen van drie weken staat op zichzelf; die
+        // hoeft niet te melden dat hij het twee keer gezien heeft.
+        out.tekst += vetSpier;
+      } else if (out.waarschuwing) {
+        out.tekst += ' Twee weken op rij, dus dit is geen schommeling meer.' + vetSpier;
       } else if (out.vorigeStatus) {
         out.tekst += ' De week ervóór was dat nog niet zo, dus dit kan schommeling zijn — ' +
           'pas als het volgende week weer zo is, valt er iets bij te stellen.';
@@ -1006,7 +1064,28 @@
       }
     }
 
-    if (nu.count < 3 || vorig.count < 3) {
+    /* Wat die afwijking per dag aan eten waard is. Alleen bij de trendlijn: op
+       één week ga je je eten niet verzetten. Net als bij `verbruik` niet meer
+       dan 300 kcal in één keer — wie groot springt, springt terug. */
+    if (out.uitTrend && oordeel.status !== 'op-schema') {
+      var ruw = kcalBijstelling(out.trendPerWeek, richting, tempo);
+      var stap = Math.round(GD.clamp(ruw, -VERBRUIK_MAX_SPRONG, VERBRUIK_MAX_SPRONG) / 10) * 10;
+      if (stap !== 0) {
+        /* Het getal staat bewust niet óók in `tekst`: die regel zegt wat er aan
+           de hand is, het advies zegt wat je eraan doet. Twee keer dezelfde
+           tweehonderd onder elkaar leest als geruzie met jezelf. */
+        out.advies = {
+          kcalPerDag: stap,                       // positief: je eet te veel
+          afgetopt: Math.abs(ruw) > VERBRUIK_MAX_SPRONG,
+          nieuwDoel: v.klaar ? v.doelKcal : null,
+          huidigDoel: v.huidigDoel > 0 ? v.huidigDoel : null
+        };
+      }
+    }
+
+    // De trendlijn heeft zijn eigen ondergrens aan weegmomenten; dit voorbehoud
+    // gaat alleen over de weekvergelijking.
+    if (!out.uitTrend && (nu.count < 3 || vorig.count < 3)) {
       out.tekst += ' Gebaseerd op ' + nu.count + ' en ' + vorig.count +
         ' weegmoment' + (nu.count === 1 && vorig.count === 1 ? '' : 'en') + ', dus gevoelig voor toeval.';
     }

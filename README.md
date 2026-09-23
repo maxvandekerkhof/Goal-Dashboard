@@ -154,24 +154,58 @@ rustdagen wordt dus niet afgestraft, omdat op zo'n dag ook minder punten haalbaa
 
 ### Eén regel op de dagkaart
 
-Onder je meetwaarden staat de korte versie van hetzelfde verhaal:
+Onder je meetwaarden staat de korte versie van hetzelfde verhaal, met de getallen
+eronder waar hij op steunt:
 
 ```
-⚖️ +0,30 kg deze week — op schema (doel +0,25 per week).
+⚖️ +0,44 kg per week over 21 dagen — sneller dan je tempo van +0,25 per week.
+   Zo komt er vooral vet bij.
+   Trendlijn: +0,44 kg per week, uit 20 wegingen in 21 dagen.
+   Deze 7 dagen 73,37 kg tegen 73,39 kg de 7 ervóór, uit 6 en 7 wegingen.
 ```
 
-Dat vergelijkt het **gemiddelde van de laatste zeven dagen met dat van de zeven dagen
-daarvóór** — nooit je laatste weging, want één ochtend kan er door vocht of darminhoud
-makkelijk een kilo naast zitten. Het is een rollend venster en geen kalenderweek, zodat de
-regel ook op een dinsdag ergens op slaat. Een halve tot anderhalve keer je tempo telt als
-*op schema*; daaronder is het *trager dan je tempo*, daarboven *sneller*. Weeg je te weinig,
-dan zegt de regel dat in plaats van een cijfer te verzinnen.
+Het oordeel komt van een **lijn door al je wegingen van de laatste drie weken**, waarbij
+recente dagen zwaarder wegen — dezelfde lijn die [Verbruik](#eten-tegenover-gewicht)
+gebruikt. Nooit je laatste weging, want één ochtend kan er door vocht of darminhoud
+makkelijk een kilo naast zitten. Een halve tot anderhalve keer je tempo telt als *op
+schema*; daaronder is het *trager dan je tempo*, daarboven *sneller*.
 
-Een afwijking wordt pas als **waarschuwing** gebracht — met kleur, en met de reden erbij —
-als dezelfde vergelijking een week eerder hetzelfde zei (dag −13 t/m −7 tegen −20 t/m −14).
-Anders blijft de regel grijs staan als kale constatering, met waarom: de week ervóór was het
-nog niet zo, of er is nog geen derde week om mee te vergelijken. Op schema is meteen groen —
-daar valt niets aan bij te stellen.
+Waarom een lijn en niet week-tegen-week: bouw je gestaag op, dan valt er altijd wel een
+week vlak uit omdat de wéék ervóór al hoog lag. Daar stond dan *je komt niet aan* terwijl
+er een kilo per drie weken bij kwam. Een lijn door twintig punten heeft dat probleem niet,
+en hoeft ook niet nog een week bevestigd te worden — die bevestiging ís hij al.
+
+De weekvergelijking staat er nog wel, als tweede regel: het **gemiddelde van de laatste
+zeven dagen tegen dat van de zeven dagen daarvóór**, met hoeveel keer je in allebei op de
+weegschaal stond. Zo kun je zelf nalopen waar het oordeel vandaan komt, en zie je meteen
+waarom een vlakke week binnen een stijgende lijn geen slecht nieuws is.
+
+**Heb je nog te weinig gewogen** voor een trendlijn (minder dan tien keer in die drie
+weken), dan draagt die weekvergelijking het oordeel, en dan geldt de oude terughoudendheid:
+een afwijking wordt pas als waarschuwing gebracht als dezelfde vergelijking een week eerder
+hetzelfde zei (dag −13 t/m −7 tegen −20 t/m −14). Anders blijft de regel grijs staan als
+kale constatering, met waarom erbij. Op schema is meteen groen.
+
+### Hoeveel calorieën dat scheelt
+
+Wijkt die trendlijn van je tempo af, dan volgt daar meteen uit hoeveel je per dag naast je
+tempo eet:
+
+```
+🔥 Eet ongeveer 200 kcal per dag minder om op +0,25 kg per week uit te komen.
+   Je doel staat op 2800 kcal.
+```
+
+De rekensom is de vuistregel dat één kilo lichaamsgewicht ongeveer **7700 kcal** is: ga je
+0,19 kg per week harder omhoog dan de bedoeling, dan is dat 0,19 × 7700 ÷ 7 ≈ 200 kcal per
+dag. Daar zijn geen caloriegegevens voor nodig — het verschil met je tempo is genoeg. Het
+advies is afgerond op 10 kcal en gaat nooit verder dan 300 kcal per dag; wie groot springt,
+springt terug.
+
+Staan er genoeg dagen met calorieën voor een echte verbruikschatting, dan noemt de regel
+ook meteen het **caloriedoel** dat daarbij hoort, met een knop om het over te nemen. Dat
+getal komt van [Verbruik](#eten-tegenover-gewicht), zodat de dagkaart en de weekafsluiting
+niet twee verschillende dingen kunnen beweren.
 
 ## Weekafsluiting
 
@@ -375,6 +409,15 @@ Drie dingen waar het bij het bouwen misgaat:
 | Jij tikt zelf een getal in | Jouw getal blijft staan, ook na synchroniseren |
 | Jij tikt iets in en Health zegt iets anders | Je ziet *Health: 2437 kcal · overnemen* en kiest zelf |
 | Stond er al iets vóór de koppeling | Blijft met rust gelaten |
+| Health geeft **0** door | Genegeerd: dat is geen meting maar een lege dag |
+
+Die laatste regel is er omdat Health een 0 doorgeeft als er die dag niets gelogd is —
+MyFitnessPal schrijft dan geen dagtotaal weg en de Shortcut leest een lege waarde uit.
+Niemand eet nul calorieën. Namen we hem over, dan scoorde die dag nul op eiwit én
+calorieën, en zakte je [verbruikschatting](#eten-tegenover-gewicht) mee: één zo'n dag in
+drie weken scheelde daarin al ruim tweehonderd kcal. Stond er van een eerdere
+synchronisatie nog zo'n nul, dan ruimt de koppeling die zelf op. Tik je **zelf** een 0 in,
+dan is dat wél een uitspraak, en die blijft staan.
 
 Dat onthouden we per veld in `kcalBron` en `eiwitGramBron`. Wis je het veld weer, dan blijft
 het leeg — tenzij die dag verder helemaal leeg is, want dan verdwijnt de hele dag en daarmee

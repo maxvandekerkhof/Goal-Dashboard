@@ -34,12 +34,25 @@
     return n === null ? null : Math.round(n);
   }
 
+  /* Health geeft een 0 door als er die dag niets gelogd is: MyFitnessPal
+     schrijft dan geen dagtotaal weg en de Shortcut leest een lege waarde uit.
+     Niemand eet nul calorieën, dus dat is geen meting maar een gat. Nemen we
+     hem toch over, dan scoort die dag nul op eten én zakt je verbruikschatting
+     mee — één zo'n dag scheelde daarin al ruim tweehonderd kcal.
+
+     Dit geldt alleen voor wat uit Health komt. Tik je zelf een 0 in, dan is
+     dat wél een uitspraak, en die blijft gewoon staan. */
+  function uitHealth(v) {
+    var n = getal(v);
+    return n === 0 ? null : n;
+  }
+
   /** Wat Health voor deze dag doorgaf, of null. */
   function health(datum, veld) {
     var rij = store.voeding(datum);
     var info = veldInfo(veld);
     if (!rij || !info) return null;
-    return getal(rij[info.kolom]);
+    return uitHealth(rij[info.kolom]);
   }
 
   /**
@@ -53,12 +66,21 @@
 
     Object.keys(alles).forEach(function (datum) {
       VELDEN.forEach(function (info) {
-        var waarde = getal(alles[datum][info.kolom]);
-        if (waarde === null) return;
-
+        var waarde = uitHealth(alles[datum][info.kolom]);
         var e = store.entry(datum) || {};
         var bron = e[info.bronVeld];
         if (bron === 'hand') return;              // jij hebt hier zelf iets van gevonden
+
+        if (waarde === null) {
+          /* Niets bruikbaars uit Health. Staat er van een eerdere synchronisatie
+             nog wel een nul, dan kwam die uit ditzelfde gat en hoort hij weg. */
+          if (bron === 'health' && getal(e[info.veld]) === 0) {
+            store.setField(datum, info.veld, null);
+            store.setField(datum, info.bronVeld, null);
+            gewijzigd++;
+          }
+          return;
+        }
 
         var huidig = getal(e[info.veld]);
         if (huidig !== null && bron !== 'health') return; // stond er al vóór de koppeling

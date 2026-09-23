@@ -295,9 +295,7 @@
       measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel),
         voedingVoet(date, 'kcal', 'kcal')) +
       '</div>' +
-      (gm.status === 'uit' || isFuture ? '' :
-        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreInk(gm.pct) + '"') +
-        '><span class="meldregel-icoon">' + GD.icon('weegschaal', 16) + '</span>' + esc(gm.tekst) + '</p>') +
+      (gm.status === 'uit' || isFuture ? '' : gewichtBlok(gm)) +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel volgen uit deze getallen, en wel naar rato: ' +
         'kom je op ' + fmt(eiwit.doel * 0.9) + ' van je ' + fmt(eiwit.doel) + ' gram, dan levert dat ' +
         '90% van de punten op in plaats van niets. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
@@ -349,6 +347,56 @@
       ' placeholder="' + esc(placeholder) + '">' +
       '<span class="measure-unit">' + esc(unit) + '</span>' +
       '</span>' + (voet || '') + '</label>';
+  }
+
+  /**
+   * De gewichtsmelding, de getallen waar hij op steunt, en het advies dat
+   * daaruit volgt.
+   *
+   * Die getallen staan er omdat een oordeel zonder zijn rekensom iets is dat je
+   * maar moet geloven. Zie je waar de trendlijn en de twee weekgemiddelden op
+   * uitkomen, dan kun je zelf nalopen of het klopt — en snap je ook waarom een
+   * vlakke week binnen een stijgende lijn geen slecht nieuws is.
+   */
+  function gewichtBlok(gm) {
+    var html = meldRegel('weegschaal', gm.pct, esc(gm.tekst));
+    if (gm.status === 'te-weinig') return html;
+
+    var regels = [];
+    if (gm.uitTrend) {
+      regels.push('Trendlijn: ' + GD.review.kgTekst(gm.trendPerWeek) + ' per week, uit ' +
+        gm.trendDagen + ' wegingen in ' + gm.trendVenster + ' dagen.');
+    }
+    if (gm.avg !== null && gm.vorigeAvg !== null) {
+      regels.push('Deze 7 dagen ' + fmt(gm.avg, 2) + ' kg tegen ' + fmt(gm.vorigeAvg, 2) +
+        ' kg de 7 ervóór, uit ' + gm.metingen + ' en ' + gm.vorigeMetingen + ' wegingen.');
+    }
+    if (regels.length) html += '<p class="hint hint-tight">' + esc(regels.join(' ')) + '</p>';
+
+    if (gm.advies) {
+      var a = gm.advies;
+      var teVeel = a.kcalPerDag > 0;
+      var doelZin = gm.richting === 'behouden' ? 'om op gewicht te blijven'
+        : 'om op ' + GD.review.kgTekst(gm.richting === 'afvallen' ? -gm.doelDelta : gm.doelDelta) +
+          ' per week uit te komen';
+      var zin = 'Eet ongeveer <strong>' + Math.abs(a.kcalPerDag) + ' kcal per dag ' +
+        (teVeel ? 'minder' : 'meer') + '</strong> ' + doelZin + '.';
+
+      if (a.nieuwDoel) {
+        zin += ' Volgens je verbruik hoort je caloriedoel op <strong>' + a.nieuwDoel +
+          ' kcal</strong> te staan' + (a.huidigDoel ? ', nu ' + a.huidigDoel : '') + '.';
+      } else if (a.huidigDoel) {
+        zin += ' Je doel staat op ' + a.huidigDoel + ' kcal. Zodra er genoeg dagen met ' +
+          'calorieën in staan, rekent <em>Verbruik</em> uit welk getal daar precies bij hoort.';
+      }
+      if (a.afgetopt) {
+        zin += ' Afgetopt op 300 kcal — eerst deze stap, volgende week kan er weer een bij.';
+      }
+
+      html += meldRegel('vlam', teVeel ? 40 : 45, zin);
+      if (a.nieuwDoel) html += doelKnop(a.nieuwDoel);
+    }
+    return html;
   }
 
   /**
