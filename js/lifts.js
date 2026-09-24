@@ -554,7 +554,7 @@
     if (!uit.sessies) return uit;
     var laatste = h[h.length - 1];
     uit.laatste1rm = geschat1RM(laatste.kg, laatste.reps);
-    uit.gemeld = oef && oef.plateauGemeld ? num(oef.plateauGemeld) || 0 : 0;
+    uit.gemeld = weggeklikt(oef, uit);
 
     if (uit.sessies >= PLATEAU_DELOAD) {
       uit.niveau = 'deload';
@@ -566,9 +566,29 @@
     return uit;
   }
 
+  /**
+   * Hoeveel sessies van déze stilstand je al wegklikte, of 0.
+   *
+   * Wegklikken geldt voor één reeks: gaat de oefening daarna vooruit en loopt
+   * hij opnieuw vast, dan is dat een nieuwe stilstand die weer gemeld hoort te
+   * worden. Eerder bleef alleen het aantal bewaard, en verborg een weggeklikte
+   * reeks van vier elke volgende reeks tot en met vier sessies.
+   *
+   * Een reeks herken je aan zijn eerste sessie. Oude gegevens hebben die nog
+   * niet; daar geldt: is de reeks nu korter dan wat je wegklikte, dan moet hij
+   * wel nieuw zijn.
+   */
+  function weggeklikt(oef, p) {
+    if (!oef || !oef.plateauGemeld) return 0;
+    var n = num(oef.plateauGemeld) || 0;
+    var begin = p.reeks.length ? p.reeks[0].datum : null;
+    if (oef.plateauVanaf) return oef.plateauVanaf === begin ? n : 0;
+    return p.sessies < n ? 0 : n;
+  }
+
   /** "Niet meer melden", tot deze oefening weer een keer vooruitgaat. */
-  function plateauWegklikken(oid, sessies) {
-    updateOefening(oid, { plateauGemeld: sessies });
+  function plateauWegklikken(oid, sessies, vanaf) {
+    updateOefening(oid, { plateauGemeld: sessies, plateauVanaf: vanaf || null });
   }
 
   /** Alle oefeningen die op `datum` stilstaan, de langste eerst. */

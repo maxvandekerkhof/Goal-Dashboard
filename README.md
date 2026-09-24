@@ -526,9 +526,37 @@ js/voeding.js       calorieën en eiwitten uit Apple Health toepassen
 js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
 
+icons/apple-touch-icon.png  het icoon voor je beginscherm
+
 tools/build-standalone.py       bouwt het losse bestand hieronder
 goal-dashboard-standalone.html  gegenereerd: alles in één bestand
+
+test/               de testsuites (zie Testen)
 ```
 
 Geen build-stap, geen dependencies — aanpassen en verversen is genoeg. Wil je een doel
 toevoegen of andere puntentelling? Dat regel je in `js/config.js`.
+
+## Testen
+
+De app zelf heeft geen dependencies; alleen de tests gebruiken
+[Playwright](https://playwright.dev), dat de app in een echte browser opent.
+
+```
+npm install
+npx playwright install chromium
+npm test                # alle suites
+npm test -- advies      # alleen suites met "advies" in de naam
+```
+
+`npm test` start zelf een kleine webserver en draait tien suites achter elkaar: de dagscore,
+de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
+gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
+terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten en alle
+schermen op telefoonbreedte.
+
+Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op
+je echte wegingen hetzelfde zegt als de dagkaart. **Die gegevens staan niet in deze repo**
+— hij is openbaar. Zet daarvoor een back-up als `test/prive/backup-23.json` en
+`test/prive/backup-24.json` neer; die map staat in `.gitignore`. Zonder die bestanden
+worden die stukken overgeslagen en draait de rest gewoon.

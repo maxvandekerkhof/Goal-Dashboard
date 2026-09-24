@@ -692,7 +692,7 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
 
 /* ------------------------------ kalender ------------------------------ */
 
-.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .cal-head { text-align: center; color: var(--faint); font-size: .6rem; text-transform: uppercase; letter-spacing: .12em; padding-bottom: 6px; }
 .cal-cell {
   appearance: none;
@@ -710,6 +710,13 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
   min-height: 42px;
 }
 .cal-cell { transition: transform .12s ease; }
+/* Een vierkant vakje met een minimale hoogte trekt ook zijn breedte mee: zeven
+   van 42 px plus de tussenruimte is 324 px, en dan schoof de maand op een
+   smal scherm zijwaarts. Daar dus iets kleinere vakjes en minder ruimte. */
+@media (max-width: 360px) {
+  .calendar { gap: 3px; }
+  .cal-cell { min-height: 34px; }
+}
 .cal-cell:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
 .cal-cell:active { transform: scale(.94); }
 .cal-empty { border: 0; cursor: default; pointer-events: none; }

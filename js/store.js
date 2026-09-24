@@ -156,7 +156,12 @@
       if (data.settings) {
         Object.keys(s.settings).forEach(function (k) {
           if (k === 'weights') return;
-          if (data.settings[k] !== undefined) s.settings[k] = data.settings[k];
+          var v = data.settings[k];
+          if (v === undefined) return;
+          // Een leeggemaakt veld met een standaard krijgt die standaard terug;
+          // zie de instellingen in app.js.
+          if (v === null && s.settings[k] !== null) return;
+          s.settings[k] = v;
         });
         if (data.settings.weights) {
           Object.keys(s.settings.weights).forEach(function (k) {

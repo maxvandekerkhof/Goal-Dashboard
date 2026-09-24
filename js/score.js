@@ -468,7 +468,7 @@
       waterAvg: avg(water),
       waterDays: water.length,
       goodDays: days.filter(function (d) {
-        return d.pct !== null && d.pct >= store.settings().goedeDagDrempel;
+        return d.pct !== null && d.pct >= num(store.settings().goedeDagDrempel, 70);
       }).length
     };
   }

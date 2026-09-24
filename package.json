@@ -1,0 +1,11 @@
+{
+  "name": "goal-dashboard",
+  "private": true,
+  "description": "De app zelf heeft geen dependencies en geen build-stap; dit is alleen voor de tests.",
+  "scripts": {
+    "test": "node test/run.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}

@@ -6,6 +6,7 @@ webserver. Draai vanuit de hoofdmap van het project:
 
     python3 tools/build-standalone.py
 """
+import base64
 import pathlib
 import re
 import sys
@@ -21,6 +22,14 @@ def main() -> int:
     html = html.replace(
         '<link rel="stylesheet" href="css/style.css">',
         "<style>\n" + css + "\n  </style>",
+    )
+
+    # Het icoon voor je beginscherm gaat er als data-URI in, anders verwijst
+    # het losse bestand naar een plaatje dat er niet naast staat.
+    icoon = ROOT / "icons/apple-touch-icon.png"
+    html = html.replace(
+        'href="icons/apple-touch-icon.png"',
+        'href="data:image/png;base64,' + base64.b64encode(icoon.read_bytes()).decode("ascii") + '"',
     )
 
     # In dit ene bestand staat alle code inline, dus moet de beveiligingsregel

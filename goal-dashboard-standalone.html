@@ -711,7 +711,7 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
 
 /* ------------------------------ kalender ------------------------------ */
 
-.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .cal-head { text-align: center; color: var(--faint); font-size: .6rem; text-transform: uppercase; letter-spacing: .12em; padding-bottom: 6px; }
 .cal-cell {
   appearance: none;
@@ -729,6 +729,13 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
   min-height: 42px;
 }
 .cal-cell { transition: transform .12s ease; }
+/* Een vierkant vakje met een minimale hoogte trekt ook zijn breedte mee: zeven
+   van 42 px plus de tussenruimte is 324 px, en dan schoof de maand op een
+   smal scherm zijwaarts. Daar dus iets kleinere vakjes en minder ruimte. */
+@media (max-width: 360px) {
+  .calendar { gap: 3px; }
+  .cal-cell { min-height: 34px; }
+}
 .cal-cell:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
 .cal-cell:active { transform: scale(.94); }
 .cal-empty { border: 0; cursor: default; pointer-events: none; }
@@ -1102,6 +1109,8 @@ ol.explain { list-style: decimal; }
 }
 
   </style>
+  <link rel="apple-touch-icon" href="data:image/png;base64,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">
+  <meta name="apple-mobile-web-app-title" content="Goal">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><rect width='20' height='20' fill='%230a0c10'/><g fill='none' stroke='%2300e5a0' stroke-width='1.8'><circle cx='10' cy='10' r='6.4'/><circle cx='10' cy='10' r='2.9'/></g><circle cx='10' cy='10' r='.9' fill='%2300e5a0'/></svg>">
 </head>
 <body>
@@ -1704,7 +1713,12 @@ ol.explain { list-style: decimal; }
       if (data.settings) {
         Object.keys(s.settings).forEach(function (k) {
           if (k === 'weights') return;
-          if (data.settings[k] !== undefined) s.settings[k] = data.settings[k];
+          var v = data.settings[k];
+          if (v === undefined) return;
+          // Een leeggemaakt veld met een standaard krijgt die standaard terug;
+          // zie de instellingen in app.js.
+          if (v === null && s.settings[k] !== null) return;
+          s.settings[k] = v;
         });
         if (data.settings.weights) {
           Object.keys(s.settings.weights).forEach(function (k) {
@@ -2836,7 +2850,7 @@ ol.explain { list-style: decimal; }
     if (!uit.sessies) return uit;
     var laatste = h[h.length - 1];
     uit.laatste1rm = geschat1RM(laatste.kg, laatste.reps);
-    uit.gemeld = oef && oef.plateauGemeld ? num(oef.plateauGemeld) || 0 : 0;
+    uit.gemeld = weggeklikt(oef, uit);
 
     if (uit.sessies >= PLATEAU_DELOAD) {
       uit.niveau = 'deload';
@@ -2848,9 +2862,29 @@ ol.explain { list-style: decimal; }
     return uit;
   }
 
+  /**
+   * Hoeveel sessies van déze stilstand je al wegklikte, of 0.
+   *
+   * Wegklikken geldt voor één reeks: gaat de oefening daarna vooruit en loopt
+   * hij opnieuw vast, dan is dat een nieuwe stilstand die weer gemeld hoort te
+   * worden. Eerder bleef alleen het aantal bewaard, en verborg een weggeklikte
+   * reeks van vier elke volgende reeks tot en met vier sessies.
+   *
+   * Een reeks herken je aan zijn eerste sessie. Oude gegevens hebben die nog
+   * niet; daar geldt: is de reeks nu korter dan wat je wegklikte, dan moet hij
+   * wel nieuw zijn.
+   */
+  function weggeklikt(oef, p) {
+    if (!oef || !oef.plateauGemeld) return 0;
+    var n = num(oef.plateauGemeld) || 0;
+    var begin = p.reeks.length ? p.reeks[0].datum : null;
+    if (oef.plateauVanaf) return oef.plateauVanaf === begin ? n : 0;
+    return p.sessies < n ? 0 : n;
+  }
+
   /** "Niet meer melden", tot deze oefening weer een keer vooruitgaat. */
-  function plateauWegklikken(oid, sessies) {
-    updateOefening(oid, { plateauGemeld: sessies });
+  function plateauWegklikken(oid, sessies, vanaf) {
+    updateOefening(oid, { plateauGemeld: sessies, plateauVanaf: vanaf || null });
   }
 
   /** Alle oefeningen die op `datum` stilstaan, de langste eerst. */
@@ -3389,7 +3423,7 @@ ol.explain { list-style: decimal; }
       waterAvg: avg(water),
       waterDays: water.length,
       goodDays: days.filter(function (d) {
-        return d.pct !== null && d.pct >= store.settings().goedeDagDrempel;
+        return d.pct !== null && d.pct >= num(store.settings().goedeDagDrempel, 70);
       }).length
     };
   }
@@ -6239,6 +6273,9 @@ ol.explain { list-style: decimal; }
         : (o.score === null ? null : o.score * 100);
       return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
         ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
+        // De gekozen knop valt alleen op door zijn kleur; een schermlezer
+        // hoort het hieraan.
+        ' aria-pressed="' + (active ? 'true' : 'false') + '"' +
         (disabled || vergrendeld ? ' disabled' : '') +
         ' style="' + (active
           ? '--seg-color:' + GD.scoreColor(segPct) + ';--seg-fg:' + GD.textOn(segPct) + ';'
@@ -6266,7 +6303,7 @@ ol.explain { list-style: decimal; }
       '<span class="goal-name"><span class="goal-icon">' + GD.icon(goal.icon) + '</span>' + esc(goal.label) + '</span>' +
       status +
       '</div>' +
-      '<div class="segmented">' + opts + '</div>' +
+      '<div class="segmented" role="group" aria-label="' + esc(goal.label) + '">' + opts + '</div>' +
       voet +
       '</div>';
   }
@@ -6380,7 +6417,8 @@ ol.explain { list-style: decimal; }
           esc(oef.id) + '">Herstart vanaf vandaag</button>'
         : '') +
       '<button class="btn btn-ghost btn-sm" data-action="plateau-negeren" data-oef="' +
-      esc(oef.id) + '" data-sessies="' + p.sessies + '">Niet meer melden</button>' +
+      esc(oef.id) + '" data-sessies="' + p.sessies + '" data-vanaf="' +
+      esc(p.reeks.length ? p.reeks[0].datum : '') + '">Niet meer melden</button>' +
       '</div></div>';
   }
 
@@ -6527,7 +6565,8 @@ ol.explain { list-style: decimal; }
 
     var keuze = schemas.map(function (s) {
       return '<button class="seg seg-chalk' + (s.id === sid ? ' seg-active' : '') + '"' +
-        ' data-action="lift-schema" data-schema="' + esc(s.id) + '">' +
+        ' data-action="lift-schema" data-schema="' + esc(s.id) + '"' +
+        ' aria-pressed="' + (s.id === sid ? 'true' : 'false') + '">' +
         esc(s.naam) + '</button>';
     }).join('');
 
@@ -6571,7 +6610,7 @@ ol.explain { list-style: decimal; }
 
     return '<section class="card">' +
       '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2>' + status + '</div>' +
-      '<div class="segmented schema-keuze">' + keuze + '</div>' +
+      '<div class="segmented schema-keuze" role="group" aria-label="Schema van vandaag">' + keuze + '</div>' +
       '<div class="lifts">' + rijen + '</div>' +
       toevoegen +
       '<p class="hint">' + uitleg + '</p>' +
@@ -7653,10 +7692,30 @@ ol.explain { list-style: decimal; }
     render();
   }
 
+  /* Licht of donker is een keuze per apparaat: 's avonds op je telefoon wil je
+     iets anders dan overdag op je laptop. Daarom staat het hier, in dit
+     apparaat, en niet in de instellingen die meesynchroniseren. Eerder zette
+     het wisselen op je laptop je telefoon ook om. Wie het nog nooit wisselde,
+     krijgt wat er in de instellingen stond. */
+  var THEMA_KEY = 'goaldash.thema';
+
+  function thema() {
+    try {
+      var t = global.localStorage.getItem(THEMA_KEY);
+      if (t === 'light' || t === 'dark') return t;
+    } catch (e) { /* geen opslag: dan de instelling */ }
+    return store.settings().theme === 'light' ? 'light' : 'dark';
+  }
+
+  function zetThema(t) {
+    try { global.localStorage.setItem(THEMA_KEY, t); } catch (e) { /* dan alleen voor nu */ }
+    document.documentElement.setAttribute('data-theme', t);
+  }
+
   function render() {
     uitgesteld = false;
     var s = store.settings();
-    document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', thema());
     renderSyncButton();
 
     $$('.tab').forEach(function (t) {
@@ -7966,8 +8025,8 @@ ol.explain { list-style: decimal; }
       return;
     }
     if (action === 'plateau-negeren') {
-      GD.lifts.plateauWegklikken(el.dataset.oef, S.num(el.dataset.sessies) || 0);
-      toast('Gemeld zodra het langer stilstaat.');
+      GD.lifts.plateauWegklikken(el.dataset.oef, S.num(el.dataset.sessies) || 0, el.dataset.vanaf || null);
+      toast('Gemeld zodra het langer stilstaat, of als hij na vooruitgang opnieuw vastloopt.');
       render();
       return;
     }
@@ -8243,7 +8302,7 @@ ol.explain { list-style: decimal; }
 
       var themeBtn = e.target.closest('#btn-theme');
       if (themeBtn) {
-        store.setSetting('theme', store.settings().theme === 'light' ? 'dark' : 'light');
+        zetThema(thema() === 'light' ? 'dark' : 'light');
         render();
       }
     });
@@ -8299,7 +8358,19 @@ ol.explain { list-style: decimal; }
       if (t.dataset && t.dataset.setting) {
         var key = t.dataset.setting;
         if (t.type === 'checkbox') store.setSetting(key, t.checked);
-        else if (t.type === 'number') store.setSetting(key, S.num(t.value));
+        else if (t.type === 'number') {
+          var getal = S.num(t.value);
+          var standaard = GD.DEFAULT_SETTINGS[key];
+          // Een leeg veld is geen doel van nul: een leeg caloriedoel liet elke
+          // dag op 0% eindigen, een lege drempel maakte elke dag een goede dag.
+          // Terug naar de standaard, en zeggen welke dat is. Velden die leeg
+          // mogen zijn (je streefgewicht) hebben geen standaard en blijven leeg.
+          if (getal === null && standaard !== null && standaard !== undefined) {
+            getal = standaard;
+            toast('Leeg gelaten, dus terug naar de standaard: ' + fmt(standaard, standaard % 1 ? 2 : 0) + '.');
+          }
+          store.setSetting(key, getal);
+        }
         else store.setSetting(key, t.value);
         render();
         return;
@@ -8369,6 +8440,23 @@ ol.explain { list-style: decimal; }
     });
   }
 
+  /* De dag die "vandaag" was toen we voor het laatst keken. De app bepaalde
+     dat alleen bij het openen; bleef hij 's nachts open op je beginscherm, dan
+     stond hij de volgende ochtend nog op gisteren, met "Vandaag" erboven, en
+     ging je eerste glas water naar de verkeerde dag. */
+  var gezienVandaag = D.today();
+
+  function nieuweDag() {
+    var t = D.today();
+    if (t === gezienVandaag) return;
+    // Stond je op de dag die toen vandaag was, dan schuif je mee. Keek je naar
+    // een andere dag, dan blijf je daar: die koos je zelf.
+    if (ui.anchor === gezienVandaag) ui.anchor = t;
+    gezienVandaag = t;
+    if (GD.vangnet) GD.vangnet.dagelijks();
+    tekenStraks();
+  }
+
   function init() {
     store.load();
     // De kopie van vandaag vóór de synchronisatie start: zo ligt vast hoe alles
@@ -8385,9 +8473,14 @@ ol.explain { list-style: decimal; }
       }, 0);
     });
     document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
       // Blijft de app dagen openstaan op je beginscherm, dan toch elke dag een kopie.
-      if (document.visibilityState === 'visible' && GD.vangnet) GD.vangnet.dagelijks();
+      if (GD.vangnet) GD.vangnet.dagelijks();
+      nieuweDag();
     });
+    window.addEventListener('focus', nieuweDag);
+    // Ook als de app over middernacht heen gewoon open op je scherm staat.
+    setInterval(nieuweDag, 60000);
     if (GD.sync) {
       // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
       GD.sync.onApplied(tekenStraks);

@@ -590,6 +590,9 @@
         : (o.score === null ? null : o.score * 100);
       return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
         ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
+        // De gekozen knop valt alleen op door zijn kleur; een schermlezer
+        // hoort het hieraan.
+        ' aria-pressed="' + (active ? 'true' : 'false') + '"' +
         (disabled || vergrendeld ? ' disabled' : '') +
         ' style="' + (active
           ? '--seg-color:' + GD.scoreColor(segPct) + ';--seg-fg:' + GD.textOn(segPct) + ';'
@@ -617,7 +620,7 @@
       '<span class="goal-name"><span class="goal-icon">' + GD.icon(goal.icon) + '</span>' + esc(goal.label) + '</span>' +
       status +
       '</div>' +
-      '<div class="segmented">' + opts + '</div>' +
+      '<div class="segmented" role="group" aria-label="' + esc(goal.label) + '">' + opts + '</div>' +
       voet +
       '</div>';
   }
@@ -731,7 +734,8 @@
           esc(oef.id) + '">Herstart vanaf vandaag</button>'
         : '') +
       '<button class="btn btn-ghost btn-sm" data-action="plateau-negeren" data-oef="' +
-      esc(oef.id) + '" data-sessies="' + p.sessies + '">Niet meer melden</button>' +
+      esc(oef.id) + '" data-sessies="' + p.sessies + '" data-vanaf="' +
+      esc(p.reeks.length ? p.reeks[0].datum : '') + '">Niet meer melden</button>' +
       '</div></div>';
   }
 
@@ -878,7 +882,8 @@
 
     var keuze = schemas.map(function (s) {
       return '<button class="seg seg-chalk' + (s.id === sid ? ' seg-active' : '') + '"' +
-        ' data-action="lift-schema" data-schema="' + esc(s.id) + '">' +
+        ' data-action="lift-schema" data-schema="' + esc(s.id) + '"' +
+        ' aria-pressed="' + (s.id === sid ? 'true' : 'false') + '">' +
         esc(s.naam) + '</button>';
     }).join('');
 
@@ -922,7 +927,7 @@
 
     return '<section class="card">' +
       '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2>' + status + '</div>' +
-      '<div class="segmented schema-keuze">' + keuze + '</div>' +
+      '<div class="segmented schema-keuze" role="group" aria-label="Schema van vandaag">' + keuze + '</div>' +
       '<div class="lifts">' + rijen + '</div>' +
       toevoegen +
       '<p class="hint">' + uitleg + '</p>' +
@@ -2004,10 +2009,30 @@
     render();
   }
 
+  /* Licht of donker is een keuze per apparaat: 's avonds op je telefoon wil je
+     iets anders dan overdag op je laptop. Daarom staat het hier, in dit
+     apparaat, en niet in de instellingen die meesynchroniseren. Eerder zette
+     het wisselen op je laptop je telefoon ook om. Wie het nog nooit wisselde,
+     krijgt wat er in de instellingen stond. */
+  var THEMA_KEY = 'goaldash.thema';
+
+  function thema() {
+    try {
+      var t = global.localStorage.getItem(THEMA_KEY);
+      if (t === 'light' || t === 'dark') return t;
+    } catch (e) { /* geen opslag: dan de instelling */ }
+    return store.settings().theme === 'light' ? 'light' : 'dark';
+  }
+
+  function zetThema(t) {
+    try { global.localStorage.setItem(THEMA_KEY, t); } catch (e) { /* dan alleen voor nu */ }
+    document.documentElement.setAttribute('data-theme', t);
+  }
+
   function render() {
     uitgesteld = false;
     var s = store.settings();
-    document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', thema());
     renderSyncButton();
 
     $$('.tab').forEach(function (t) {
@@ -2317,8 +2342,8 @@
       return;
     }
     if (action === 'plateau-negeren') {
-      GD.lifts.plateauWegklikken(el.dataset.oef, S.num(el.dataset.sessies) || 0);
-      toast('Gemeld zodra het langer stilstaat.');
+      GD.lifts.plateauWegklikken(el.dataset.oef, S.num(el.dataset.sessies) || 0, el.dataset.vanaf || null);
+      toast('Gemeld zodra het langer stilstaat, of als hij na vooruitgang opnieuw vastloopt.');
       render();
       return;
     }
@@ -2594,7 +2619,7 @@
 
       var themeBtn = e.target.closest('#btn-theme');
       if (themeBtn) {
-        store.setSetting('theme', store.settings().theme === 'light' ? 'dark' : 'light');
+        zetThema(thema() === 'light' ? 'dark' : 'light');
         render();
       }
     });
@@ -2650,7 +2675,19 @@
       if (t.dataset && t.dataset.setting) {
         var key = t.dataset.setting;
         if (t.type === 'checkbox') store.setSetting(key, t.checked);
-        else if (t.type === 'number') store.setSetting(key, S.num(t.value));
+        else if (t.type === 'number') {
+          var getal = S.num(t.value);
+          var standaard = GD.DEFAULT_SETTINGS[key];
+          // Een leeg veld is geen doel van nul: een leeg caloriedoel liet elke
+          // dag op 0% eindigen, een lege drempel maakte elke dag een goede dag.
+          // Terug naar de standaard, en zeggen welke dat is. Velden die leeg
+          // mogen zijn (je streefgewicht) hebben geen standaard en blijven leeg.
+          if (getal === null && standaard !== null && standaard !== undefined) {
+            getal = standaard;
+            toast('Leeg gelaten, dus terug naar de standaard: ' + fmt(standaard, standaard % 1 ? 2 : 0) + '.');
+          }
+          store.setSetting(key, getal);
+        }
         else store.setSetting(key, t.value);
         render();
         return;
@@ -2720,6 +2757,23 @@
     });
   }
 
+  /* De dag die "vandaag" was toen we voor het laatst keken. De app bepaalde
+     dat alleen bij het openen; bleef hij 's nachts open op je beginscherm, dan
+     stond hij de volgende ochtend nog op gisteren, met "Vandaag" erboven, en
+     ging je eerste glas water naar de verkeerde dag. */
+  var gezienVandaag = D.today();
+
+  function nieuweDag() {
+    var t = D.today();
+    if (t === gezienVandaag) return;
+    // Stond je op de dag die toen vandaag was, dan schuif je mee. Keek je naar
+    // een andere dag, dan blijf je daar: die koos je zelf.
+    if (ui.anchor === gezienVandaag) ui.anchor = t;
+    gezienVandaag = t;
+    if (GD.vangnet) GD.vangnet.dagelijks();
+    tekenStraks();
+  }
+
   function init() {
     store.load();
     // De kopie van vandaag vóór de synchronisatie start: zo ligt vast hoe alles
@@ -2736,9 +2790,14 @@
       }, 0);
     });
     document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
       // Blijft de app dagen openstaan op je beginscherm, dan toch elke dag een kopie.
-      if (document.visibilityState === 'visible' && GD.vangnet) GD.vangnet.dagelijks();
+      if (GD.vangnet) GD.vangnet.dagelijks();
+      nieuweDag();
     });
+    window.addEventListener('focus', nieuweDag);
+    // Ook als de app over middernacht heen gewoon open op je scherm staat.
+    setInterval(nieuweDag, 60000);
     if (GD.sync) {
       // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
       GD.sync.onApplied(tekenStraks);
