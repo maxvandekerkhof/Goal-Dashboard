@@ -123,11 +123,7 @@
    * synchronisatie krijgen 1, zodat een echt bewerkte versie elders wint.
    */
   function entryTs(date) {
-    var e = load().entries[date];
-    if (e && typeof e._ts === 'number') return e._ts;
-    if (e) return 1;
-    var t = load().tombstones[date];
-    return typeof t === 'number' ? t : 0;
+    return tsIn(load(), date);
   }
 
   function stamp(date, ts) {
@@ -201,23 +197,91 @@
   var saveTimer = null;
   /* Telt elke wijziging; de oefeningen-historie hangt haar cache hieraan op. */
   var rev = 0;
+  /* Staat er in dit tabblad iets dat nog niet weggeschreven is? */
+  var vies = false;
+
+  /** Tijdstempel van een dag in een willekeurige toestand; zie entryTs. */
+  function tsIn(st, date) {
+    var e = st.entries[date];
+    if (e) return typeof e._ts === 'number' ? e._ts : 1;
+    var t = st.tombstones[date];
+    return typeof t === 'number' ? t : 0;
+  }
+
+  /**
+   * Een andere versie van je gegevens hierin opnemen, per dag de nieuwste.
+   * -> true als er hier iets veranderde
+   *
+   * Twee tabbladen hebben elk hun eigen kopie in het geheugen. Schreef het ene
+   * die kopie in zijn geheel weg, dan verdween wat het andere intussen had
+   * ingevuld. Daarom wordt hier niet overschreven maar samengevoegd, met
+   * dezelfde regel als bij synchroniseren: per dag wint de laatste wijziging,
+   * en een wismarkering is ook een wijziging.
+   */
+  function samenvoegen(data) {
+    if (!state) return false;
+    var hun = migrate(data);
+    var veranderd = false;
+    var datums = {};
+    Object.keys(hun.entries).forEach(function (d) { datums[d] = true; });
+    Object.keys(hun.tombstones).forEach(function (d) { datums[d] = true; });
+    Object.keys(datums).forEach(function (d) {
+      if (tsIn(hun, d) <= tsIn(state, d)) return;
+      if (hun.entries[d]) {
+        state.entries[d] = hun.entries[d];
+        delete state.tombstones[d];
+      } else {
+        delete state.entries[d];
+        state.tombstones[d] = hun.tombstones[d];
+      }
+      veranderd = true;
+    });
+    if (hun.settingsTs > state.settingsTs) {
+      state.settings = hun.settings;
+      state.settingsTs = hun.settingsTs;
+      veranderd = true;
+    }
+    if (veranderd) rev++;
+    return veranderd;
+  }
+
+  /* Luisteraars (de app) als er van buitenaf iets binnenkwam. */
+  var extern = [];
+  function meldExtern() {
+    extern.forEach(function (fn) {
+      try { fn(); } catch (e) { console.error(e); }
+    });
+  }
 
   function writeNow() {
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = null;
     }
-    if (!state) return;
+    // Niets veranderd in dit tabblad: dan ook niets wegschrijven. Anders zet
+    // een tabblad dat al uren openstaat bij het wegklikken zijn oude kopie
+    // over die van een ander heen.
+    if (!state || !vies) return;
+    var binnen = false;
+    try {
+      var raw = global.localStorage.getItem(GD.STORAGE_KEY);
+      if (raw) binnen = samenvoegen(JSON.parse(raw));
+    } catch (e) {
+      console.warn('Kon de opgeslagen versie niet lezen; die van dit tabblad gaat voor.', e);
+    }
     try {
       global.localStorage.setItem(GD.STORAGE_KEY, JSON.stringify(state));
+      vies = false;
     } catch (e) {
       console.error('Opslaan mislukt', e);
       alert('Opslaan mislukt: de opslag van je browser zit vol of staat uit.');
     }
+    if (binnen) meldExtern();
   }
 
   function save() {
     rev++;
+    vies = true;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(writeNow, 120);
   }
@@ -228,6 +292,18 @@
   global.addEventListener('beforeunload', writeNow);
   global.document.addEventListener('visibilitychange', function () {
     if (global.document.visibilityState === 'hidden') writeNow();
+  });
+
+  // Een ander tabblad schreef iets weg: meteen meenemen, dan werk je hier niet
+  // verder op een verouderde kopie. Is het andere tabblad leeggemaakt, dan
+  // blijft deze kopie gewoon staan.
+  global.addEventListener('storage', function (e) {
+    if (e.key !== GD.STORAGE_KEY || !e.newValue || !state) return;
+    try {
+      if (samenvoegen(JSON.parse(e.newValue))) meldExtern();
+    } catch (err) {
+      console.warn('Wijziging uit een ander tabblad onleesbaar', err);
+    }
   });
 
   function settings() { return load().settings; }
@@ -301,8 +377,11 @@
     return Object.keys(load().entries).sort();
   }
 
+  /** Alles op dit apparaat leeg. De cloud en andere tabbladen raakt dit niet. */
   function reset() {
     rev++;
+    vies = false;
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
     state = emptyState();
     try { global.localStorage.removeItem(GD.STORAGE_KEY); } catch (e) { /* leeg */ }
   }
@@ -311,24 +390,74 @@
     return JSON.stringify(load(), null, 2);
   }
 
+  /* Lijsten met een id (oefeningen, schema's) aanvullen met wat ontbreekt. */
+  function aanvullenOpId(hier, daar) {
+    var lijst = Array.isArray(hier) ? hier.slice() : [];
+    var bekend = {};
+    lijst.forEach(function (x) { if (x && x.id) bekend[x.id] = true; });
+    var erbij = 0;
+    (Array.isArray(daar) ? daar : []).forEach(function (x) {
+      if (x && x.id && !bekend[x.id]) { lijst.push(clone(x)); bekend[x.id] = true; erbij++; }
+    });
+    return { lijst: lijst, erbij: erbij };
+  }
+
   /**
-   * Importeer een eerder geëxporteerd bestand.
-   * mode 'merge' behoudt bestaande dagen die niet in het bestand zitten.
+   * Een back-up terugzetten, zonder dat er iets verloren kan gaan.
+   * -> { teruggezet, alNieuwer }
+   *
+   * Per dag geldt: staat hier een nieuwere versie, dan blijft die staan. Ontbreekt
+   * de dag of is hij gewist, dan komt hij terug uit de back-up — en krijgt hij
+   * een tijdstip net na het wissen, zodat de wismarkering in de cloud hem bij de
+   * volgende synchronisatie niet opnieuw weghaalt.
+   *
+   * Instellingen worden niet overschreven: die heb je sinds de back-up misschien
+   * bewust veranderd. Alleen als dit apparaat nog niets heeft staan, komen ze uit
+   * de back-up. Oefeningen en schema's die ontbreken komen er wel altijd bij,
+   * anders hangen de sets die ernaar verwijzen los.
    */
-  function importJSON(text, mode) {
+  function importJSON(text) {
     var data = JSON.parse(text);
-    var incoming = migrate(data);
-    if (mode === 'merge') {
-      var st = load();
-      Object.keys(incoming.entries).forEach(function (d) {
-        st.entries[d] = incoming.entries[d];
-      });
-      st.settings = incoming.settings;
-    } else {
-      state = incoming;
+    if (!data || typeof data !== 'object' || !data.entries || typeof data.entries !== 'object') {
+      throw new Error('Dit is geen back-up van het Goal Dashboard.');
     }
+    var terug = migrate(data);
+    var st = load();
+    var uit = { teruggezet: 0, alNieuwer: 0 };
+
+    Object.keys(terug.entries).forEach(function (d) {
+      var e = terug.entries[d];
+      if (!e || typeof e !== 'object') return;
+      var ts = typeof e._ts === 'number' ? e._ts : 1;
+      if (st.entries[d]) {
+        if (tsIn(st, d) >= ts) { uit.alNieuwer++; return; }
+      } else if (typeof st.tombstones[d] === 'number') {
+        ts = Math.max(ts, st.tombstones[d] + 1);
+      }
+      var kopie = clone(e);
+      kopie.date = d;
+      kopie._ts = ts;
+      st.entries[d] = kopie;
+      delete st.tombstones[d];
+      uit.teruggezet++;
+    });
+
+    if (!st.settingsTs) {
+      st.settings = terug.settings;
+      st.settingsTs = Math.max(terug.settingsTs || 0, 1);
+    } else {
+      var o = aanvullenOpId(st.settings.oefeningen, terug.settings.oefeningen);
+      var s = aanvullenOpId(st.settings.schemas, terug.settings.schemas);
+      if (o.erbij || s.erbij) {
+        st.settings.oefeningen = o.lijst;
+        st.settings.schemas = s.lijst;
+        st.settingsTs = Date.now();
+      }
+    }
+
     save();
-    return Object.keys(incoming.entries).length;
+    changed();
+    return uit;
   }
 
   GD.store = {
@@ -358,6 +487,8 @@
     },
     rev: function () { return rev; },
     onChange: onChange,
+    /* Er kwam iets binnen uit een ander tabblad. */
+    onExtern: function (fn) { extern.push(fn); },
     changed: changed,
     /* Rechtstreekse toegang voor de synchronisatie. */
     raw: function () { return load(); },

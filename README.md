@@ -207,6 +207,10 @@ ook meteen het **caloriedoel** dat daarbij hoort, met een knop om het over te ne
 getal komt van [Verbruik](#eten-tegenover-gewicht), zodat de dagkaart en de weekafsluiting
 niet twee verschillende dingen kunnen beweren.
 
+Verbruik telt de calorieën van **vandaag** pas mee als de dag voorbij is. Midden op de dag
+staan er alleen je ontbijt en lunch, en juist vandaag weegt het zwaarst: zo'n halve dag
+haalde de schatting ruim 150 kcal omlaag. Je gewicht van vanochtend telt wel gewoon mee.
+
 ## Weekafsluiting
 
 Bovenaan de **weekweergave** staat een rapport van je werkweek, en op **zaterdag de hele dag
@@ -336,6 +340,11 @@ staat er, niet `anon`: uitgelogd hoort er niets te lezen zijn.
   ingevuld. Dat is de prijs van deze eenvoudige regel.
 - Wissen synchroniseert mee: een dag die je hier weghaalt, verdwijnt ook op je andere
   apparaat.
+- Verander je iets terwijl er nog een synchronisatie loopt, dan volgt er direct daarna nog
+  een, zodat die wijziging niet blijft liggen.
+- Per datum gaat er hooguit één rij naar Supabase. Staat een dag er ooit tegelijk als dag
+  en als gewist, dan gaat de nieuwste mee in plaats van dat de hele synchronisatie
+  weigert.
 
 ### Goed om te weten
 
@@ -347,7 +356,8 @@ staat er, niet `anon`: uitgelogd hoort er niets te lezen zijn.
   Supabase-dashboard weer starten. Je lokale data blijft in de tussentijd gewoon werken.
 - Welke wijziging "de laatste" is, wordt bepaald door de **klok van je apparaten**. Staat er
   ergens een klok flink verkeerd, dan kan een oudere wijziging winnen.
-- De back-up uit *Je data* blijft gewoon werken en is een prima extra vangnet.
+- **De cloud is een tweede kopie, geen back-up.** Wat hier per ongeluk verdwijnt,
+  verdwijnt daar ook. Download dus af en toe een back-up (zie *Je data* hieronder).
 
 ### Veiligheid
 
@@ -442,15 +452,38 @@ de rest van het synchroniseren gewoon werken. Je dagen zijn belangrijker dan dez
 
 ## Je data
 
-Alles staat in `localStorage` van de browser waarin je het gebruikt. Zonder de koppeling
-hierboven gaat er niets naar een server, maar synchroniseert het ook niet vanzelf tussen
-apparaten — en het verdwijnt als je je browsergegevens wist.
+Alles staat in `localStorage` van de browser waarin je het gebruikt, en met synchroniseren
+aan ook in je eigen Supabase-project. Zonder die koppeling gaat er niets naar een server,
+maar synchroniseert het ook niet vanzelf tussen apparaten — en het verdwijnt als je je
+browsergegevens wist.
 
-Gebruik daarom **Instellingen → Je data**:
+Er zijn drie lagen die ervoor zorgen dat je niets kwijtraakt:
 
-- **Back-up downloaden** — schrijft alles naar één JSON-bestand.
-- **Back-up terugzetten** — samenvoegen met of vervangen van je huidige data. Zo zet je
-  je geschiedenis ook op een tweede apparaat.
+1. **Back-up downloaden** — schrijft alles naar één JSON-bestand: je dagen, trainingen,
+   gewicht, voeding en instellingen. Zet hem buiten je telefoon, bijvoorbeeld in iCloud
+   Drive. Bij *Je data* staat wanneer je dat op dit apparaat voor het laatst deed, en na
+   twee weken zonder back-up verschijnt er onderaan de dag een herinnering.
+2. **Automatische kopieën** — elke dag bij het openen, en vlak voor wissen of
+   terugzetten, legt de app zelf een volledige kopie weg. De laatste 14 dagelijkse en 5
+   andere blijven bewaard; je kunt ze downloaden of terugzetten. Ze staan in IndexedDB,
+   een aparte opslag van de browser, zodat ze de gewone opslag nooit vol laten lopen.
+   Ze staan wel op dit apparaat: tegen een kwijtgeraakte telefoon helpt alleen laag 1.
+3. **Synchroniseren** — met Supabase staat alles ook in de cloud.
+
+**Terugzetten overschrijft niets.** Per dag geldt: ontbreekt hij hier of is hij gewist, dan
+komt hij terug uit de back-up; staat hier een nieuwere versie, dan blijft die staan. Je
+instellingen blijven zoals ze zijn, behalve op een leeg apparaat; oefeningen en schema's
+die ontbreken komen er wel altijd bij, anders hangen de sets die ernaar verwijzen los.
+Vóór het terugzetten synchroniseert de app eerst, zodat een oude back-up niet wint van een
+nieuwere versie die alleen nog in de cloud stond.
+
+**Twee tabbladen tegelijk** kan veilig: elk tabblad neemt wijzigingen uit het andere
+meteen over, en bij het wegschrijven wordt per dag samengevoegd in plaats van
+overschreven. Een tabblad waarin je niets veranderde, schrijft ook niets weg.
+
+**Alles van dit apparaat wissen** vraagt je het woord *wissen* te typen en maakt eerst
+een kopie. Het raakt alleen dit apparaat: ben je ingelogd, dan blijft alles in Supabase
+staan en word je uitgelogd, zodat het niet meteen weer terugkomt.
 
 ## Bediening
 
@@ -471,7 +504,8 @@ Gebruik daarom **Instellingen → Je data**:
 index.html          pagina en scriptvolgorde
 css/style.css       stijl, donker en licht thema
 js/config.js        doeldefinities, standaardinstellingen, kleurschaal 0 -> 100
-js/store.js         opslag (localStorage), import/export, datum-helpers
+js/store.js         opslag (localStorage), samenvoegen, terugzetten, datum-helpers
+js/vangnet.js       automatische kopieën (IndexedDB) en de back-upherinnering
 js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
 js/score.js         scoreberekening per dag en per periode, streaks, gewichtstrend
 js/charts.js        SVG-ring, balken, kalender, gewichts- en oefeninggrafiek

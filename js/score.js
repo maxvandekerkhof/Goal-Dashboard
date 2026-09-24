@@ -594,12 +594,17 @@
 
     var kcalSom = 0, kcalGewicht = 0, kcalDagen = 0;
     var punten = [];
+    var vandaag = D.today();
     reeks.forEach(function (d, i) {
       var e = store.entry(d);
       if (!e) return;
       var g = verbruikGewicht(reeks.length - 1 - i);
       var k = num(e.kcal);
-      if (k !== null) { kcalSom += k * g; kcalGewicht += g; kcalDagen++; }
+      // Calorieën tellen pas als de dag voorbij is. Om twee uur 's middags
+      // staan er alleen je ontbijt en lunch, en juist vandaag weegt het
+      // zwaarst — zo'n halve dag haalde je verbruik ruim 150 kcal omlaag. Je
+      // gewicht van vanochtend is wel af, dat telt gewoon mee.
+      if (k !== null && d < vandaag) { kcalSom += k * g; kcalGewicht += g; kcalDagen++; }
       var kg = num(e.gewicht);
       if (kg !== null) punten.push({ x: i, y: kg, w: g });
     });
