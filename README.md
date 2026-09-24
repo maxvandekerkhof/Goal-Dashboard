@@ -242,17 +242,26 @@ elkaar en trekt er één conclusie uit:
 
 Bij **afvallen** en **op gewicht blijven** werkt hetzelfde blok, met de richting omgedraaid.
 
-Maar: die conclusies komen er pas als de weegschaal **twee weken op rij** hetzelfde zegt.
-Daarvoor wordt je werkweek niet alleen met de vorige vergeleken, maar die vorige ook nog met
-de week dáárvoor. Zeggen ze iets verschillends, dan krijg je *Eén week — nog even aankijken*:
-wat je at, wat de weegschaal deed, en welk advies eruit zou komen als het volgende week weer
-zo is. Je caloriedoel blijft dan staan. Anders verzet je het op een halve kilo vocht en zet
-je het een week later weer terug.
+**Wat de weegschaal doet** komt van dezelfde plek als de regel op de dagkaart: de lijn door
+je wegingen van de afgelopen drie weken, zodra je daarin minstens tien keer woog. Hij rekent
+op dezelfde peildatum — de zondag van die week, of vandaag als die nog niet voorbij is — dus
+op zaterdag staan de dagkaart en de afsluiting onder elkaar met hetzelfde oordeel en
+hetzelfde getal. De gemiddelden van deze en vorige werkweek staan er als informatie bij.
+Ook de kaart *Gewichtstrend* in het weekoverzicht gebruikt die lijn.
+
+Met minder wegingen valt de afsluiting terug op week tegen week, en dan komen de conclusies
+er pas als de weegschaal **twee weken op rij** hetzelfde zegt. Daarvoor wordt je werkweek niet
+alleen met de vorige vergeleken, maar die vorige ook nog met de week dáárvoor. Zeggen ze iets
+verschillends, dan krijg je *Eén week — nog even aankijken*: wat je at, wat de weegschaal
+deed, en welk advies eruit zou komen als het volgende week weer zo is. Je caloriedoel blijft
+dan staan. Anders verzet je het op een halve kilo vocht en zet je het een week later weer
+terug.
 
 Het bijstelladvies rekent met de vuistregel dat één kilo lichaamsgewicht ongeveer **7700
 kcal** is: goed genoeg om te zien of je moet bijsturen, te grof om op de kilo nauwkeurig te
-rekenen. Het advies is daarom afgerond op 50 kcal en gaat nooit verder dan 500 kcal per dag
-— een grotere sprong op basis van één week meten is nooit verstandig.
+rekenen. Het is afgerond op 10 kcal en gaat nooit verder dan 300 kcal per dag, net als op de
+dagkaart. Staan er genoeg dagen met calorieën voor een verbruikschatting, dan komt het
+voorgestelde doel daarvandaan, en is het hetzelfde getal als op de dagkaart.
 
 Twee dingen kan de app niet: **met minder dan drie ingevulde caloriedagen** zegt hij dat, in
 plaats van een advies te verzinnen op basis van gokwerk. En zonder gewicht in deze én de
@@ -426,6 +435,7 @@ Drie dingen waar het bij het bouwen misgaat:
 | Veld leeg | Health vult het in, met het label *↻ uit Apple Health* |
 | Kwam uit Health en Health werkt bij | Volgt vanzelf mee (je middagstand wordt je eindstand) |
 | Jij tikt zelf een getal in | Jouw getal blijft staan, ook na synchroniseren |
+| Jij maakt het veld leeg | Health mag het weer invullen, en doet dat meteen als er een waarde klaarstaat |
 | Jij tikt iets in en Health zegt iets anders | Je ziet *Health: 2437 kcal · overnemen* en kiest zelf |
 | Stond er al iets vóór de koppeling | Blijft met rust gelaten |
 | Health geeft **0** door | Genegeerd: dat is geen meting maar een lege dag |
@@ -491,7 +501,9 @@ staan en word je uitgelogd, zodat het niet meteen weer terugkomt.
 - `‹` en `›` (of pijltjestoetsen) om een dag, week of maand op te schuiven; `T` springt
   terug naar vandaag.
 - Klik in de week- of maandweergave op een dag om hem meteen in te vullen.
-- **Neem gisteren over** kopieert de antwoorden van gisteren, handig op vaste dagen.
+- **Neem gisteren over** kopieert je vinkjes van gisteren, handig op vaste dagen. Metingen
+  (gewicht, calorieën, eiwit), water, oefeningen en progressive overload gaan niet mee, en
+  eiwit- en caloriedoel behaald ook niet zolang de app die zelf uit je getallen afleidt.
 - **📈** naast een oefening klapt de grafiek van díe oefening uit.
 - Het icoon rechtsboven wisselt tussen donker en licht.
 - Ben je ingelogd voor synchronisatie, dan staat er een **⟳** naast: die synchroniseert
@@ -514,9 +526,37 @@ js/voeding.js       calorieën en eiwitten uit Apple Health toepassen
 js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
 
+icons/apple-touch-icon.png  het icoon voor je beginscherm
+
 tools/build-standalone.py       bouwt het losse bestand hieronder
 goal-dashboard-standalone.html  gegenereerd: alles in één bestand
+
+test/               de testsuites (zie Testen)
 ```
 
 Geen build-stap, geen dependencies — aanpassen en verversen is genoeg. Wil je een doel
 toevoegen of andere puntentelling? Dat regel je in `js/config.js`.
+
+## Testen
+
+De app zelf heeft geen dependencies; alleen de tests gebruiken
+[Playwright](https://playwright.dev), dat de app in een echte browser opent.
+
+```
+npm install
+npx playwright install chromium
+npm test                # alle suites
+npm test -- advies      # alleen suites met "advies" in de naam
+```
+
+`npm test` start zelf een kleine webserver en draait tien suites achter elkaar: de dagscore,
+de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
+gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
+terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten en alle
+schermen op telefoonbreedte.
+
+Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op
+je echte wegingen hetzelfde zegt als de dagkaart. **Die gegevens staan niet in deze repo**
+— hij is openbaar. Zet daarvoor een back-up als `test/prive/backup-23.json` en
+`test/prive/backup-24.json` neer; die map staat in `.gitignore`. Zonder die bestanden
+worden die stukken overgeslagen en draait de rest gewoon.

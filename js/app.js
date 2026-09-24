@@ -146,9 +146,18 @@
    * Gewichtstrend: gemiddelde van deze periode tegen die van de vorige.
    * curLabel/prevLabel zijn bv. "week 33" en "week 32".
    */
-  function weightTrendSection(dates, prevDates, curLabel, prevLabel, perWeek) {
+  function weightTrendSection(dates, prevDates, curLabel, prevLabel, perWeek, peildatum) {
     var s = store.settings();
     if ((s.gewichtRichting || 'uit') === 'uit') return '';
+
+    /* In het weekoverzicht staat deze kaart onder de weekafsluiting. Die oordeelt
+       op de lijn door drie weken; oordeelde deze kaart op week tegen week, dan
+       stond er op één scherm "te snel" boven "de verkeerde kant op". Dus zodra
+       die lijn er is, telt hij hier ook. */
+    if (peildatum) {
+      var gm = S.gewichtMelding(peildatum);
+      if (gm.uitTrend) return trendKaart(gm, curLabel);
+    }
 
     var t = S.weightTrend(dates, prevDates, perWeek);
     var doelTekst = t.richting === 'behouden'
@@ -181,6 +190,29 @@
 
     return '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtstrend</h2>' +
       '<div class="trend">' + body + '</div></section>';
+  }
+
+  /** De gewichtstrendkaart als de lijn door drie weken er is. */
+  function trendKaart(gm, curLabel) {
+    var doelTekst = gm.richting === 'behouden'
+      ? 'binnen ' + fmt(gm.doelDelta, 2) + ' kg blijven'
+      : (gm.richting === 'aankomen' ? '+' : '−') + fmt(gm.doelDelta, 2) + ' kg';
+    var kleur = gm.pct === null ? 'var(--text)' : GD.scoreInk(gm.pct);
+    return '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtstrend</h2>' +
+      '<div class="trend">' +
+      '<div class="trend-ring">' + C.ring(gm.pct, 128, 12) + '</div>' +
+      '<div class="trend-info">' +
+      '<div class="trend-delta" style="color:' + kleur + '">' +
+      signed(gm.trendPerWeek, 2, ' kg') + '<span class="unit"> per week</span></div>' +
+      '<p class="hero-sub">' + esc(gm.tekst) + '</p>' +
+      '<p class="hint">De lijn door ' + gm.trendDagen + ' wegingen in de ' + gm.trendVenster +
+      ' dagen tot en met ' + esc(curLabel) + '. Doel per week: ' + esc(doelTekst) + ' (' +
+      esc(RICHTING_TEKST[gm.richting] || gm.richting) + ').' +
+      (gm.avg !== null && gm.vorigeAvg !== null
+        ? ' De laatste zeven dagen gemiddeld ' + fmt(gm.avg, 2) + ' kg, de zeven ervóór ' +
+          fmt(gm.vorigeAvg, 2) + ' kg.'
+        : '') + '</p>' +
+      '</div></div></section>';
   }
 
   /**
@@ -558,6 +590,9 @@
         : (o.score === null ? null : o.score * 100);
       return '<button class="seg' + (active ? ' seg-active' : '') + (isAuto ? ' seg-auto' : '') + '"' +
         ' data-action="set-goal" data-goal="' + goal.key + '" data-value="' + o.v + '"' +
+        // De gekozen knop valt alleen op door zijn kleur; een schermlezer
+        // hoort het hieraan.
+        ' aria-pressed="' + (active ? 'true' : 'false') + '"' +
         (disabled || vergrendeld ? ' disabled' : '') +
         ' style="' + (active
           ? '--seg-color:' + GD.scoreColor(segPct) + ';--seg-fg:' + GD.textOn(segPct) + ';'
@@ -585,7 +620,7 @@
       '<span class="goal-name"><span class="goal-icon">' + GD.icon(goal.icon) + '</span>' + esc(goal.label) + '</span>' +
       status +
       '</div>' +
-      '<div class="segmented">' + opts + '</div>' +
+      '<div class="segmented" role="group" aria-label="' + esc(goal.label) + '">' + opts + '</div>' +
       voet +
       '</div>';
   }
@@ -699,7 +734,8 @@
           esc(oef.id) + '">Herstart vanaf vandaag</button>'
         : '') +
       '<button class="btn btn-ghost btn-sm" data-action="plateau-negeren" data-oef="' +
-      esc(oef.id) + '" data-sessies="' + p.sessies + '">Niet meer melden</button>' +
+      esc(oef.id) + '" data-sessies="' + p.sessies + '" data-vanaf="' +
+      esc(p.reeks.length ? p.reeks[0].datum : '') + '">Niet meer melden</button>' +
       '</div></div>';
   }
 
@@ -846,7 +882,8 @@
 
     var keuze = schemas.map(function (s) {
       return '<button class="seg seg-chalk' + (s.id === sid ? ' seg-active' : '') + '"' +
-        ' data-action="lift-schema" data-schema="' + esc(s.id) + '">' +
+        ' data-action="lift-schema" data-schema="' + esc(s.id) + '"' +
+        ' aria-pressed="' + (s.id === sid ? 'true' : 'false') + '">' +
         esc(s.naam) + '</button>';
     }).join('');
 
@@ -890,7 +927,7 @@
 
     return '<section class="card">' +
       '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2>' + status + '</div>' +
-      '<div class="segmented schema-keuze">' + keuze + '</div>' +
+      '<div class="segmented schema-keuze" role="group" aria-label="Schema van vandaag">' + keuze + '</div>' +
       '<div class="lifts">' + rijen + '</div>' +
       toevoegen +
       '<p class="hint">' + uitleg + '</p>' +
@@ -926,6 +963,13 @@
   }
 
   var RICHTING_TEKEN = { aankomen: '+', afvallen: '−', behouden: '±' };
+
+  var GEWICHT_OORDEEL = {
+    'op-schema': 'op schema',
+    traag: 'trager dan je tempo',
+    snel: 'sneller dan je tempo',
+    verkeerd: 'de verkeerde kant op'
+  };
 
   /**
    * De weekafsluiting: op zaterdag bovenaan de dag, en altijd te vinden in het
@@ -1116,10 +1160,10 @@
     var kop = '<div class="card-head"><h2>' + GD.icon('rapport') + 'Weekafsluiting · ' + esc(r.label) + '</h2>' +
       '<span class="chip">ma t/m vr · ' + esc(r.periode) + '</span></div>';
 
-    // Het venster van verbruik en plateaus loopt tot en met de laatste dag die
-    // echt geweest is; anders rekent een week uit het verleden met dagen erna.
-    var tot = r.dagen[r.dagen.length - 1];
-    if (tot > D.today()) tot = D.today();
+    // Verbruik en plateaus rekenen op dezelfde peildatum als het gewichtsoordeel
+    // (de zondag van die week, of vandaag): dan noemen de dagkaart en deze
+    // afsluiting op zaterdag hetzelfde caloriedoel.
+    var tot = r.peildatum;
 
     if (!r.ingevuld) {
       return '<section class="card review">' + kop +
@@ -1139,6 +1183,15 @@
     var gTekst;
     if (g.richting === 'uit') {
       gTekst = 'Je houdt geen gewichtsdoel bij, dus hier valt niets te vergelijken.';
+    } else if (g.uitTrend) {
+      gTekst = 'De lijn door je wegingen van de afgelopen ' + g.trendVenster + ' dagen: ' +
+        GD.review.kgTekst(g.perWeek) + ' per week, uit ' + g.trendDagen + ' wegingen. Je tempo is ' +
+        (RICHTING_TEKEN[g.richting] || '') + fmt(g.doelDelta, 2) + ' kg per week, dus ' +
+        (g.richting === 'behouden' && g.status === 'verkeerd' ? 'buiten je marge'
+          : (GEWICHT_OORDEEL[g.status] || g.status)) + '.' +
+        (g.delta === null ? '' : ' Ter vergelijking: deze werkweek woog je gemiddeld ' +
+          fmt(g.avg, 2) + ' kg, vorige week ' + fmt(g.vorigeAvg, 2) + ' kg. Eén week schommelt ' +
+          'makkelijk een halve kilo door vocht; de lijn door drie weken niet.');
     } else if (g.delta === null) {
       gTekst = 'Te weinig weegmomenten om deze week met de vorige te vergelijken: ' +
         g.metingen + ' deze week, ' + g.vorigeMetingen + ' vorige week.';
@@ -1246,7 +1299,7 @@
     var vorigeStart = D.addDays(dates[0], -7);
     html += weightTrendSection(
       dates, D.range(vorigeStart, D.addDays(vorigeStart, 6)),
-      'week ' + D.isoWeek(dates[0]), 'week ' + D.isoWeek(vorigeStart), 1);
+      'week ' + D.isoWeek(dates[0]), 'week ' + D.isoWeek(vorigeStart), 1, tot);
 
     html += '<section class="card"><h2>' + GD.icon('grafiek') + 'Gewicht</h2>' +
       C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
@@ -1515,9 +1568,11 @@
       '</div>' + eiwitUitleg(s) + '</section>';
 
     html += '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
-      '<p class="hint">Hiermee wordt je weekgemiddelde vergeleken met dat van de week ervoor — ' +
-      'nooit je laatste weging, want die schommelt te veel. Een afwijking kleurt pas rood als ' +
-      'hij twee weken op rij te zien is; één losse week blijft grijs. Dit staat los van je ' +
+      '<p class="hint">Hiermee wordt je gewicht afgezet tegen je tempo — nooit met je laatste ' +
+      'weging, want die schommelt te veel. Woog je in de afgelopen drie weken minstens tien keer, ' +
+      'dan beslist de lijn door al die wegingen. Met minder wegingen vergelijkt de app je ' +
+      'weekgemiddelde met dat van de week ervoor, en kleurt een afwijking pas als hij twee weken ' +
+      'op rij te zien is. Dit staat los van je ' +
       'dagscore: gewicht is een uitkomst, geen gedrag dat je op één dag kunt halen.</p>' +
       '<div class="form-grid">' +
       '<label class="field"><span class="field-label">Ik wil</span>' +
@@ -1589,11 +1644,13 @@
       'pas mee zodra je je doel haalt — anders zou je score \'s ochtends kelderen door een doel waar je nog ' +
       'aan bezig bent. Bij afgelopen dagen telt gewoon het deel dat je haalde.</li>' +
       '<li>Gewicht telt niet mee in je dagscore. Het krijgt een eigen percentage in de ' +
-      '<em>Gewichtstrend</em>: je weekgemiddelde tegenover dat van de week ervoor, ' +
-      'afgemeten aan je gewichtsdoel hierboven.</li>' +
-      '<li>De regel onder je meetwaarden rekent met dezelfde gemiddelden, maar waarschuwt pas ' +
-      'als dezelfde afwijking er twee weken op rij staat. Eén week kan zomaar een kilo vocht ' +
-      'zijn; daar hoef je je eten niet op aan te passen.</li>' +
+      '<em>Gewichtstrend</em>, afgemeten aan je gewichtsdoel hierboven: in het weekoverzicht ' +
+      'de lijn door drie weken zodra die er is, in het maandoverzicht je maandgemiddelde ' +
+      'tegenover dat van de maand ervoor.</li>' +
+      '<li>De regel onder je meetwaarden en de weekafsluiting kijken naar de lijn door je ' +
+      'wegingen van de afgelopen drie weken, zodra je daarin tien keer woog. Eén week kan zomaar ' +
+      'een kilo vocht zijn; een lijn door drie weken niet. Met minder wegingen vergelijkt de app ' +
+      'weekgemiddelden en waarschuwt hij pas als hetzelfde twee weken op rij te zien is.</li>' +
       '</ul></section>';
 
     return html;
@@ -1952,10 +2009,30 @@
     render();
   }
 
+  /* Licht of donker is een keuze per apparaat: 's avonds op je telefoon wil je
+     iets anders dan overdag op je laptop. Daarom staat het hier, in dit
+     apparaat, en niet in de instellingen die meesynchroniseren. Eerder zette
+     het wisselen op je laptop je telefoon ook om. Wie het nog nooit wisselde,
+     krijgt wat er in de instellingen stond. */
+  var THEMA_KEY = 'goaldash.thema';
+
+  function thema() {
+    try {
+      var t = global.localStorage.getItem(THEMA_KEY);
+      if (t === 'light' || t === 'dark') return t;
+    } catch (e) { /* geen opslag: dan de instelling */ }
+    return store.settings().theme === 'light' ? 'light' : 'dark';
+  }
+
+  function zetThema(t) {
+    try { global.localStorage.setItem(THEMA_KEY, t); } catch (e) { /* dan alleen voor nu */ }
+    document.documentElement.setAttribute('data-theme', t);
+  }
+
   function render() {
     uitgesteld = false;
     var s = store.settings();
-    document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', thema());
     renderSyncButton();
 
     $$('.tab').forEach(function (t) {
@@ -2098,24 +2175,40 @@
     toast(delen.join(', ') + '.');
   }
 
+  /**
+   * Welke antwoorden "Neem gisteren over" mag kopiëren.
+   *
+   * Alleen je vinkjes: ontbijt, lunch, creatine en zo. Bewust een lijst van
+   * wat wél mag, in plaats van wat niet: een nieuw meetveld komt er dan nooit
+   * per ongeluk bij. Niet mee gaan:
+   * - metingen (gewicht, calorieën, eiwit): die van gisteren op vandaag zetten
+   *   is een verzonnen meting. Hij telde mee in je trendlijn en je verbruik, en
+   *   Apple Health kon de dag daarna niet meer invullen;
+   * - tellers (water) en je oefeningen: die beginnen elke dag opnieuw;
+   * - progressive overload: dat volgt uit je sets, niet uit gisteren;
+   * - eiwit- en caloriedoel behaald, zolang de app dat zelf uit je getallen
+   *   afleidt: een overgenomen "ja" zou dat oordeel van vandaag overschrijven.
+   */
+  function overTeNemen() {
+    var s = store.settings();
+    return GD.GOALS.filter(function (g) {
+      if (g.type === 'meter' || g.key === 'overload') return false;
+      if (g.macro && s.autoMacro) return false;
+      return true;
+    }).map(function (g) { return g.key; });
+  }
+
   function copyYesterday() {
     var prev = store.entry(D.addDays(ui.anchor, -1));
     if (!prev) { toast('Gisteren is nog niet ingevuld.', 'bad'); return; }
-    var copy = JSON.parse(JSON.stringify(prev));
-    delete copy.date;
-    delete copy.notitie;
-    // Je oefeningen zijn de training van gisteren; overnemen zou een sessie
-    // verzinnen die je niet gedaan hebt.
-    delete copy.oefeningen;
-    delete copy.schema;
-    // Tellers beginnen elke dag op nul; gisteren overnemen zou vals staan.
-    GD.GOALS.forEach(function (g) {
-      if (g.type === 'meter') delete copy[g.field];
+    var n = 0;
+    overTeNemen().forEach(function (k) {
+      var waarde = prev[k];
+      if (waarde === null || waarde === undefined || waarde === '') return;
+      store.setField(ui.anchor, k, waarde);
+      n++;
     });
-    Object.keys(copy).forEach(function (k) {
-      store.setField(ui.anchor, k, copy[k]);
-    });
-    toast('Gisteren overgenomen.');
+    toast(n ? 'Je vinkjes van gisteren overgenomen.' : 'Gisteren staan geen vinkjes om over te nemen.');
     render();
   }
 
@@ -2249,8 +2342,8 @@
       return;
     }
     if (action === 'plateau-negeren') {
-      GD.lifts.plateauWegklikken(el.dataset.oef, S.num(el.dataset.sessies) || 0);
-      toast('Gemeld zodra het langer stilstaat.');
+      GD.lifts.plateauWegklikken(el.dataset.oef, S.num(el.dataset.sessies) || 0, el.dataset.vanaf || null);
+      toast('Gemeld zodra het langer stilstaat, of als hij na vooruitgang opnieuw vastloopt.');
       render();
       return;
     }
@@ -2526,7 +2619,7 @@
 
       var themeBtn = e.target.closest('#btn-theme');
       if (themeBtn) {
-        store.setSetting('theme', store.settings().theme === 'light' ? 'dark' : 'light');
+        zetThema(thema() === 'light' ? 'dark' : 'light');
         render();
       }
     });
@@ -2582,7 +2675,19 @@
       if (t.dataset && t.dataset.setting) {
         var key = t.dataset.setting;
         if (t.type === 'checkbox') store.setSetting(key, t.checked);
-        else if (t.type === 'number') store.setSetting(key, S.num(t.value));
+        else if (t.type === 'number') {
+          var getal = S.num(t.value);
+          var standaard = GD.DEFAULT_SETTINGS[key];
+          // Een leeg veld is geen doel van nul: een leeg caloriedoel liet elke
+          // dag op 0% eindigen, een lege drempel maakte elke dag een goede dag.
+          // Terug naar de standaard, en zeggen welke dat is. Velden die leeg
+          // mogen zijn (je streefgewicht) hebben geen standaard en blijven leeg.
+          if (getal === null && standaard !== null && standaard !== undefined) {
+            getal = standaard;
+            toast('Leeg gelaten, dus terug naar de standaard: ' + fmt(standaard, standaard % 1 ? 2 : 0) + '.');
+          }
+          store.setSetting(key, getal);
+        }
         else store.setSetting(key, t.value);
         render();
         return;
@@ -2652,6 +2757,23 @@
     });
   }
 
+  /* De dag die "vandaag" was toen we voor het laatst keken. De app bepaalde
+     dat alleen bij het openen; bleef hij 's nachts open op je beginscherm, dan
+     stond hij de volgende ochtend nog op gisteren, met "Vandaag" erboven, en
+     ging je eerste glas water naar de verkeerde dag. */
+  var gezienVandaag = D.today();
+
+  function nieuweDag() {
+    var t = D.today();
+    if (t === gezienVandaag) return;
+    // Stond je op de dag die toen vandaag was, dan schuif je mee. Keek je naar
+    // een andere dag, dan blijf je daar: die koos je zelf.
+    if (ui.anchor === gezienVandaag) ui.anchor = t;
+    gezienVandaag = t;
+    if (GD.vangnet) GD.vangnet.dagelijks();
+    tekenStraks();
+  }
+
   function init() {
     store.load();
     // De kopie van vandaag vóór de synchronisatie start: zo ligt vast hoe alles
@@ -2668,9 +2790,14 @@
       }, 0);
     });
     document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
       // Blijft de app dagen openstaan op je beginscherm, dan toch elke dag een kopie.
-      if (document.visibilityState === 'visible' && GD.vangnet) GD.vangnet.dagelijks();
+      if (GD.vangnet) GD.vangnet.dagelijks();
+      nieuweDag();
     });
+    window.addEventListener('focus', nieuweDag);
+    // Ook als de app over middernacht heen gewoon open op je scherm staat.
+    setInterval(nieuweDag, 60000);
     if (GD.sync) {
       // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
       GD.sync.onApplied(tekenStraks);

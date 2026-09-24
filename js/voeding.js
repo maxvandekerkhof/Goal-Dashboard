@@ -123,10 +123,26 @@
     return true;
   }
 
-  /** Zelf ingetikt: vanaf nu blijft Health van dit veld af. */
+  /**
+   * Je veranderde dit veld zelf.
+   *
+   * Tikte je een getal in, dan blijft Health er vanaf: jouw invoer wint.
+   * Maakte je het veld leeg, dan is dat juist het omgekeerde: je haalt een
+   * getal weg zodat Health het opnieuw invult. Eerder werd ook dat als "zelf
+   * ingevuld" gemarkeerd, en bleef Health die dag voorgoed buiten de deur.
+   * Nu vervalt het merkteken, en staat er al een waarde uit Health klaar, dan
+   * komt die er meteen in.
+   */
   function handmatig(datum, veld) {
     var info = veldInfo(veld);
-    if (info) store.setField(datum, info.bronVeld, 'hand');
+    if (!info) return;
+    var e = store.entry(datum) || {};
+    if (getal(e[info.veld]) !== null) {
+      store.setField(datum, info.bronVeld, 'hand');
+      return;
+    }
+    store.setField(datum, info.bronVeld, null);
+    if (store.settings().voedingSync) overnemen(datum, veld);
   }
 
   /** Voor het instellingenscherm: hoeveel dagen en hoe recent. */

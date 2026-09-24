@@ -468,7 +468,7 @@
       waterAvg: avg(water),
       waterDays: water.length,
       goodDays: days.filter(function (d) {
-        return d.pct !== null && d.pct >= store.settings().goedeDagDrempel;
+        return d.pct !== null && d.pct >= num(store.settings().goedeDagDrempel, 70);
       }).length
     };
   }
@@ -936,6 +936,17 @@
     return ((perWeek - gewenst) * KCAL_PER_KG) / 7;
   }
 
+  /* Dezelfde, zoals hij op het scherm komt: afgerond op 10 kcal en nooit meer
+     dan 300 in één stap. Dagkaart en weekafsluiting gebruiken allebei deze,
+     zodat ze nooit twee verschillende getallen noemen. */
+  function kcalStap(perWeek, richting, tempo) {
+    var ruw = kcalBijstelling(perWeek, richting, tempo);
+    return {
+      stap: Math.round(GD.clamp(ruw, -VERBRUIK_MAX_SPRONG, VERBRUIK_MAX_SPRONG) / 10) * 10,
+      afgetopt: Math.abs(ruw) > VERBRUIK_MAX_SPRONG
+    };
+  }
+
   /**
    * Eén regel over je gewicht: de laatste zeven dagen tegenover de zeven dagen
    * daarvoor, afgezet tegen je tempo.
@@ -1073,15 +1084,15 @@
        één week ga je je eten niet verzetten. Net als bij `verbruik` niet meer
        dan 300 kcal in één keer — wie groot springt, springt terug. */
     if (out.uitTrend && oordeel.status !== 'op-schema') {
-      var ruw = kcalBijstelling(out.trendPerWeek, richting, tempo);
-      var stap = Math.round(GD.clamp(ruw, -VERBRUIK_MAX_SPRONG, VERBRUIK_MAX_SPRONG) / 10) * 10;
+      var k = kcalStap(out.trendPerWeek, richting, tempo);
+      var stap = k.stap;
       if (stap !== 0) {
         /* Het getal staat bewust niet óók in `tekst`: die regel zegt wat er aan
            de hand is, het advies zegt wat je eraan doet. Twee keer dezelfde
            tweehonderd onder elkaar leest als geruzie met jezelf. */
         out.advies = {
           kcalPerDag: stap,                       // positief: je eet te veel
-          afgetopt: Math.abs(ruw) > VERBRUIK_MAX_SPRONG,
+          afgetopt: k.afgetopt,
           nieuwDoel: v.klaar ? v.doelKcal : null,
           huidigDoel: v.huidigDoel > 0 ? v.huidigDoel : null
         };
@@ -1155,6 +1166,8 @@
     verbruik: verbruik,
     verbruikVerloop: verbruikVerloop,
     trendHelling: trendHelling,
+    kcalStap: kcalStap,
+    VERBRUIK_VENSTER: VERBRUIK_VENSTER,
     kracht: kracht,
     krachtEerder: krachtEerder,
     KCAL_PER_KG: KCAL_PER_KG,

@@ -1,0 +1,3 @@
+node_modules/
+# Je eigen back-ups voor de tests. De repo is openbaar; je gegevens horen er niet in.
+test/prive/
