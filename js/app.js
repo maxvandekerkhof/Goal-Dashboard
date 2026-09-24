@@ -1647,7 +1647,10 @@
     '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
     '',
     'create policy "eigen instellingen" on public.instellingen',
-    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
+    '',
+    'grant select, insert, update, delete on public.dagen to authenticated;',
+    'grant select, insert, update, delete on public.instellingen to authenticated;'
   ].join('\n');
 
   var VOEDING_SQL = [
@@ -1664,7 +1667,9 @@
     'alter table public.voeding enable row level security;',
     '',
     'create policy "eigen voeding" on public.voeding',
-    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
+    '',
+    'grant select, insert, update, delete on public.voeding to authenticated;'
   ].join('\n');
 
   /** Eén stap in de handleiding voor de Shortcut. */

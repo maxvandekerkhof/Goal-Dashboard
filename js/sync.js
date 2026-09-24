@@ -122,8 +122,14 @@
       'Je sessie is verlopen. Log opnieuw in.'],
     [/relation .* does not exist|could not find the table/i,
       'De tabellen bestaan nog niet. Draai eerst het SQL-blok in de Supabase SQL Editor.'],
-    [/row-level security|permission denied/i,
-      'Geen toegang tot je rijen. Controleer of het SQL-blok volledig is uitgevoerd.'],
+    [/row-level security/i,
+      'Geen toegang tot je rijen. Controleer of de policy-regels uit het SQL-blok zijn uitgevoerd.'],
+    /* Sinds 30 oktober 2026 krijgt een nieuwe tabel in public niet meer automatisch
+       toegang tot de Data API. De tabel bestaat dan wel, maar de app mag er niet bij:
+       dat is een ander mankement dan een ontbrekende policy, en een andere oplossing. */
+    [/permission denied/i,
+      'De tabel laat je account er niet bij. Draai de grant-regels uit het SQL-blok in de ' +
+      'Supabase SQL Editor.'],
     [/signups not allowed for otp/i,
       'Er bestaat nog geen account met dit adres. Maak er eerst een aan met een wachtwoord.'],
     [/signups not allowed|email.*not authorized/i,

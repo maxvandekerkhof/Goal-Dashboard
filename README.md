@@ -311,7 +311,16 @@ create policy "eigen dagen" on public.dagen
 
 create policy "eigen instellingen" on public.instellingen
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+grant select, insert, update, delete on public.dagen to authenticated;
+grant select, insert, update, delete on public.instellingen to authenticated;
 ```
+
+Die laatste twee regels zijn er vanaf **30 oktober 2026** nodig: Supabase geeft een nieuwe
+tabel in `public` dan niet meer automatisch door aan de Data API. Zonder die regels bestaat
+de tabel wel, maar krijgt de app *permission denied*. Tabellen die je vóór die datum al had
+aangemaakt houden hun toegang; de regels erbij zetten kan geen kwaad. Alleen `authenticated`
+staat er, niet `anon`: uitgelogd hoort er niets te lezen zijn.
 
 ### Hoe het werkt
 
