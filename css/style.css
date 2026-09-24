@@ -305,6 +305,7 @@ html[data-theme="light"] .topbar-vast { box-shadow: 0 6px 18px rgba(16, 24, 40, 
 .trend-ring { flex: 0 0 auto; }
 .trend-info { flex: 1 1 220px; min-width: 200px; }
 .trend-delta { font-size: 1.8rem; font-weight: 600; line-height: 1.1; }
+.trend-delta .unit { font-family: var(--font-body); font-size: .75rem; font-weight: 600; color: var(--faint); }
 
 .ring { display: block; }
 .ring-pct { font-family: var(--font-cond); font-weight: 700; letter-spacing: -.01em; }

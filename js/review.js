@@ -54,15 +54,24 @@
 
   /**
    * Hoeveel kcal per dag je bij zou moeten stellen om je tempo te halen.
-   * Positief = meer eten, negatief = minder. Ruim afgerond, en begrensd:
-   * een sprong van meer dan 500 kcal per dag is nooit een verstandig advies
-   * op basis van één week meten.
+   * Positief = meer eten, negatief = minder.
+   *
+   * Dezelfde rekensom als de regel op de dagkaart (S.kcalStap), met het teken
+   * omgedraaid: die zegt hoeveel je te veel eet, deze hoeveel er bij moet.
+   * Dus ook hier op 10 kcal afgerond en nooit meer dan 300 per stap. Stonden
+   * er eerder twee regels (50 en 500 hier, 10 en 300 daar), dan noemden de
+   * dagkaart en de weekafsluiting op zaterdag onder elkaar een ander getal.
    */
-  function bijstelling(delta, richting, tempo) {
-    var doelDelta = richting === 'aankomen' ? tempo : (richting === 'afvallen' ? -tempo : 0);
-    var gat = doelDelta - delta;
-    var kcal = afgerond((gat * KCAL_PER_KG) / 7, 50);
-    return GD.clamp(kcal, -500, 500);
+  function bijstelling(perWeek, richting, tempo) {
+    var stap = S.kcalStap(perWeek, richting, tempo).stap;
+    return stap === 0 ? 0 : -stap;
+  }
+
+  /** "+0,39 kg per week" bij de trendlijn, "+0,12 kg in een week" zonder. */
+  function beweging(g) {
+    return g.uitTrend
+      ? kgTekst(g.perWeek) + ' per week (de lijn door ' + g.trendVenster + ' dagen)'
+      : kgTekst(g.perWeek) + ' in een week';
   }
 
   /**
@@ -94,11 +103,11 @@
       uit.tekst = 'Je vulde je calorieën ' + kcalDagen + ' van de ' + geweest + ' dag' +
         (geweest === 1 ? '' : 'en') + ' in. Met minder dan drie dagen kan ik niet zien of het aan ' +
         'je eten ligt — dan blijft het gokken.' +
-        (gewicht.delta === null ? '' : ' Je gewicht deed deze week ' + kgTekst(gewicht.delta) + '.');
+        (gewicht.perWeek === null ? '' : ' Je gewicht ging ' + beweging(gewicht) + '.');
       return uit;
     }
 
-    if (gewicht.delta === null) {
+    if (gewicht.perWeek === null) {
       uit.status = 'te-weinig-gewicht';
       uit.kop = 'Te weinig weegmomenten';
       uit.tekst = 'Je at gemiddeld ' + Math.round(kcalGem) + ' kcal, maar zonder gewicht van deze ' +
@@ -108,7 +117,12 @@
     }
 
     var tempo = Math.abs(S.num(s.gewichtTempo, 0.25));
-    var kcal = bijstelling(gewicht.delta, richting, tempo);
+    var kcal = bijstelling(gewicht.perWeek, richting, tempo);
+    // Staat er genoeg in voor een verbruikschatting, dan komt het nieuwe doel
+    // daarvandaan — hetzelfde getal als op de dagkaart. Anders je doel plus de
+    // bijstelling.
+    var voorstel = gewicht.advies && gewicht.advies.nieuwDoel
+      ? gewicht.advies.nieuwDoel : afgerond(doel + kcal, 10);
     uit.bijstellen = kcal;
 
     var marge = Math.max(100, doel * 0.05);
@@ -120,7 +134,7 @@
     if (gewicht.status === 'op-schema') {
       uit.status = 'op-schema';
       uit.kop = 'Eten en gewicht kloppen met elkaar';
-      uit.tekst = 'Je zat op ' + gemTekst + ' en je gewicht ging ' + kgTekst(gewicht.delta) +
+      uit.tekst = 'Je zat op ' + gemTekst + ' en je gewicht ging ' + beweging(gewicht) +
         ' — precies het tempo dat je wilde. Verander niets aan wat je eet.';
       // De weegschaal doet het goed terwijl het doel op rood staat: dan klopt
       // niet je eten, maar het doel. Anders zou de app hier "verander niets"
@@ -144,8 +158,8 @@
       uit.status = 'afwachten';
       uit.bijstellen = 0;
       uit.kop = 'Eén week — nog even aankijken';
-      uit.tekst = 'Je at gemiddeld ' + gemTekst + ' en je gewicht deed ' +
-        kgTekst(gewicht.delta) + ', ' + (teLangzaam ? 'minder' : 'meer') + ' dan je ' +
+      uit.tekst = 'Je at gemiddeld ' + gemTekst + ' en je gewicht ging ' +
+        beweging(gewicht) + ', ' + (teLangzaam ? 'minder' : 'meer') + ' dan je ' +
         (richting === 'behouden' ? 'marge' : 'tempo') + '. ' +
         (gewicht.vorigeStatus
           ? 'Maar de week ervóór deed je gewicht iets anders, dus dit kan schommeling zijn.'
@@ -165,13 +179,13 @@
         : 'Je valt langzamer af dan je wilde';
       if (onderDoel) {
         uit.tekst = 'Je at gemiddeld ' + gemTekst + ', onder je doel van ' + doelTekst +
-          ', en je gewicht deed ' + kgTekst(gewicht.delta) + '. Dat past bij elkaar: er ging te ' +
+          ', en je gewicht ging ' + beweging(gewicht) + '. Dat past bij elkaar: er ging te ' +
           'weinig in. Haal eerst je eigen doel — dat scheelt al ongeveer ' +
           Math.round(doel - kcalGem) + ' kcal per dag.';
       } else {
-        uit.nieuwDoel = afgerond(doel + kcal, 10);
+        uit.nieuwDoel = voorstel;
         uit.tekst = 'Je haalde je doel van ' + doelTekst + ' wél (gemiddeld ' + gemTekst +
-          '), maar je gewicht deed ' + kgTekst(gewicht.delta) + '. Dan is je doel zelf te laag ' +
+          '), maar je gewicht ging ' + beweging(gewicht) + '. Dan is je doel zelf te laag ' +
           'voor wat je verbruikt. Zet het op ongeveer ' + uit.nieuwDoel + ' kcal en kijk over ' +
           'twee weken opnieuw.';
       }
@@ -181,15 +195,15 @@
         : 'Je valt sneller af dan je tempo';
       if (bovenDoel) {
         uit.tekst = 'Je at gemiddeld ' + gemTekst + ', boven je doel van ' + doelTekst +
-          ', en je gewicht deed ' + kgTekst(gewicht.delta) + '. ' +
+          ', en je gewicht ging ' + beweging(gewicht) + '. ' +
           (richting === 'aankomen'
             ? 'Sneller aankomen is vooral vet, geen extra spier. '
             : 'Te snel afvallen kost spiermassa. ') +
           'Terug naar je doel is waarschijnlijk genoeg.';
       } else {
-        uit.nieuwDoel = afgerond(doel + kcal, 10);
+        uit.nieuwDoel = voorstel;
         uit.tekst = 'Je zat met ' + gemTekst + ' rond je doel van ' + doelTekst +
-          ', maar je gewicht deed ' + kgTekst(gewicht.delta) + '. Dan is je doel te hoog ' +
+          ', maar je gewicht ging ' + beweging(gewicht) + '. Dan is je doel te hoog ' +
           'voor wat je verbruikt: ongeveer ' + uit.nieuwDoel + ' kcal past beter bij je tempo.';
       }
     }
@@ -279,10 +293,25 @@
     var period = S.scorePeriod(reeks);
     var st = period.stats;
 
-    /* Gewicht: deze werkweek tegen dezelfde dagen een week eerder — en die week
-       nog eens tegen de week dáárvoor. Eén week weegschaal zegt te weinig om je
-       eten op bij te stellen; pas als beide vergelijkingen hetzelfde zeggen is
-       het een trend. */
+    /* Gewicht, in twee lagen.
+
+       Het oordeel komt van de lijn door je wegingen van drie weken, precies
+       zoals op de dagkaart en op dezelfde peildatum: de zondag van deze week,
+       of vandaag als die nog niet voorbij is. Zo staan op zaterdag de dagkaart
+       en de afsluiting onder elkaar met hetzelfde oordeel en hetzelfde getal.
+       Eerder vergeleek de afsluiting alleen werkweek met werkweek, en dan kon
+       een vlakke week in een stijgende lijn "je komt niet aan" opleveren terwijl
+       de dagkaart "te snel" zei.
+
+       Zonder genoeg wegingen voor die lijn valt het terug op de werkweek tegen
+       dezelfde dagen een week eerder — en die week nog eens tegen de week
+       dáárvoor. Eén week weegschaal zegt te weinig om je eten op bij te
+       stellen; pas als beide vergelijkingen hetzelfde zeggen is het een trend.
+       De werkweekgemiddelden staan er in beide gevallen bij, als informatie. */
+    var peildatum = D.addDays(D.startOfWeek(datum), 6);
+    if (peildatum > vandaag) peildatum = vandaag;
+    var gm = S.gewichtMelding(peildatum);
+
     /* Alleen de dagen die al geweest zijn, en een week eerder diezelfde dagen.
        Kijk je op dinsdag, dan stond je deze week twee keer op de weegschaal en
        vorige week zeven keer; die twee tegen dat weekgemiddelde afzetten meet
@@ -299,9 +328,20 @@
       vorigeAvg: vorig.avg, vorigeMetingen: vorig.count,
       eerdereAvg: eerder.avg, eerdereMetingen: eerder.count,
       delta: null, doelDelta: tempo, status: 'te-weinig', tekst: '',
-      bevestigd: false, vorigeStatus: null, vorigeDelta: null
+      bevestigd: false, vorigeStatus: null, vorigeDelta: null,
+      // Waar het oordeel op rust: de trend per week, of het werkweekverschil.
+      perWeek: null, uitTrend: false, trendDagen: gm.trendDagen,
+      trendVenster: gm.trendVenster, advies: null, peildatum: peildatum
     };
-    if (richting !== 'uit' && nu.avg !== null && vorig.avg !== null) {
+    if (richting !== 'uit' && gm.uitTrend) {
+      gewicht.uitTrend = true;
+      gewicht.perWeek = gm.trendPerWeek;
+      gewicht.status = gm.status;
+      gewicht.pct = gm.pct;
+      gewicht.bevestigd = true;
+      gewicht.advies = gm.advies;
+      if (nu.avg !== null && vorig.avg !== null) gewicht.delta = nu.avg - vorig.avg;
+    } else if (richting !== 'uit' && nu.avg !== null && vorig.avg !== null) {
       gewicht.delta = nu.avg - vorig.avg;
       var oordeel = S.gewichtStatus(gewicht.delta, richting, tempo);
       gewicht.status = oordeel.status;
@@ -311,6 +351,7 @@
         gewicht.vorigeStatus = S.gewichtStatus(gewicht.vorigeDelta, richting, tempo).status;
       }
       gewicht.bevestigd = gewicht.vorigeStatus === oordeel.status;
+      gewicht.perWeek = gewicht.delta;
       gewicht.tekst = kgTekst(gewicht.delta) + ' tegenover vorige week (' +
         nu.count + ' en ' + vorig.count + ' weegmomenten).';
     }
@@ -327,6 +368,7 @@
       geweest: geweest.length,
       label: 'week ' + D.isoWeek(reeks[0]),
       periode: D.formatShort(reeks[0]) + ' – ' + D.formatShort(reeks[reeks.length - 1]),
+      peildatum: peildatum,
       period: period,
       pct: period.pct,
       ingevuld: period.logged,
