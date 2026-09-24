@@ -20,6 +20,7 @@
 
   var cfg = null;
   var bezig = false;
+  var nogEens = false;
   var pushTimer = null;
   var listeners = [];
   var appliedListeners = [];
@@ -97,6 +98,15 @@
 
   function onChange(fn) { listeners.push(fn); }
 
+  /* Ververst een ander tabblad je sessie, dan is de oude verversingssleutel
+     meteen verbruikt. Hier nog met die oude aankomen ziet Supabase als misbruik,
+     en dan vervalt je sessie overal. Dus: opnieuw inlezen zodra hij verandert. */
+  global.addEventListener('storage', function (e) {
+    if (e.key !== CONFIG_KEY) return;
+    cfg = null;
+    listeners.forEach(function (fn) { fn(); });
+  });
+
   /* -------------------------------- helpers ------------------------------- */
 
   function apiHeaders(withAuth) {
@@ -122,8 +132,14 @@
       'Je sessie is verlopen. Log opnieuw in.'],
     [/relation .* does not exist|could not find the table/i,
       'De tabellen bestaan nog niet. Draai eerst het SQL-blok in de Supabase SQL Editor.'],
-    [/row-level security|permission denied/i,
-      'Geen toegang tot je rijen. Controleer of het SQL-blok volledig is uitgevoerd.'],
+    [/row-level security/i,
+      'Geen toegang tot je rijen. Controleer of de policy-regels uit het SQL-blok zijn uitgevoerd.'],
+    /* Sinds 30 oktober 2026 krijgt een nieuwe tabel in public niet meer automatisch
+       toegang tot de Data API. De tabel bestaat dan wel, maar de app mag er niet bij:
+       dat is een ander mankement dan een ontbrekende policy, en een andere oplossing. */
+    [/permission denied/i,
+      'De tabel laat je account er niet bij. Draai de grant-regels uit het SQL-blok in de ' +
+      'Supabase SQL Editor.'],
     [/signups not allowed for otp/i,
       'Er bestaat nog geen account met dit adres. Maak er eerst een aan met een wachtwoord.'],
     [/signups not allowed|email.*not authorized/i,
@@ -377,8 +393,14 @@
   async function syncNow() {
     if (!isConfigured()) throw new Error('Vul eerst je project-URL en sleutel in.');
     if (!signedIn()) throw new Error('Log eerst in met je e-mailadres.');
-    if (bezig) return null;
+    if (bezig) {
+      // Er loopt er al een, en die heeft zijn lijst om te versturen al gemaakt.
+      // Wat nu binnenkomt zit daar niet in; dus straks nog een keer.
+      nogEens = true;
+      return null;
+    }
     bezig = true;
+    nogEens = false;
     listeners.forEach(function (fn) { fn(); });
 
     try {
@@ -407,35 +429,40 @@
       });
 
       // Alles wat hier nieuwer is dan in de cloud gaat de andere kant op.
-      var teSturen = [];
+      // Per datum hooguit één rij: twee rijen met dezelfde datum in één keer
+      // weigert Supabase in zijn geheel, en dan liep elke volgende poging op
+      // precies dezelfde twee rijen vast. Staat een dag er tegelijk als dag en
+      // als gewist, dan gaat de nieuwste mee.
+      var perDatum = {};
+      function kandidaat(datum, lokaalTs, rijVoorCloud) {
+        var rij = externOp[datum];
+        if (rij && lokaalTs <= tijd(rij.bijgewerkt)) return;
+        if (perDatum[datum] && perDatum[datum].ts >= lokaalTs) return;
+        perDatum[datum] = { ts: lokaalTs, rij: rijVoorCloud };
+      }
       Object.keys(st.entries).forEach(function (datum) {
         var lokaalTs = store.entryTs(datum);
-        var rij = externOp[datum];
-        if (!rij || lokaalTs > tijd(rij.bijgewerkt)) {
-          var kopie = JSON.parse(JSON.stringify(st.entries[datum]));
-          delete kopie._ts;
-          teSturen.push({
-            user_id: uid,
-            datum: datum,
-            data: kopie,
-            verwijderd: false,
-            bijgewerkt: new Date(lokaalTs).toISOString()
-          });
-        }
+        var kopie = JSON.parse(JSON.stringify(st.entries[datum]));
+        delete kopie._ts;
+        kandidaat(datum, lokaalTs, {
+          user_id: uid,
+          datum: datum,
+          data: kopie,
+          verwijderd: false,
+          bijgewerkt: new Date(lokaalTs).toISOString()
+        });
       });
       Object.keys(st.tombstones).forEach(function (datum) {
         var lokaalTs = st.tombstones[datum];
-        var rij = externOp[datum];
-        if (!rij || lokaalTs > tijd(rij.bijgewerkt)) {
-          teSturen.push({
-            user_id: uid,
-            datum: datum,
-            data: null,
-            verwijderd: true,
-            bijgewerkt: new Date(lokaalTs).toISOString()
-          });
-        }
+        kandidaat(datum, lokaalTs, {
+          user_id: uid,
+          datum: datum,
+          data: null,
+          verwijderd: true,
+          bijgewerkt: new Date(lokaalTs).toISOString()
+        });
       });
+      var teSturen = Object.keys(perDatum).map(function (d) { return perDatum[d].rij; });
 
       if (teSturen.length) {
         await rest('dagen', {
@@ -471,6 +498,10 @@
     } finally {
       bezig = false;
       listeners.forEach(function (fn) { fn(); });
+      if (nogEens) {
+        nogEens = false;
+        planPush();
+      }
     }
   }
 

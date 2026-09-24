@@ -295,9 +295,7 @@
       measureField('kcal', 'Calorieën', 'kcal', entry.kcal, '1', 'doel ' + fmt(s.calorieDoel),
         voedingVoet(date, 'kcal', 'kcal')) +
       '</div>' +
-      (gm.status === 'uit' || isFuture ? '' :
-        '<p class="meldregel"' + (gm.pct === null ? '' : ' style="color:' + GD.scoreInk(gm.pct) + '"') +
-        '><span class="meldregel-icoon">' + GD.icon('weegschaal', 16) + '</span>' + esc(gm.tekst) + '</p>') +
+      (gm.status === 'uit' || isFuture ? '' : gewichtBlok(gm)) +
       (s.autoMacro ? '<p class="hint">Eiwit- en caloriedoel volgen uit deze getallen, en wel naar rato: ' +
         'kom je op ' + fmt(eiwit.doel * 0.9) + ' van je ' + fmt(eiwit.doel) + ' gram, dan levert dat ' +
         '90% van de punten op in plaats van niets. Handmatig aanklikken hieronder heeft altijd voorrang.</p>' : '') +
@@ -337,6 +335,8 @@
       (store.entry(date) ? '<div class="card-foot"><button class="btn btn-danger btn-sm" data-action="delete-day">Dag wissen</button></div>' : '') +
       '</section>';
 
+    if (isToday) html += backupHerinnering();
+
     return html;
   }
 
@@ -349,6 +349,56 @@
       ' placeholder="' + esc(placeholder) + '">' +
       '<span class="measure-unit">' + esc(unit) + '</span>' +
       '</span>' + (voet || '') + '</label>';
+  }
+
+  /**
+   * De gewichtsmelding, de getallen waar hij op steunt, en het advies dat
+   * daaruit volgt.
+   *
+   * Die getallen staan er omdat een oordeel zonder zijn rekensom iets is dat je
+   * maar moet geloven. Zie je waar de trendlijn en de twee weekgemiddelden op
+   * uitkomen, dan kun je zelf nalopen of het klopt — en snap je ook waarom een
+   * vlakke week binnen een stijgende lijn geen slecht nieuws is.
+   */
+  function gewichtBlok(gm) {
+    var html = meldRegel('weegschaal', gm.pct, esc(gm.tekst));
+    if (gm.status === 'te-weinig') return html;
+
+    var regels = [];
+    if (gm.uitTrend) {
+      regels.push('Trendlijn: ' + GD.review.kgTekst(gm.trendPerWeek) + ' per week, uit ' +
+        gm.trendDagen + ' wegingen in ' + gm.trendVenster + ' dagen.');
+    }
+    if (gm.avg !== null && gm.vorigeAvg !== null) {
+      regels.push('Deze 7 dagen ' + fmt(gm.avg, 2) + ' kg tegen ' + fmt(gm.vorigeAvg, 2) +
+        ' kg de 7 ervóór, uit ' + gm.metingen + ' en ' + gm.vorigeMetingen + ' wegingen.');
+    }
+    if (regels.length) html += '<p class="hint hint-tight">' + esc(regels.join(' ')) + '</p>';
+
+    if (gm.advies) {
+      var a = gm.advies;
+      var teVeel = a.kcalPerDag > 0;
+      var doelZin = gm.richting === 'behouden' ? 'om op gewicht te blijven'
+        : 'om op ' + GD.review.kgTekst(gm.richting === 'afvallen' ? -gm.doelDelta : gm.doelDelta) +
+          ' per week uit te komen';
+      var zin = 'Eet ongeveer <strong>' + Math.abs(a.kcalPerDag) + ' kcal per dag ' +
+        (teVeel ? 'minder' : 'meer') + '</strong> ' + doelZin + '.';
+
+      if (a.nieuwDoel) {
+        zin += ' Volgens je verbruik hoort je caloriedoel op <strong>' + a.nieuwDoel +
+          ' kcal</strong> te staan' + (a.huidigDoel ? ', nu ' + a.huidigDoel : '') + '.';
+      } else if (a.huidigDoel) {
+        zin += ' Je doel staat op ' + a.huidigDoel + ' kcal. Zodra er genoeg dagen met ' +
+          'calorieën in staan, rekent <em>Verbruik</em> uit welk getal daar precies bij hoort.';
+      }
+      if (a.afgetopt) {
+        zin += ' Afgetopt op 300 kcal — eerst deze stap, volgende week kan er weer een bij.';
+      }
+
+      html += meldRegel('vlam', teVeel ? 40 : 45, zin);
+      if (a.nieuwDoel) html += doelKnop(a.nieuwDoel);
+    }
+    return html;
   }
 
   /**
@@ -971,7 +1021,8 @@
       '</div>' + som +
       '<p class="hint">Niet uit een formule met je lengte, leeftijd en een gokje over hoe actief je ' +
       'bent, maar uit wat jij at en wat de weegschaal daarmee deed. Gebaseerd op ' + v.kcalDagen +
-      ' dagen calorieën en ' + v.weegDagen + ' weegmomenten, waarbij recente dagen zwaarder wegen.</p>' +
+      ' dagen calorieën en ' + v.weegDagen + ' weegmomenten, waarbij recente dagen zwaarder wegen. ' +
+      'De calorieën van vandaag tellen pas mee als de dag voorbij is.</p>' +
       melding + voet +
       '</section>';
   }
@@ -1335,6 +1386,106 @@
       'ochtend. Weeg je twee weken lang niet, dan geldt je vaste doel van ' + fmt(info.vast) + ' g.</p>';
   }
 
+  /** "vandaag", "gisteren" of "5 dagen geleden" */
+  function dagenGeleden(n) {
+    if (n <= 0) return 'vandaag';
+    if (n === 1) return 'gisteren';
+    return n + ' dagen geleden';
+  }
+
+  var KOPIE_SOORT = {
+    dag: 'dagelijks',
+    'voor-wissen': 'vlak voor wissen',
+    'voor-terugzetten': 'vlak voor terugzetten'
+  };
+
+  /** De automatische kopieën. Die staan in IndexedDB en komen dus later binnen. */
+  function kopieenLijst() {
+    if (!GD.vangnet) return '';
+    if (ui.kopieen === null || ui.kopieen === undefined) {
+      if (!ui.kopieenLaden) {
+        ui.kopieenLaden = true;
+        GD.vangnet.lijst().then(function (l) { ui.kopieen = l; }, function () { ui.kopieen = false; })
+          .then(function () {
+            ui.kopieenLaden = false;
+            if (ui.view === 'instellingen') tekenStraks();
+          });
+      }
+      return '<p class="hint">Kopieën laden…</p>';
+    }
+    if (ui.kopieen === false) {
+      return '<p class="alert alert-bad">Deze browser laat de app geen kopieën bewaren. ' +
+        'Download daarom zelf geregeld een back-up.</p>';
+    }
+    if (!ui.kopieen.length) {
+      return '<p class="hint">Nog geen kopieën. De eerste komt de volgende keer dat je de app opent.</p>';
+    }
+    return '<ul class="kopieen">' + ui.kopieen.map(function (k) {
+      var d = new Date(k.tijd);
+      var klok = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+      return '<li class="kopie">' +
+        '<span class="kopie-wanneer">' + esc(D.dayName(k.datum) + ' ' + D.formatShort(k.datum)) +
+        ' · ' + klok + '</span>' +
+        '<span class="kopie-wat">' + k.dagen + ' dag' + (k.dagen === 1 ? '' : 'en') + ' · ' +
+        esc(KOPIE_SOORT[k.soort] || k.soort) + '</span>' +
+        '<span class="kopie-knoppen">' +
+        '<button class="btn btn-ghost btn-sm" data-action="kopie-download" data-id="' + esc(k.id) + '">Downloaden</button>' +
+        '<button class="btn btn-sm" data-action="kopie-terug" data-id="' + esc(k.id) + '">Terugzetten</button>' +
+        '</span></li>';
+    }).join('') + '</ul>';
+  }
+
+  function dataSection(dates) {
+    var st = GD.sync ? GD.sync.status() : { ingelogd: false };
+    var n = GD.vangnet ? GD.vangnet.dagenSindsBackup() : null;
+    var herinner = GD.vangnet && GD.vangnet.herinneren();
+
+    var waar = st.ingelogd
+      ? 'Je gegevens staan op dit apparaat en in je eigen Supabase-project. Die cloud is een ' +
+        'tweede kopie, geen back-up: wat hier per ongeluk verdwijnt, verdwijnt daar ook. ' +
+        'Download daarom af en toe een back-up en zet hem buiten dit apparaat, bijvoorbeeld in iCloud Drive.'
+      : 'Je gegevens staan alleen in deze browser. Download af en toe een back-up en zet hem buiten ' +
+        'dit apparaat, bijvoorbeeld in iCloud Drive. Met dat bestand zet je ze ook op een ander apparaat.';
+
+    return '<section class="card"><h2>' + GD.icon('download') + 'Je data</h2>' +
+      '<p class="hint">' + waar + '</p>' +
+      '<p class="' + (herinner ? 'alert alert-bad' : 'hint') + '">Laatste back-up op dit apparaat: <strong>' +
+      (n === null ? 'nog nooit' : dagenGeleden(n)) + '</strong>.</p>' +
+      '<div class="row-actions">' +
+      '<button class="btn' + (herinner ? ' btn-primary' : '') + '" data-action="export">Back-up downloaden</button>' +
+      '<button class="btn" data-action="pick-json">Back-up terugzetten</button>' +
+      '</div>' +
+      '<p class="hint">' + dates.length + ' dag' + (dates.length === 1 ? '' : 'en') + ' opgeslagen' +
+      (dates.length ? ' (' + esc(D.formatShort(dates[0])) + ' t/m ' + esc(D.formatShort(dates[dates.length - 1])) + ')' : '') +
+      '. Terugzetten overschrijft niets: dagen die ontbreken of gewist zijn komen terug, dagen die hier ' +
+      'nieuwer zijn blijven staan.</p>' +
+      '<hr class="scheiding">' +
+      '<h3 class="sub-kop">Automatische kopieën</h3>' +
+      '<p class="hint">Elke dag bij het openen, en vlak voor wissen of terugzetten, legt de app zelf een ' +
+      'kopie van alles weg. De laatste ' + (GD.vangnet ? GD.vangnet.DAGELIJKS_HOUDEN : 14) + ' dagen blijven ' +
+      'bewaard. Ze staan op dit apparaat, dus tegen een kwijtgeraakte telefoon helpen ze niet — daarvoor ' +
+      'is de back-up hierboven.</p>' +
+      kopieenLijst() +
+      '<hr class="scheiding">' +
+      '<div class="row-actions"><button class="btn btn-danger" data-action="wipe">Alles van dit apparaat wissen</button></div>' +
+      '</section>';
+  }
+
+  /** Onderaan de dag, zolang je te lang geen back-up downloadde. */
+  function backupHerinnering() {
+    if (!GD.vangnet || !GD.vangnet.herinneren()) return '';
+    var n = GD.vangnet.dagenSindsBackup();
+    return '<section class="card">' +
+      '<div class="card-head"><h2>' + GD.icon('download') + 'Back-up</h2></div>' +
+      '<p class="hint">' + (n === null
+        ? 'Je hebt op dit apparaat nog geen back-up gedownload.'
+        : 'Je laatste back-up is van ' + n + ' dagen geleden.') +
+      ' Eén bestand met al je dagen, trainingen en gewicht. Zet hem in iCloud Drive, dan ben je ' +
+      'nooit iets kwijt.</p>' +
+      '<div class="row-actions"><button class="btn btn-primary btn-sm" data-action="export">Back-up downloaden</button></div>' +
+      '</section>';
+  }
+
   function renderSettings() {
     var s = store.settings();
     var dates = store.allDates();
@@ -1417,18 +1568,7 @@
     html += syncSection();
     html += healthSection();
 
-    /* Data */
-    html += '<section class="card"><h2>' + GD.icon('download') + 'Je data</h2>' +
-      '<p class="hint">Alles staat lokaal in deze browser (localStorage) — er gaat niets naar een server. ' +
-      'Maak dus af en toe een back-up, en gebruik die om je data op een ander apparaat te zetten.</p>' +
-      '<div class="row-actions">' +
-      '<button class="btn" data-action="export">Back-up downloaden</button>' +
-      '<button class="btn" data-action="pick-json">Back-up terugzetten</button>' +
-      '<button class="btn btn-danger" data-action="wipe">Alles wissen</button>' +
-      '</div>' +
-      '<p class="hint">' + dates.length + ' dag' + (dates.length === 1 ? '' : 'en') + ' opgeslagen' +
-      (dates.length ? ' (' + esc(D.formatShort(dates[0])) + ' t/m ' + esc(D.formatShort(dates[dates.length - 1])) + ')' : '') +
-      '.</p></section>';
+    html += dataSection(dates);
 
     html += '<section class="card"><h2>' + GD.icon('melding') + 'Hoe wordt de score berekend?</h2>' +
       '<ul class="explain">' +
@@ -1599,7 +1739,10 @@
     '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
     '',
     'create policy "eigen instellingen" on public.instellingen',
-    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
+    '',
+    'grant select, insert, update, delete on public.dagen to authenticated;',
+    'grant select, insert, update, delete on public.instellingen to authenticated;'
   ].join('\n');
 
   var VOEDING_SQL = [
@@ -1616,7 +1759,9 @@
     'alter table public.voeding enable row level security;',
     '',
     'create policy "eigen voeding" on public.voeding',
-    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);'
+    '  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);',
+    '',
+    'grant select, insert, update, delete on public.voeding to authenticated;'
   ].join('\n');
 
   /** Eén stap in de handleiding voor de Shortcut. */
@@ -1786,7 +1931,29 @@
   var laatsteView = null;
   var laatsteAnchor = null;
 
+  /* Iets van buitenaf (een synchronisatie, een ander tabblad) wil het scherm
+     opnieuw tekenen. Zit je op dat moment in een veld te typen, dan zou dat
+     veld onder je vingers verdwijnen, met wat je al had getypt. Dan wacht het
+     tot je het veld verlaat. */
+  var uitgesteld = false;
+
+  function aanHetTypen() {
+    var a = document.activeElement;
+    return !!(a && a.closest && a.closest('#view') &&
+      a.matches('input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea'));
+  }
+
+  function tekenStraks() {
+    if (aanHetTypen()) {
+      uitgesteld = true;
+      renderSyncButton();
+      return;
+    }
+    render();
+  }
+
   function render() {
+    uitgesteld = false;
     var s = store.settings();
     document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
     renderSyncButton();
@@ -2237,20 +2404,88 @@
     }
     if (action === 'export') {
       download('goal-dashboard-' + D.today() + '.json', store.exportJSON());
-      toast('Back-up gedownload.');
+      if (GD.vangnet) GD.vangnet.backupGemaakt();
+      toast('Back-up gedownload. Zet hem buiten dit apparaat, bijvoorbeeld in iCloud Drive.');
+      render();
       return;
     }
     if (action === 'pick-json') { $('#file-json').click(); return; }
-    if (action === 'wipe') {
-      if (confirm('Weet je het zeker? Alle ingevulde dagen en instellingen worden gewist.') &&
-          confirm('Echt alles wissen? Dit kan niet ongedaan worden gemaakt.')) {
-        store.reset();
-        ui.anchor = D.today();
-        toast('Alles gewist.');
-        render();
-      }
+    if (action === 'kopie-download') {
+      GD.vangnet.haal(el.dataset.id).then(function (k) {
+        download('goal-dashboard-kopie-' + k.datum + '.json', k.gegevens);
+      }).catch(function (err) { toast(err.message, 'bad'); });
       return;
     }
+    if (action === 'kopie-terug') {
+      GD.vangnet.haal(el.dataset.id).then(function (k) {
+        var d = new Date(k.tijd);
+        var wanneer = D.formatDate(k.datum) + ' om ' + ('0' + d.getHours()).slice(-2) + ':' +
+          ('0' + d.getMinutes()).slice(-2);
+        if (confirm('De kopie van ' + wanneer + ' terugzetten?\n\n' + UITLEG_TERUGZETTEN)) {
+          terugzetten(k.gegevens);
+        }
+      }).catch(function (err) { toast(err.message, 'bad'); });
+      return;
+    }
+    if (action === 'wipe') {
+      var ingelogd = !!(GD.sync && GD.sync.signedIn());
+      var antwoord = prompt(
+        'Dit wist alles op dit apparaat: je dagen, trainingen, gewicht en instellingen. ' +
+        'De app maakt eerst zelf een kopie, die je onder Automatische kopieën terugvindt.\n\n' +
+        (ingelogd
+          ? 'In je Supabase-project blijft alles staan. Je wordt hier uitgelogd, anders haalt de app ' +
+            'het meteen weer op. Log je later opnieuw in, dan komt alles terug.'
+          : 'Er staat geen kopie in de cloud. Heb je geen back-up gedownload, dan is die automatische ' +
+            'kopie het enige dat overblijft.') +
+        '\n\nTyp wissen om door te gaan.');
+      if (antwoord === null) return;
+      if (antwoord.trim().toLowerCase() !== 'wissen') { toast('Niets gewist.'); return; }
+      // Eerst de kopie. Lukt die niet, dan wordt er ook niets gewist.
+      GD.vangnet.maak('voor-wissen').then(function () {
+        return ingelogd ? GD.sync.signOut() : null;
+      }).then(function () {
+        store.reset();
+        ui.anchor = D.today();
+        ui.kopieen = null;
+        toast('Alles van dit apparaat gewist. De kopie staat onder Automatische kopieën.');
+        render();
+      }, function (err) {
+        toast('Niets gewist: de app kon eerst geen kopie maken' +
+          (err && err.message ? ' (' + err.message + ')' : '') + '.', 'bad');
+      });
+      return;
+    }
+  }
+
+  var UITLEG_TERUGZETTEN = 'Dagen die hier ontbreken of gewist zijn, komen terug. Dagen die hier ' +
+    'nieuwer zijn, blijven zoals ze zijn. Er wordt niets overschreven, en de app maakt eerst zelf ' +
+    'een kopie van hoe alles nu staat.';
+
+  /**
+   * Een back-up of kopie terugzetten. Eerst synchroniseren, zodat dit apparaat
+   * weet wat er elders nieuwer is of gewist werd; anders kan een oude back-up
+   * een dag winnen van een versie die alleen nog in de cloud stond.
+   */
+  function terugzetten(tekst) {
+    var eerst = GD.sync && GD.sync.isConfigured() && GD.sync.signedIn()
+      ? GD.sync.syncNow().catch(function () { return null; })
+      : Promise.resolve(null);
+    toast('Bezig met terugzetten…');
+    return eerst.then(function () {
+      // Een mislukte kopie houdt het terugzetten niet tegen: dat overschrijft
+      // niets, en je hebt het misschien juist nodig omdat er iets stuk is.
+      return GD.vangnet ? GD.vangnet.maak('voor-terugzetten').catch(function () { return null; }) : null;
+    }).then(function () {
+      var r = store.importJSON(tekst);
+      ui.kopieen = null;
+      toast(r.teruggezet + ' dag' + (r.teruggezet === 1 ? '' : 'en') + ' teruggezet' +
+        (r.alNieuwer ? ', ' + r.alNieuwer + ' stond' + (r.alNieuwer === 1 ? '' : 'en') +
+          ' hier al in een nieuwere versie' : '') + '.');
+      render();
+    }).catch(function (err) {
+      console.error(err);
+      toast(err && err.message ? err.message : 'Terugzetten mislukt.', 'bad');
+    });
   }
 
   function bind() {
@@ -2376,14 +2611,17 @@
       if (!file) return;
       var reader = new FileReader();
       reader.onload = function () {
-        try {
-          var merge = confirm('OK = samenvoegen met je huidige data.\nAnnuleren = huidige data vervangen.');
-          var n = store.importJSON(String(reader.result), merge ? 'merge' : 'replace');
-          toast(n + ' dag(en) teruggezet.');
-          render();
-        } catch (err) {
-          console.error(err);
-          toast('Ongeldig back-upbestand.', 'bad');
+        var tekst = String(reader.result);
+        var data = null;
+        try { data = JSON.parse(tekst); } catch (err) { /* hieronder afgevangen */ }
+        if (!data || !data.entries || typeof data.entries !== 'object') {
+          toast('Dit bestand is geen back-up van het Goal Dashboard.', 'bad');
+          return;
+        }
+        var n = Object.keys(data.entries).length;
+        if (confirm('Back-up met ' + n + ' dag' + (n === 1 ? '' : 'en') + ' terugzetten?\n\n' +
+            UITLEG_TERUGZETTEN)) {
+          terugzetten(tekst);
         }
       };
       reader.readAsText(file);
@@ -2416,14 +2654,29 @@
 
   function init() {
     store.load();
+    // De kopie van vandaag vóór de synchronisatie start: zo ligt vast hoe alles
+    // stond voordat er iets van buitenaf binnenkwam.
+    if (GD.vangnet) GD.vangnet.dagelijks();
     bind();
     volgScroll();
+    store.onExtern(tekenStraks);
+    document.addEventListener('focusout', function () {
+      if (!uitgesteld) return;
+      // Pas na het wisselen van focus weten we of je naar een ander veld ging.
+      setTimeout(function () {
+        if (uitgesteld && !aanHetTypen()) render();
+      }, 0);
+    });
+    document.addEventListener('visibilitychange', function () {
+      // Blijft de app dagen openstaan op je beginscherm, dan toch elke dag een kopie.
+      if (document.visibilityState === 'visible' && GD.vangnet) GD.vangnet.dagelijks();
+    });
     if (GD.sync) {
       // Opnieuw tekenen zodra er echt iets uit de cloud is toegepast.
-      GD.sync.onApplied(function () { render(); });
+      GD.sync.onApplied(tekenStraks);
       GD.sync.onChange(function () {
         // De knop in de kopbalk staat op elke pagina en volgt de status.
-        if (ui.view === 'instellingen') render();
+        if (ui.view === 'instellingen') tekenStraks();
         else renderSyncButton();
       });
       GD.sync.init();

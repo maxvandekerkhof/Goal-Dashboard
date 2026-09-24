@@ -154,24 +154,62 @@ rustdagen wordt dus niet afgestraft, omdat op zo'n dag ook minder punten haalbaa
 
 ### Eén regel op de dagkaart
 
-Onder je meetwaarden staat de korte versie van hetzelfde verhaal:
+Onder je meetwaarden staat de korte versie van hetzelfde verhaal, met de getallen
+eronder waar hij op steunt:
 
 ```
-⚖️ +0,30 kg deze week — op schema (doel +0,25 per week).
+⚖️ +0,44 kg per week over 21 dagen — sneller dan je tempo van +0,25 per week.
+   Zo komt er vooral vet bij.
+   Trendlijn: +0,44 kg per week, uit 20 wegingen in 21 dagen.
+   Deze 7 dagen 73,37 kg tegen 73,39 kg de 7 ervóór, uit 6 en 7 wegingen.
 ```
 
-Dat vergelijkt het **gemiddelde van de laatste zeven dagen met dat van de zeven dagen
-daarvóór** — nooit je laatste weging, want één ochtend kan er door vocht of darminhoud
-makkelijk een kilo naast zitten. Het is een rollend venster en geen kalenderweek, zodat de
-regel ook op een dinsdag ergens op slaat. Een halve tot anderhalve keer je tempo telt als
-*op schema*; daaronder is het *trager dan je tempo*, daarboven *sneller*. Weeg je te weinig,
-dan zegt de regel dat in plaats van een cijfer te verzinnen.
+Het oordeel komt van een **lijn door al je wegingen van de laatste drie weken**, waarbij
+recente dagen zwaarder wegen — dezelfde lijn die [Verbruik](#eten-tegenover-gewicht)
+gebruikt. Nooit je laatste weging, want één ochtend kan er door vocht of darminhoud
+makkelijk een kilo naast zitten. Een halve tot anderhalve keer je tempo telt als *op
+schema*; daaronder is het *trager dan je tempo*, daarboven *sneller*.
 
-Een afwijking wordt pas als **waarschuwing** gebracht — met kleur, en met de reden erbij —
-als dezelfde vergelijking een week eerder hetzelfde zei (dag −13 t/m −7 tegen −20 t/m −14).
-Anders blijft de regel grijs staan als kale constatering, met waarom: de week ervóór was het
-nog niet zo, of er is nog geen derde week om mee te vergelijken. Op schema is meteen groen —
-daar valt niets aan bij te stellen.
+Waarom een lijn en niet week-tegen-week: bouw je gestaag op, dan valt er altijd wel een
+week vlak uit omdat de wéék ervóór al hoog lag. Daar stond dan *je komt niet aan* terwijl
+er een kilo per drie weken bij kwam. Een lijn door twintig punten heeft dat probleem niet,
+en hoeft ook niet nog een week bevestigd te worden — die bevestiging ís hij al.
+
+De weekvergelijking staat er nog wel, als tweede regel: het **gemiddelde van de laatste
+zeven dagen tegen dat van de zeven dagen daarvóór**, met hoeveel keer je in allebei op de
+weegschaal stond. Zo kun je zelf nalopen waar het oordeel vandaan komt, en zie je meteen
+waarom een vlakke week binnen een stijgende lijn geen slecht nieuws is.
+
+**Heb je nog te weinig gewogen** voor een trendlijn (minder dan tien keer in die drie
+weken), dan draagt die weekvergelijking het oordeel, en dan geldt de oude terughoudendheid:
+een afwijking wordt pas als waarschuwing gebracht als dezelfde vergelijking een week eerder
+hetzelfde zei (dag −13 t/m −7 tegen −20 t/m −14). Anders blijft de regel grijs staan als
+kale constatering, met waarom erbij. Op schema is meteen groen.
+
+### Hoeveel calorieën dat scheelt
+
+Wijkt die trendlijn van je tempo af, dan volgt daar meteen uit hoeveel je per dag naast je
+tempo eet:
+
+```
+🔥 Eet ongeveer 200 kcal per dag minder om op +0,25 kg per week uit te komen.
+   Je doel staat op 2800 kcal.
+```
+
+De rekensom is de vuistregel dat één kilo lichaamsgewicht ongeveer **7700 kcal** is: ga je
+0,19 kg per week harder omhoog dan de bedoeling, dan is dat 0,19 × 7700 ÷ 7 ≈ 200 kcal per
+dag. Daar zijn geen caloriegegevens voor nodig — het verschil met je tempo is genoeg. Het
+advies is afgerond op 10 kcal en gaat nooit verder dan 300 kcal per dag; wie groot springt,
+springt terug.
+
+Staan er genoeg dagen met calorieën voor een echte verbruikschatting, dan noemt de regel
+ook meteen het **caloriedoel** dat daarbij hoort, met een knop om het over te nemen. Dat
+getal komt van [Verbruik](#eten-tegenover-gewicht), zodat de dagkaart en de weekafsluiting
+niet twee verschillende dingen kunnen beweren.
+
+Verbruik telt de calorieën van **vandaag** pas mee als de dag voorbij is. Midden op de dag
+staan er alleen je ontbijt en lunch, en juist vandaag weegt het zwaarst: zo'n halve dag
+haalde de schatting ruim 150 kcal omlaag. Je gewicht van vanochtend telt wel gewoon mee.
 
 ## Weekafsluiting
 
@@ -277,7 +315,16 @@ create policy "eigen dagen" on public.dagen
 
 create policy "eigen instellingen" on public.instellingen
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+grant select, insert, update, delete on public.dagen to authenticated;
+grant select, insert, update, delete on public.instellingen to authenticated;
 ```
+
+Die laatste twee regels zijn er vanaf **30 oktober 2026** nodig: Supabase geeft een nieuwe
+tabel in `public` dan niet meer automatisch door aan de Data API. Zonder die regels bestaat
+de tabel wel, maar krijgt de app *permission denied*. Tabellen die je vóór die datum al had
+aangemaakt houden hun toegang; de regels erbij zetten kan geen kwaad. Alleen `authenticated`
+staat er, niet `anon`: uitgelogd hoort er niets te lezen zijn.
 
 ### Hoe het werkt
 
@@ -293,6 +340,11 @@ create policy "eigen instellingen" on public.instellingen
   ingevuld. Dat is de prijs van deze eenvoudige regel.
 - Wissen synchroniseert mee: een dag die je hier weghaalt, verdwijnt ook op je andere
   apparaat.
+- Verander je iets terwijl er nog een synchronisatie loopt, dan volgt er direct daarna nog
+  een, zodat die wijziging niet blijft liggen.
+- Per datum gaat er hooguit één rij naar Supabase. Staat een dag er ooit tegelijk als dag
+  en als gewist, dan gaat de nieuwste mee in plaats van dat de hele synchronisatie
+  weigert.
 
 ### Goed om te weten
 
@@ -304,7 +356,8 @@ create policy "eigen instellingen" on public.instellingen
   Supabase-dashboard weer starten. Je lokale data blijft in de tussentijd gewoon werken.
 - Welke wijziging "de laatste" is, wordt bepaald door de **klok van je apparaten**. Staat er
   ergens een klok flink verkeerd, dan kan een oudere wijziging winnen.
-- De back-up uit *Je data* blijft gewoon werken en is een prima extra vangnet.
+- **De cloud is een tweede kopie, geen back-up.** Wat hier per ongeluk verdwijnt,
+  verdwijnt daar ook. Download dus af en toe een back-up (zie *Je data* hieronder).
 
 ### Veiligheid
 
@@ -375,6 +428,15 @@ Drie dingen waar het bij het bouwen misgaat:
 | Jij tikt zelf een getal in | Jouw getal blijft staan, ook na synchroniseren |
 | Jij tikt iets in en Health zegt iets anders | Je ziet *Health: 2437 kcal · overnemen* en kiest zelf |
 | Stond er al iets vóór de koppeling | Blijft met rust gelaten |
+| Health geeft **0** door | Genegeerd: dat is geen meting maar een lege dag |
+
+Die laatste regel is er omdat Health een 0 doorgeeft als er die dag niets gelogd is —
+MyFitnessPal schrijft dan geen dagtotaal weg en de Shortcut leest een lege waarde uit.
+Niemand eet nul calorieën. Namen we hem over, dan scoorde die dag nul op eiwit én
+calorieën, en zakte je [verbruikschatting](#eten-tegenover-gewicht) mee: één zo'n dag in
+drie weken scheelde daarin al ruim tweehonderd kcal. Stond er van een eerdere
+synchronisatie nog zo'n nul, dan ruimt de koppeling die zelf op. Tik je **zelf** een 0 in,
+dan is dat wél een uitspraak, en die blijft staan.
 
 Dat onthouden we per veld in `kcalBron` en `eiwitGramBron`. Wis je het veld weer, dan blijft
 het leeg — tenzij die dag verder helemaal leeg is, want dan verdwijnt de hele dag en daarmee
@@ -390,15 +452,38 @@ de rest van het synchroniseren gewoon werken. Je dagen zijn belangrijker dan dez
 
 ## Je data
 
-Alles staat in `localStorage` van de browser waarin je het gebruikt. Zonder de koppeling
-hierboven gaat er niets naar een server, maar synchroniseert het ook niet vanzelf tussen
-apparaten — en het verdwijnt als je je browsergegevens wist.
+Alles staat in `localStorage` van de browser waarin je het gebruikt, en met synchroniseren
+aan ook in je eigen Supabase-project. Zonder die koppeling gaat er niets naar een server,
+maar synchroniseert het ook niet vanzelf tussen apparaten — en het verdwijnt als je je
+browsergegevens wist.
 
-Gebruik daarom **Instellingen → Je data**:
+Er zijn drie lagen die ervoor zorgen dat je niets kwijtraakt:
 
-- **Back-up downloaden** — schrijft alles naar één JSON-bestand.
-- **Back-up terugzetten** — samenvoegen met of vervangen van je huidige data. Zo zet je
-  je geschiedenis ook op een tweede apparaat.
+1. **Back-up downloaden** — schrijft alles naar één JSON-bestand: je dagen, trainingen,
+   gewicht, voeding en instellingen. Zet hem buiten je telefoon, bijvoorbeeld in iCloud
+   Drive. Bij *Je data* staat wanneer je dat op dit apparaat voor het laatst deed, en na
+   twee weken zonder back-up verschijnt er onderaan de dag een herinnering.
+2. **Automatische kopieën** — elke dag bij het openen, en vlak voor wissen of
+   terugzetten, legt de app zelf een volledige kopie weg. De laatste 14 dagelijkse en 5
+   andere blijven bewaard; je kunt ze downloaden of terugzetten. Ze staan in IndexedDB,
+   een aparte opslag van de browser, zodat ze de gewone opslag nooit vol laten lopen.
+   Ze staan wel op dit apparaat: tegen een kwijtgeraakte telefoon helpt alleen laag 1.
+3. **Synchroniseren** — met Supabase staat alles ook in de cloud.
+
+**Terugzetten overschrijft niets.** Per dag geldt: ontbreekt hij hier of is hij gewist, dan
+komt hij terug uit de back-up; staat hier een nieuwere versie, dan blijft die staan. Je
+instellingen blijven zoals ze zijn, behalve op een leeg apparaat; oefeningen en schema's
+die ontbreken komen er wel altijd bij, anders hangen de sets die ernaar verwijzen los.
+Vóór het terugzetten synchroniseert de app eerst, zodat een oude back-up niet wint van een
+nieuwere versie die alleen nog in de cloud stond.
+
+**Twee tabbladen tegelijk** kan veilig: elk tabblad neemt wijzigingen uit het andere
+meteen over, en bij het wegschrijven wordt per dag samengevoegd in plaats van
+overschreven. Een tabblad waarin je niets veranderde, schrijft ook niets weg.
+
+**Alles van dit apparaat wissen** vraagt je het woord *wissen* te typen en maakt eerst
+een kopie. Het raakt alleen dit apparaat: ben je ingelogd, dan blijft alles in Supabase
+staan en word je uitgelogd, zodat het niet meteen weer terugkomt.
 
 ## Bediening
 
@@ -419,7 +504,8 @@ Gebruik daarom **Instellingen → Je data**:
 index.html          pagina en scriptvolgorde
 css/style.css       stijl, donker en licht thema
 js/config.js        doeldefinities, standaardinstellingen, kleurschaal 0 -> 100
-js/store.js         opslag (localStorage), import/export, datum-helpers
+js/store.js         opslag (localStorage), samenvoegen, terugzetten, datum-helpers
+js/vangnet.js       automatische kopieën (IndexedDB) en de back-upherinnering
 js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
 js/score.js         scoreberekening per dag en per periode, streaks, gewichtstrend
 js/charts.js        SVG-ring, balken, kalender, gewichts- en oefeninggrafiek
