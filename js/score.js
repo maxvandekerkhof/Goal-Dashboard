@@ -549,6 +549,9 @@
   var VERBRUIK_MIN_WEEG = 10;     // minimaal aantal weegmomenten
   var VERBRUIK_MAX_SPRONG = 300;  // kcal; hoeveel een voorstel je doel mag verzetten
   var KCAL_PER_KG = 7700;
+  var DOEL_RUST = 14;             // dagen na een nieuw caloriedoel zonder nieuw advies
+  var SINDS_MIN_DAGEN = 7;        // pas na een week iets zeggen over "sinds je aanpassing"
+  var SINDS_MIN_WEEG = 5;
 
   /* Recente dagen wegen zwaarder: een halfwaardetijd van veertien dagen, zodat
      een dag van drie weken terug nog voor een derde meetelt. Zonder die weging
@@ -578,6 +581,62 @@
   }
 
   /**
+   * Je laatste aanpassing van je caloriedoel, gezien vanaf `peildatum`.
+   * -> null, of { datum, van, naar, dagen, rust, totDatum }
+   *
+   * Je gewicht reageert pas na een week of twee op ander eten: eerst vocht en
+   * darminhoud, dan pas de trend. Zolang `rust` staat, loopt de trendlijn nog
+   * grotendeels op de periode van vóór je aanpassing, en komt er geen nieuw
+   * getal. Anders zegt de app "eet minder" terwijl je dat net doet, en wie dat
+   * opvolgt remt twee keer af.
+   *
+   * Kijk je naar een week van vóór de aanpassing, dan telt de aanpassing
+   * daarvoor, als die er was.
+   */
+  function doelWissel(peildatum, settings) {
+    var w = (settings || store.settings()).calorieDoelWissel;
+    var datum = peildatum || D.today();
+    if (w && typeof w.datum === 'string' && w.datum > datum) w = w.eerder;
+    if (!w || typeof w.datum !== 'string' || !(w.naar > 0) || w.datum > datum) return null;
+    var dagen = D.dagenTussen(w.datum, datum);
+    return {
+      datum: w.datum, van: w.van, naar: w.naar, dagen: dagen,
+      rust: dagen < DOEL_RUST, totDatum: D.addDays(w.datum, DOEL_RUST)
+    };
+  }
+
+  /**
+   * Wat er gebeurde sinds je aanpassing: een lijn door alleen die wegingen, en
+   * wat je in die dagen at.
+   * -> { dagen, wegingen, perWeek, kcalGem, kcalDagen }
+   *
+   * `perWeek` pas na een week en vijf wegingen. De eerste dagen na minder eten
+   * gaat er vooral vocht af, en een lijn door drie punten is geen lijn.
+   */
+  function sindsWissel(wissel, peildatum) {
+    var eind = peildatum || D.today();
+    var vandaag = D.today();
+    var punten = [], kcalSom = 0, kcalDagen = 0;
+    D.range(wissel.datum, eind).forEach(function (d, i) {
+      var e = store.entry(d);
+      if (!e) return;
+      var kg = num(e.gewicht);
+      if (kg !== null) punten.push({ x: i, y: kg, w: 1 });
+      // De dag van de aanpassing zelf is half oud, half nieuw; vandaag is nog
+      // niet af. Die twee tellen voor het eten niet mee.
+      var k = num(e.kcal);
+      if (k !== null && d > wissel.datum && d < vandaag) { kcalSom += k; kcalDagen++; }
+    });
+    var h = wissel.dagen >= SINDS_MIN_DAGEN && punten.length >= SINDS_MIN_WEEG
+      ? trendHelling(punten) : null;
+    return {
+      dagen: wissel.dagen, wegingen: punten.length,
+      perWeek: h === null ? null : h * 7,
+      kcalGem: kcalDagen ? kcalSom / kcalDagen : null, kcalDagen: kcalDagen
+    };
+  }
+
+  /**
    * Je verbruik op `datum`, uit de voorgaande drie weken.
    * -> { klaar, kcal, kcalGem, helling, perWeek, opslag, kcalDagen, weegDagen,
    *      doelKcal, huidigDoel, verschil, advies }
@@ -585,12 +644,23 @@
    * `klaar` is false zolang er te weinig gemeten is. Dan blijft de rest leeg:
    * een verbruik uit vier dagen is geen schatting maar een gok, en daar hoort
    * geen caloriedoel op verzet te worden.
+   *
+   * Heb je je caloriedoel aangepast, dan gaat het venster na de rustperiode
+   * pas in op de dag van die aanpassing: de weken daarvoor horen bij een ander
+   * doel en zouden het nieuwe advies de verkeerde kant op trekken. De
+   * minimale aantallen schalen mee met dat kortere venster. Tijdens de rust
+   * zelf blijft het venster drie weken, zodat de trendlijn blijft staan, maar
+   * komt er geen voorstel (`advies` 'rust').
    */
   function verbruik(datum, settings) {
     var s = settings || store.settings();
     var eind = datum || D.today();
     var start = D.addDays(eind, -(VERBRUIK_VENSTER - 1));
+    var wissel = doelWissel(eind, s);
+    if (wissel && !wissel.rust && wissel.datum > start) start = wissel.datum;
     var reeks = D.range(start, eind);
+    var minKcal = Math.ceil(VERBRUIK_MIN_KCAL * reeks.length / VERBRUIK_VENSTER);
+    var minWeeg = Math.ceil(VERBRUIK_MIN_WEEG * reeks.length / VERBRUIK_VENSTER);
 
     var kcalSom = 0, kcalGewicht = 0, kcalDagen = 0;
     var punten = [];
@@ -613,8 +683,8 @@
       klaar: false,
       kcal: null, kcalGem: null, helling: null, perWeek: null, opslag: null,
       kcalDagen: kcalDagen, weegDagen: punten.length,
-      minKcal: VERBRUIK_MIN_KCAL, minWeeg: VERBRUIK_MIN_WEEG,
-      venster: VERBRUIK_VENSTER,
+      minKcal: minKcal, minWeeg: minWeeg,
+      venster: reeks.length, wissel: wissel,
       doelKcal: null, huidigDoel: num(s.calorieDoel, 0), verschil: null,
       richting: s.gewichtRichting || 'uit', advies: 'te-weinig'
     };
@@ -623,7 +693,7 @@
        er genoeg dagen met calorieën staan om een verbruik uit te rekenen, en
        de gewichtsmelding leunt erop. Daarom hier al invullen, en pas daarna
        kijken of de calorieënkant ook rond is. */
-    if (punten.length >= VERBRUIK_MIN_WEEG) {
+    if (punten.length >= minWeeg) {
       var helling = trendHelling(punten);
       if (helling !== null) {
         uit.helling = helling;
@@ -631,7 +701,7 @@
       }
     }
 
-    if (kcalDagen < VERBRUIK_MIN_KCAL || uit.helling === null) return uit;
+    if (kcalDagen < minKcal || uit.helling === null) return uit;
 
     uit.klaar = true;
     uit.kcalGem = kcalSom / kcalGewicht;
@@ -640,6 +710,10 @@
 
     if (uit.richting === 'uit') {
       uit.advies = 'geen-doel';
+      return uit;
+    }
+    if (wissel && wissel.rust) {
+      uit.advies = 'rust';
       return uit;
     }
 
@@ -985,7 +1059,7 @@
       bevestigd: false, waarschuwing: false,
       vorigeStatus: null, vorigeDelta: null, eerdereMetingen: 0, eerdereAvg: null,
       trendPerWeek: null, trendDagen: 0, trendVenster: VERBRUIK_VENSTER,
-      uitTrend: false, advies: null
+      uitTrend: false, advies: null, trendVanaf: null
     };
     if (richting === 'uit') return out;
 
@@ -1015,6 +1089,9 @@
        voor een verbruikschatting. */
     var v = verbruik(datum, s);
     out.trendDagen = v.weegDagen;
+    out.trendVenster = v.venster;
+    // Na de rust begint de lijn op de dag van je nieuwe doel; dat mag je weten.
+    out.trendVanaf = v.wissel && !v.wissel.rust && v.venster < VERBRUIK_VENSTER ? v.wissel.datum : null;
     out.trendPerWeek = v.perWeek;
     out.uitTrend = v.perWeek !== null;
 
@@ -1035,6 +1112,9 @@
       out.bevestigd = out.vorigeStatus === oordeel.status;
       out.waarschuwing = oordeel.status !== 'op-schema' && out.bevestigd;
     }
+    // Net een nieuw caloriedoel: de lijn loopt nog op je oude eten, en daar heb
+    // je al wat aan gedaan. Dan is het geen waarschuwing meer.
+    if (v.wissel && v.wissel.rust) out.waarschuwing = false;
     // Kleur alleen bij goed nieuws of bij een afwijking die vaststaat; een
     // losse week blijft grijs, anders schrik je van ruis.
     out.pct = (oordeel.status === 'op-schema' || out.waarschuwing) ? oordeel.pct : null;
@@ -1083,18 +1163,31 @@
     /* Wat die afwijking per dag aan eten waard is. Alleen bij de trendlijn: op
        één week ga je je eten niet verzetten. Net als bij `verbruik` niet meer
        dan 300 kcal in één keer — wie groot springt, springt terug. */
-    if (out.uitTrend && oordeel.status !== 'op-schema') {
+    if (v.wissel && v.wissel.rust) {
+      // Net een nieuw doel: geen getal, wel wat er sindsdien gebeurt. Ook als
+      // je op schema ligt, want dan is juist dat het nieuws.
+      out.advies = { rust: true, wissel: v.wissel, sinds: sindsWissel(v.wissel, datum) };
+    } else if (out.uitTrend && oordeel.status !== 'op-schema') {
       var k = kcalStap(out.trendPerWeek, richting, tempo);
       var stap = k.stap;
       if (stap !== 0) {
         /* Het getal staat bewust niet óók in `tekst`: die regel zegt wat er aan
            de hand is, het advies zegt wat je eraan doet. Twee keer dezelfde
-           tweehonderd onder elkaar leest als geruzie met jezelf. */
+           tweehonderd onder elkaar leest als geruzie met jezelf.
+
+           Staat je doel al op wat je verbruik aangeeft, dan hoeft er aan het
+           doel niets te gebeuren: dan at je er de afgelopen tijd naast, en
+           gaat het erom dat je het haalt. Geen knop die je doel op hetzelfde
+           getal zet. */
+        var klopt = v.klaar && v.advies === 'klopt';
         out.advies = {
           kcalPerDag: stap,                       // positief: je eet te veel
           afgetopt: k.afgetopt,
-          nieuwDoel: v.klaar ? v.doelKcal : null,
-          huidigDoel: v.huidigDoel > 0 ? v.huidigDoel : null
+          nieuwDoel: v.klaar && !klopt ? v.doelKcal : null,
+          huidigDoel: v.huidigDoel > 0 ? v.huidigDoel : null,
+          doelKlopt: klopt,
+          kcalGem: v.klaar ? v.kcalGem : null,
+          venster: v.venster
         };
       }
     }
@@ -1167,6 +1260,11 @@
     verbruikVerloop: verbruikVerloop,
     trendHelling: trendHelling,
     kcalStap: kcalStap,
+    doelWissel: doelWissel,
+    sindsWissel: sindsWissel,
+    DOEL_RUST: DOEL_RUST,
+    SINDS_MIN_DAGEN: SINDS_MIN_DAGEN,
+    SINDS_MIN_WEEG: SINDS_MIN_WEEG,
     VERBRUIK_VENSTER: VERBRUIK_VENSTER,
     kracht: kracht,
     krachtEerder: krachtEerder,

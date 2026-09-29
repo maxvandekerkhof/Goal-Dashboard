@@ -75,6 +75,44 @@
   }
 
   /**
+   * Wat er te zeggen valt in de twee weken na een nieuw caloriedoel. Staat op
+   * de dagkaart en in de weekafsluiting, dus één tekst voor allebei.
+   * `a` is `advies` uit S.gewichtMelding met `rust` erin.
+   *
+   * Geen getal om je doel op te zetten: je gewicht loopt nog achter op wat je
+   * nu eet. Wel of je het nieuwe doel haalt — zolang dat niet lukt, kan de
+   * weegschaal niets laten zien — en na een week de lijn sinds de aanpassing.
+   */
+  function rustTekst(a, s) {
+    var w = a.wissel, z = a.sinds;
+    var t = 'Op ' + D.formatShort(w.datum) + ' zette je je caloriedoel van ' + w.van + ' op ' +
+      w.naar + ' kcal. ';
+    if (z.kcalDagen) {
+      var gem = Math.round(z.kcalGem);
+      var gehaald = doelGehaald(z.kcalGem, { calorieDoel: w.naar, calorieRichting: s.calorieRichting,
+        calorieMarge: s.calorieMarge });
+      t += 'Sindsdien at je gemiddeld ' + gem + ' kcal per dag' + (gehaald
+        ? ', dus je nieuwe doel lukt. '
+        : ' — dat haalt het nieuwe doel nog niet, en zolang dat zo is kan de weegschaal er ' +
+          'niets van laten zien. ');
+    }
+    if (z.perWeek !== null) {
+      t += 'Je gewicht sinds de aanpassing: ' + kgTekst(z.perWeek) + ' per week, uit ' +
+        z.wegingen + ' wegingen in ' + (z.dagen + 1) + ' dagen. ';
+    } else if (z.dagen < S.SINDS_MIN_DAGEN) {
+      t += 'Vanaf ' + D.formatShort(D.addDays(w.datum, S.SINDS_MIN_DAGEN)) + ' zie je hier hoe je ' +
+        'gewicht sindsdien loopt' + (z.wegingen < S.SINDS_MIN_WEEG
+          ? ', als je tot dan minstens ' + S.SINDS_MIN_WEEG + ' keer weegt' : '') + '. ';
+    } else {
+      var nog = S.SINDS_MIN_WEEG - z.wegingen;
+      t += 'Weeg je nog ' + nog + ' keer, dan zie je hier hoe je gewicht sindsdien loopt. ';
+    }
+    t += 'Je gewicht heeft een week of twee nodig om op ander eten te reageren, dus pas op ' +
+      D.formatShort(w.totDatum) + ' kijk ik opnieuw of je doel klopt.';
+    return t;
+  }
+
+  /**
    * De kern van de afsluiting: klopt wat je at met wat de weegschaal deed?
    *
    * Twee losse cijfers zeggen weinig — "2400 kcal" is pas een probleem als je
@@ -113,6 +151,15 @@
       uit.tekst = 'Je at gemiddeld ' + Math.round(kcalGem) + ' kcal, maar zonder gewicht van deze ' +
         'én vorige week kan ik niet zeggen of dat te veel of te weinig was. Weeg jezelf een paar ' +
         'ochtenden per week, steeds op hetzelfde moment.';
+      return uit;
+    }
+
+    // Net een nieuw doel: het oude eten zit nog in de weegschaal. Eerst kijken
+    // of het nieuwe werkt, in plaats van er meteen weer een stap op te zetten.
+    if (gewicht.rust) {
+      uit.status = 'rust';
+      uit.kop = 'Nieuw caloriedoel — even afwachten';
+      uit.tekst = rustTekst(gewicht.rust, s);
       return uit;
     }
 
@@ -331,7 +378,8 @@
       bevestigd: false, vorigeStatus: null, vorigeDelta: null,
       // Waar het oordeel op rust: de trend per week, of het werkweekverschil.
       perWeek: null, uitTrend: false, trendDagen: gm.trendDagen,
-      trendVenster: gm.trendVenster, advies: null, peildatum: peildatum
+      trendVenster: gm.trendVenster, advies: null, peildatum: peildatum,
+      rust: gm.advies && gm.advies.rust ? gm.advies : null
     };
     if (richting !== 'uit' && gm.uitTrend) {
       gewicht.uitTrend = true;
@@ -395,6 +443,7 @@
     markeerGezien: markeerGezien,
     bijstelling: bijstelling,
     kgTekst: kgTekst,
+    rustTekst: rustTekst,
     maak: maak,
     KCAL_PER_KG: KCAL_PER_KG
   };

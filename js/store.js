@@ -21,6 +21,11 @@
 
   function today() { return iso(new Date()); }
 
+  /** Aantal dagen van `a` naar `b` ("YYYY-MM-DD"); negatief als b eerder is */
+  function dagenTussen(a, b) {
+    return Math.round((parse(b) - parse(a)) / 86400000);
+  }
+
   function addDays(s, n) {
     var d = parse(s);
     d.setDate(d.getDate() + n);
@@ -320,6 +325,39 @@
     changed();
   }
 
+  /* Je caloriedoel verzetten, en onthouden wanneer en van wat. Je gewicht
+     reageert pas na een week of twee op ander eten. Zonder die datum bleef het
+     advies in die tijd zeggen dat je minder moest eten, terwijl je dat al
+     deed — en wie dat opvolgt, remt twee keer af.
+
+     Een verschuiving onder de vijftig kcal is geen aanpassing: dat is minder
+     dan één boterham, en zo'n kleine stap hoeft geen twee weken rust. Twee
+     keer op één dag telt als één aanpassing, vanaf het getal van die ochtend;
+     zet je het dezelfde dag terug, dan is er niets aangepast.
+     -> true als dit als aanpassing telt */
+  var DOEL_KLEIN = 50;
+  function zetCalorieDoel(kcal) {
+    var s = load().settings;
+    var w = s.calorieDoelWissel;
+    var vandaag = today();
+    var vandaagAl = w && w.datum === vandaag;
+    var vorige = vandaagAl ? (w.eerder || null) : w;
+    var oud = vandaagAl ? w.van : (+s.calorieDoel || 0);
+    if (kcal > 0 && oud > 0 && Math.abs(kcal - oud) >= DOEL_KLEIN) {
+      s.calorieDoelWissel = { datum: vandaag, van: oud, naar: kcal };
+      // Eén stap terug bewaren: kijk je naar een week van vóór vandaag, dan
+      // geldt de aanpassing die toen de laatste was.
+      if (vorige) {
+        s.calorieDoelWissel.eerder = { datum: vorige.datum, van: vorige.van, naar: vorige.naar };
+      }
+    } else if (vandaagAl) {
+      s.calorieDoelWissel = vorige;
+    }
+    setSetting('calorieDoel', kcal);
+    var nu = s.calorieDoelWissel;
+    return !!(nu && nu.datum === vandaag && nu.naar === kcal);
+  }
+
   function setWeight(key, value) {
     load().settings.weights[key] = value;
     load().settingsTs = Date.now();
@@ -471,6 +509,7 @@
     writeNow: writeNow,
     settings: settings,
     setSetting: setSetting,
+    zetCalorieDoel: zetCalorieDoel,
     setWeight: setWeight,
     entry: entry,
     ensureEntry: ensureEntry,
@@ -523,6 +562,7 @@
     iso: iso,
     parse: parse,
     today: today,
+    dagenTussen: dagenTussen,
     addDays: addDays,
     addMonths: addMonths,
     startOfWeek: startOfWeek,

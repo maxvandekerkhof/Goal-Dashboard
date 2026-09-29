@@ -207,6 +207,39 @@ ook meteen het **caloriedoel** dat daarbij hoort, met een knop om het over te ne
 getal komt van [Verbruik](#eten-tegenover-gewicht), zodat de dagkaart en de weekafsluiting
 niet twee verschillende dingen kunnen beweren.
 
+Staat je doel al op wat je verbruik aangeeft, dan zit het verschil in wat je at en niet in
+het doel. Dan zegt de regel dat je doel al klopt en hoeveel je gemiddeld at, en komt er
+geen knop die je doel op hetzelfde getal zet.
+
+### Na een nieuw caloriedoel
+
+Je gewicht reageert pas na een week of twee op ander eten: eerst schuift er wat vocht en
+darminhoud, pas daarna de trend. Zonder rekening daarmee bleef de regel na een aanpassing
+nog twee à drie weken zeggen dat je minder moest eten, terwijl je dat al deed. Wie dat
+opvolgt, remt twee keer af.
+
+Daarom onthoudt de app wanneer je je caloriedoel verzet — met de knop of bij Instellingen —
+en van welk getal naar welk. Een stap van minder dan 50 kcal telt niet, en twee keer op één
+dag telt als één aanpassing. Daarna:
+
+- **De eerste twee weken** geen nieuw getal en geen knop. In plaats daarvan staat er wanneer
+  je het doel verzette, of je het nieuwe doel sindsdien haalt, en vanaf een week (en vijf
+  wegingen) **hoe snel je gewicht sinds de aanpassing loopt**. De trendlijn over drie weken
+  blijft erboven staan, maar niet meer als waarschuwing: daar heb je al wat aan gedaan.
+- **Daarna** rekenen de trendlijn en Verbruik alleen met de dagen sinds de aanpassing, tot
+  dat weer drie weken zijn. De weken daarvoor horen bij je oude doel en zouden het nieuwe
+  advies de verkeerde kant op trekken. Er staat dan bij dat de lijn begint op de dag van je
+  nieuwe doel.
+
+```
+🔥 Op 29 sep zette je je caloriedoel van 2530 op 2350 kcal. Sindsdien at je gemiddeld
+   2350 kcal per dag, dus je nieuwe doel lukt. Je gewicht sinds de aanpassing: +0,25 kg
+   per week, uit 8 wegingen in 8 dagen. … pas op 13 okt kijk ik opnieuw of je doel klopt.
+```
+
+De weekafsluiting volgt dezelfde regel, met dezelfde tekst. Kijk je terug naar een week van
+vóór je aanpassing, dan krijg je gewoon het advies van toen.
+
 Verbruik telt de calorieën van **vandaag** pas mee als de dag voorbij is. Midden op de dag
 staan er alleen je ontbijt en lunch, en juist vandaag weegt het zwaarst: zo'n halve dag
 haalde de schatting ruim 150 kcal omlaag. Je gewicht van vanochtend telt wel gewoon mee.
@@ -549,10 +582,11 @@ npm test                # alle suites
 npm test -- advies      # alleen suites met "advies" in de naam
 ```
 
-`npm test` start zelf een kleine webserver en draait tien suites achter elkaar: de dagscore,
+`npm test` start zelf een kleine webserver en draait elf suites achter elkaar: de dagscore,
 de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
 gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
-terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten en alle
+terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten, de twee
+weken na een nieuw caloriedoel en alle
 schermen op telefoonbreedte.
 
 Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op
