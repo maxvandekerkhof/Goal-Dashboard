@@ -399,7 +399,8 @@
     var regels = [];
     if (gm.uitTrend) {
       regels.push('Trendlijn: ' + GD.review.kgTekst(gm.trendPerWeek) + ' per week, uit ' +
-        gm.trendDagen + ' wegingen in ' + gm.trendVenster + ' dagen.');
+        gm.trendDagen + ' wegingen in ' + gm.trendVenster + ' dagen' +
+        (gm.trendVanaf ? ', vanaf je nieuwe caloriedoel op ' + D.formatShort(gm.trendVanaf) : '') + '.');
     }
     if (gm.avg !== null && gm.vorigeAvg !== null) {
       regels.push('Deze 7 dagen ' + fmt(gm.avg, 2) + ' kg tegen ' + fmt(gm.vorigeAvg, 2) +
@@ -407,7 +408,11 @@
     }
     if (regels.length) html += '<p class="hint hint-tight">' + esc(regels.join(' ')) + '</p>';
 
-    if (gm.advies) {
+    if (gm.advies && gm.advies.rust) {
+      // Het getal waar het om draait vet: hoe je gewicht sinds je nieuwe doel loopt.
+      html += meldRegel('vlam', null, esc(GD.review.rustTekst(gm.advies, store.settings()))
+        .replace(/(sinds de aanpassing: )([^,]+ per week)/, '$1<strong>$2</strong>'));
+    } else if (gm.advies) {
       var a = gm.advies;
       var teVeel = a.kcalPerDag > 0;
       var doelZin = gm.richting === 'behouden' ? 'om op gewicht te blijven'
@@ -416,7 +421,12 @@
       var zin = 'Eet ongeveer <strong>' + Math.abs(a.kcalPerDag) + ' kcal per dag ' +
         (teVeel ? 'minder' : 'meer') + '</strong> ' + doelZin + '.';
 
-      if (a.nieuwDoel) {
+      if (a.doelKlopt) {
+        // Het doel zelf staat goed; het verschil zit in wat je at.
+        zin += ' Je doel van <strong>' + a.huidigDoel + ' kcal</strong> past daar al bij — de ' +
+          'afgelopen ' + a.venster + ' dagen at je gemiddeld ' + Math.round(a.kcalGem) +
+          ' kcal. Het gaat erom dat je je doel haalt.';
+      } else if (a.nieuwDoel) {
         zin += ' Volgens je verbruik hoort je caloriedoel op <strong>' + a.nieuwDoel +
           ' kcal</strong> te staan' + (a.huidigDoel ? ', nu ' + a.huidigDoel : '') + '.';
       } else if (a.huidigDoel) {
@@ -1011,7 +1021,9 @@
         (kTekort ? '<strong>' + kTekort + '</strong> dag' + (kTekort === 1 ? '' : 'en') + ' met calorieën' : '') +
         (kTekort && wTekort ? ' en ' : '') +
         (wTekort ? '<strong>' + wTekort + '</strong> weegmoment' + (wTekort === 1 ? '' : 'en') : '') +
-        ' in de afgelopen ' + v.venster + ' dagen.</p>' +
+        (v.venster < S.VERBRUIK_VENSTER && v.wissel
+          ? ' sinds je nieuwe caloriedoel op ' + D.formatShort(v.wissel.datum) + '.'
+          : ' in de afgelopen ' + v.venster + ' dagen.') + '</p>' +
         '</section>';
     }
 
@@ -1037,6 +1049,11 @@
         (RICHTING_WOORD[v.richting] || v.richting) + ' past ongeveer <strong>' + v.doelKcal +
         ' kcal</strong> bij dit verbruik.');
       voet = doelKnop(v.doelKcal);
+    } else if (v.advies === 'rust') {
+      melding = meldRegel('klok', null, 'Je zette je doel op ' + D.formatShort(v.wissel.datum) +
+        ' op <strong>' + v.wissel.naar + ' kcal</strong>. Deze drie weken lopen nog grotendeels op ' +
+        'je oude doel, dus dit getal zegt nu te weinig om je doel opnieuw op te verzetten. Vanaf <strong>' +
+        D.formatShort(v.wissel.totDatum) + '</strong> reken ik alleen met de dagen sinds je aanpassing.');
     } else if (v.advies === 'klopt') {
       melding = meldRegel('vink', 95, 'Je doel van <strong>' + v.huidigDoel + ' kcal</strong> past ' +
         'bij wat je verbruikt en bij je tempo. Niets doen.');
@@ -1065,7 +1082,10 @@
       '</div>' + som +
       '<p class="hint">Niet uit een formule met je lengte, leeftijd en een gokje over hoe actief je ' +
       'bent, maar uit wat jij at en wat de weegschaal daarmee deed. Gebaseerd op ' + v.kcalDagen +
-      ' dagen calorieën en ' + v.weegDagen + ' weegmomenten, waarbij recente dagen zwaarder wegen. ' +
+      ' dagen calorieën en ' + v.weegDagen + ' weegmomenten' +
+      (v.venster < S.VERBRUIK_VENSTER && v.wissel
+        ? ' sinds je nieuwe caloriedoel op ' + D.formatShort(v.wissel.datum) : '') +
+      ', waarbij recente dagen zwaarder wegen. ' +
       'De calorieën van vandaag tellen pas mee als de dag voorbij is.</p>' +
       melding + voet +
       '</section>';
@@ -2335,8 +2355,8 @@
     if (action === 'verbruik-doel') {
       var nieuw = S.num(el.dataset.kcal);
       if (nieuw !== null) {
-        store.setSetting('calorieDoel', nieuw);
-        toast('Caloriedoel staat op ' + nieuw + ' kcal.');
+        toast('Caloriedoel staat op ' + nieuw + ' kcal.' + (store.zetCalorieDoel(nieuw)
+          ? ' Over twee weken kijk ik of het klopt.' : ''));
         render();
       }
       return;
@@ -2678,6 +2698,7 @@
         else if (t.type === 'number') {
           var getal = S.num(t.value);
           var standaard = GD.DEFAULT_SETTINGS[key];
+          var leeg = getal === null;
           // Een leeg veld is geen doel van nul: een leeg caloriedoel liet elke
           // dag op 0% eindigen, een lege drempel maakte elke dag een goede dag.
           // Terug naar de standaard, en zeggen welke dat is. Velden die leeg
@@ -2686,7 +2707,10 @@
             getal = standaard;
             toast('Leeg gelaten, dus terug naar de standaard: ' + fmt(standaard, standaard % 1 ? 2 : 0) + '.');
           }
-          store.setSetting(key, getal);
+          if (key !== 'calorieDoel') store.setSetting(key, getal);
+          else if (store.zetCalorieDoel(getal) && !leeg) {
+            toast('Caloriedoel staat op ' + getal + ' kcal. Over twee weken kijk ik of het klopt.');
+          }
         }
         else store.setSetting(key, t.value);
         render();

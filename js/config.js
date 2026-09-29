@@ -109,6 +109,7 @@
     calorieDoel: 2200,        // kcal per dag
     calorieRichting: 'max',   // 'max' = onder blijven, 'min' = halen, 'rond' = binnen marge
     calorieMarge: 150,        // kcal, alleen bij 'rond'
+    calorieDoelWissel: null,  // {datum, van, naar[, eerder]}: je laatste aanpassing van het caloriedoel
     gewichtDoel: null,        // kg, optioneel streefgewicht (lijn in de grafiek)
     gewichtRichting: 'aankomen', // 'aankomen' | 'afvallen' | 'behouden' | 'uit'
     gewichtTempo: 0.25,       // kg per week; bij 'behouden' is dit de marge
