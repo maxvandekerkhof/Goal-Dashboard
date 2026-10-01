@@ -435,7 +435,322 @@
     };
   }
 
+  /* ------------------------------ maand ------------------------------ */
+
+  /* De maandafsluiting staat de eerste drie dagen van een nieuwe maand op je
+     dagpagina, en daarna altijd bovenaan het maandoverzicht. Op de eerste is
+     de voeding van de laatste dag 's nachts al binnengekomen. */
+  var MAAND_DAGEN = 3;
+
+  /* Zo lang terug kijkt "vóór je aanpassing": vier weken, genoeg voor een lijn
+     en kort genoeg om niet een doel van twee aanpassingen terug mee te nemen. */
+  var VOOR_DAGEN = 28;
+
+  function maandSleutel(datum) { return datum.slice(0, 7); }
+
+  /** Staat de afsluiting van vorige maand nu op de dagpagina? */
+  function maandVensterOpen(datum) {
+    return +(datum || D.today()).slice(8, 10) <= MAAND_DAGEN;
+  }
+
+  /** `datum` is een dag in de maand waar de afsluiting over gaat. */
+  function maandGezien(datum) {
+    return store.settings().maandafsluitingGezien === maandSleutel(datum);
+  }
+
+  function markeerMaandGezien(datum) {
+    store.setSetting('maandafsluitingGezien', maandSleutel(datum));
+  }
+
+  function maandNaam(datum) { return D.monthName(datum); }
+
+  function kortMaand(datum) { return D.monthName(datum).slice(0, 3); }
+
+  /** Haalde je het caloriedoel van díé dag? Zelfde regel als de dagscore. */
+  function kcalGehaald(kcal, doel, s) {
+    if (!doel) return true;
+    if (s.calorieRichting === 'min') return kcal >= doel;
+    if (s.calorieRichting === 'rond') return Math.abs(kcal - doel) <= S.num(s.calorieMarge, 0);
+    return kcal <= doel;
+  }
+
+  /**
+   * Gewicht en eten tussen twee datums (allebei inclusief).
+   * -> { dagen, wegingen, perWeek, kcalGem, kcalDagen }
+   *
+   * Een lijn door alle wegingen, niet begin min eind: dan bepaalt niet één
+   * ochtend met een volle darm de hele maand. Pas vanaf een week en vijf
+   * wegingen, net als na een nieuw caloriedoel. Eten telt alleen voor dagen die
+   * voorbij zijn, en met `zonderEerste` niet voor de eerste dag: de dag van een
+   * aanpassing is half oud, half nieuw.
+   */
+  function stuk(van, tot, zonderEerste) {
+    var vandaag = D.today();
+    if (tot > vandaag) tot = vandaag;
+    var punten = [], kcalSom = 0, kcalDagen = 0;
+    if (van > tot) return { dagen: 0, wegingen: 0, perWeek: null, kcalGem: null, kcalDagen: 0 };
+    D.range(van, tot).forEach(function (d, i) {
+      var e = store.entry(d);
+      if (!e) return;
+      var kg = S.num(e.gewicht);
+      if (kg !== null) punten.push({ x: i, y: kg, w: 1 });
+      var k = S.num(e.kcal);
+      if (k !== null && d < vandaag && !(zonderEerste && d === van)) { kcalSom += k; kcalDagen++; }
+    });
+    var dagen = D.dagenTussen(van, tot);
+    var h = dagen >= S.SINDS_MIN_DAGEN && punten.length >= S.SINDS_MIN_WEEG
+      ? S.trendHelling(punten) : null;
+    return {
+      dagen: dagen, wegingen: punten.length, perWeek: h === null ? null : h * 7,
+      kcalGem: kcalDagen ? kcalSom / kcalDagen : null, kcalDagen: kcalDagen
+    };
+  }
+
+  /**
+   * Nieuwe records en sterker geworden oefeningen in een maand.
+   * -> { records: [{naam, kg, reps, datum}], vooruit, vergeleken, sterker: [naam] }
+   *
+   * Een record is een set die alles daarvoor verslaat: zwaarder dan ooit, of
+   * even zwaar met meer herhalingen. Je eerste sessie ooit is geen record, daar
+   * valt niets aan te verslaan. Per oefening alleen het beste van de maand,
+   * en de lijst begint bij de grootste stap: `winst` is hoeveel zwaarder (of
+   * bij je eigen lichaamsgewicht: hoeveel meer herhalingen) dan je oude record.
+   *
+   * "Sterker" gaat op je geschatte 1RM: je laatste sessie van de maand tegen
+   * je laatste sessie daarvoor (of je eerste van de maand, als je de oefening
+   * net begon).
+   */
+  function maandKracht(start, eind) {
+    var L = GD.lifts;
+    var records = [], sterker = [], vergeleken = 0;
+    if (!L) return { records: records, vooruit: 0, vergeleken: 0, sterker: sterker };
+    L.oefeningen().forEach(function (oef) {
+      L.zijden(oef).forEach(function (z) {
+        var h = L.historie(oef.id, z.key);
+        var maxKg = null, maxReps = 0, beste = null, winst = 0, basis = null, laatste = null;
+        h.forEach(function (r) {
+          if (r.datum > eind) return;
+          if (r.datum >= start) {
+            var beter = maxKg !== null && (r.kg > maxKg || (r.kg === maxKg && r.reps > maxReps));
+            if (beter) {
+              beste = r;
+              winst = r.kg > maxKg
+                ? (maxKg > 0 ? (r.kg - maxKg) / maxKg : 1)
+                : (maxReps > 0 ? (r.reps - maxReps) / maxReps : 1);
+            }
+            if (!basis) basis = r;
+            laatste = r;
+          } else {
+            basis = r;
+          }
+          if (maxKg === null || r.kg > maxKg) { maxKg = r.kg; maxReps = r.reps; }
+          else if (r.kg === maxKg && r.reps > maxReps) maxReps = r.reps;
+        });
+        var naam = oef.naam + (z.kort ? ' (' + z.kort + ')' : '');
+        if (beste) {
+          records.push({
+            naam: naam,
+            kg: beste.kg, reps: beste.reps, datum: beste.datum, winst: winst
+          });
+        }
+        if (laatste && basis && basis !== laatste) {
+          vergeleken++;
+          if (L.geschat1RM(laatste.kg, laatste.reps) > L.geschat1RM(basis.kg, basis.reps)) sterker.push(naam);
+        }
+      });
+    });
+    records.sort(function (a, b) { return b.winst - a.winst; });
+    return { records: records, vooruit: sterker.length, vergeleken: vergeleken, sterker: sterker };
+  }
+
+  /**
+   * De cijfers van één maand. `datum` mag elke dag in die maand zijn.
+   * Loopt de maand nog, dan tellen alleen de dagen tot en met vandaag, en
+   * voor je eten alleen de dagen die voorbij zijn.
+   */
+  function maandKern(datum) {
+    var s = store.settings();
+    var vandaag = D.today();
+    var start = D.startOfMonth(datum);
+    var eind = D.endOfMonth(datum);
+    var reeks = D.range(start, eind);
+    var geweest = reeks.filter(function (d) { return d <= vandaag; });
+    var period = S.scorePeriod(reeks);
+    var st = period.stats;
+
+    var kcal = { som: 0, dagen: 0, gehaald: 0 };
+    var eiwit = { som: 0, dagen: 0, gehaald: 0 };
+    var water = { som: 0, dagen: 0, gehaald: 0 };
+    var waterDoel = S.num(s.waterDoel, 0);
+    geweest.forEach(function (d) {
+      if (d >= vandaag) return;
+      var e = store.entry(d);
+      if (!e) return;
+      var k = S.num(e.kcal);
+      if (k !== null) {
+        kcal.som += k; kcal.dagen++;
+        if (kcalGehaald(k, S.calorieDoelOp(d, s), s)) kcal.gehaald++;
+      }
+      var p = S.num(e.eiwitGram);
+      if (p !== null) {
+        eiwit.som += p; eiwit.dagen++;
+        if (p >= S.eiwitDoel(d, s).doel) eiwit.gehaald++;
+      }
+      var w = S.num(e.waterMl);
+      if (w !== null) {
+        water.som += w; water.dagen++;
+        if (w >= waterDoel) water.gehaald++;
+      }
+    });
+
+    // Begin en eind van de maand als gemiddelde van een week: één weging
+    // schommelt makkelijk een halve kilo door vocht.
+    var beginW = S.weightAvg(geweest.slice(0, 7));
+    var eindW = S.weightAvg(geweest.slice(-7));
+    var lijn = stuk(start, eind);
+    var n = geweest.length;
+
+    return {
+      start: start, eind: eind, dagen: reeks.length, geweest: n,
+      loopt: eind >= vandaag,
+      pct: period.pct, ingevuld: period.logged, goedeDagen: st.goodDays,
+      breakdown: period.breakdown,
+      trainDagen: st.trainDays, trainPerWeek: n ? st.trainDays / n * 7 : null,
+      kcalGem: kcal.dagen ? kcal.som / kcal.dagen : null, kcalDagen: kcal.dagen,
+      kcalGehaald: kcal.gehaald,
+      eiwitGem: eiwit.dagen ? eiwit.som / eiwit.dagen : null, eiwitDagen: eiwit.dagen,
+      eiwitGehaald: eiwit.gehaald,
+      waterGem: water.dagen ? water.som / water.dagen : null, waterDagen: water.dagen,
+      waterGehaald: water.gehaald,
+      wegingen: st.weights.length,
+      laatsteGewicht: st.weightEnd,
+      beginAvg: beginW.avg, eindAvg: eindW.avg,
+      // Pas na twee weken: anders overlappen begin- en eindweek.
+      verschil: n >= 14 && beginW.avg !== null && eindW.avg !== null ? eindW.avg - beginW.avg : null,
+      perWeek: lijn.perWeek
+    };
+  }
+
+  var VELDEN = {
+    calorieDoel: { naam: 'caloriedoel', eenheid: ' kcal' },
+    calorieRichting: {
+      naam: 'soort caloriedoel',
+      woorden: { max: 'maximum', min: 'minimum', rond: 'rond je doel' }
+    },
+    eiwitDoel: { naam: 'eiwitdoel', eenheid: ' g' },
+    eiwitBasis: {
+      naam: 'eiwitdoel',
+      woorden: { vast: 'een vast getal', gewicht: 'per kilo lichaamsgewicht' }
+    },
+    eiwitPerKg: { naam: 'eiwit per kilo', eenheid: ' g' },
+    waterDoel: { naam: 'waterdoel', eenheid: ' ml' },
+    gewichtDoel: { naam: 'streefgewicht', eenheid: ' kg' },
+    gewichtRichting: {
+      naam: 'gewichtsdoel',
+      woorden: { aankomen: 'aankomen', afvallen: 'afvallen', behouden: 'op gewicht blijven', uit: 'uit' }
+    },
+    gewichtTempo: { naam: 'tempo', eenheid: ' kg per week' }
+  };
+
+  function waardeTekst(veld, v) {
+    var info = VELDEN[veld];
+    if (v === null || v === undefined || v === '') return 'leeg';
+    if (info.woorden) return info.woorden[v] || String(v);
+    var n = S.num(v);
+    if (n === null) return String(v);
+    return String(Math.round(n * 100) / 100).replace('.', ',') + info.eenheid;
+  }
+
+  /**
+   * Wat je in deze maand aan je doelen veranderde, oudste eerst.
+   * -> [{ datum, veld, van, naar, tekst }]
+   */
+  function maandWijzigingen(start, eind) {
+    var s = store.settings();
+    var uit = [];
+    Object.keys(VELDEN).forEach(function (veld) {
+      S.doelGeschiedenis(veld, s).forEach(function (r) {
+        if (r.datum < start || r.datum > eind) return;
+        var info = VELDEN[veld];
+        uit.push({
+          datum: r.datum, veld: veld, van: r.van, naar: r.naar,
+          tekst: D.formatShort(r.datum) + ': ' + info.naam + ' van ' + waardeTekst(veld, r.van) +
+            ' naar ' + waardeTekst(veld, r.naar)
+        });
+      });
+    });
+    return uit.sort(function (a, b) { return a.datum < b.datum ? -1 : (a.datum > b.datum ? 1 : 0); });
+  }
+
+  /**
+   * Je laatste aanpassing van je caloriedoel die bij deze maand hoort: in deze
+   * maand zelf, of in de maand ervoor — dan zie je nu pas wat hij deed.
+   * -> null, of { datum, van, naar, inMaand, voor, na }
+   */
+  function maandCalorieWissel(start, eind) {
+    var lijst = S.doelGeschiedenis('calorieDoel', store.settings()).filter(function (r) {
+      return r.datum <= eind && r.datum >= D.addMonths(start, -1);
+    });
+    if (!lijst.length) return null;
+    var w = lijst[lijst.length - 1];
+    return {
+      datum: w.datum, van: w.van, naar: w.naar, inMaand: w.datum >= start,
+      voor: stuk(D.addDays(w.datum, -VOOR_DAGEN), D.addDays(w.datum, -1)),
+      na: stuk(w.datum, eind, true),
+      // Na deze datum zegt de lijn sinds de aanpassing iets.
+      vanaf: D.addDays(w.datum, S.SINDS_MIN_DAGEN)
+    };
+  }
+
+  /**
+   * De maandafsluiting: alles van één maand, naast de maand ervoor.
+   * `datum` mag elke dag in die maand zijn.
+   */
+  function maakMaand(datum) {
+    var s = store.settings();
+    var nu = maandKern(datum);
+    var vorigeDatum = D.addMonths(D.startOfMonth(datum), -1);
+    var vorig = maandKern(vorigeDatum);
+    var richting = s.gewichtRichting || 'uit';
+    var tempo = Math.abs(S.num(s.gewichtTempo, 0.25));
+
+    var meetellend = nu.breakdown.filter(function (b) {
+      return b.pct !== null && S.weightOf(b.goal, s) > 0 && b.days > 0;
+    });
+    var gesorteerd = meetellend.slice().sort(function (a, b) { return b.pct - a.pct; });
+    function vorigePct(key) {
+      var b = vorig.breakdown.filter(function (x) { return x.key === key; })[0];
+      return b && b.pct !== null && b.days > 0 ? b.pct : null;
+    }
+
+    return {
+      sleutel: maandSleutel(nu.start),
+      naam: maandNaam(nu.start),
+      label: maandNaam(nu.start) + ' ' + nu.start.slice(0, 4),
+      periode: D.formatShort(nu.start) + ' – ' + D.formatShort(nu.eind),
+      vorigeNaam: maandNaam(vorig.start),
+      vorigeKort: kortMaand(vorig.start),
+      nu: nu,
+      vorig: vorig.ingevuld ? vorig : null,
+      richting: richting,
+      tempo: tempo,
+      gewichtStatus: richting !== 'uit' && nu.perWeek !== null
+        ? S.gewichtStatus(nu.perWeek, richting, tempo).status : null,
+      wijzigingen: maandWijzigingen(nu.start, nu.eind),
+      calorieWissel: maandCalorieWissel(nu.start, nu.eind),
+      kracht: maandKracht(nu.start, nu.eind),
+      beste: gesorteerd.length ? gesorteerd[0] : null,
+      zwakste: gesorteerd.length > 1 ? gesorteerd[gesorteerd.length - 1] : null,
+      vorigePct: vorigePct
+    };
+  }
+
   GD.review = {
+    maandSleutel: maandSleutel,
+    maandVensterOpen: maandVensterOpen,
+    maandGezien: maandGezien,
+    markeerMaandGezien: markeerMaandGezien,
+    maakMaand: maakMaand,
     dagen: dagen,
     weekSleutel: weekSleutel,
     vensterOpen: vensterOpen,

@@ -117,6 +117,8 @@
     schemas: [],              // [{id, naam, oefeningen:[oefening-id]}]
     voedingSync: false,       // calorieën en eiwitten ophalen uit de tabel voeding
     weekafsluitingGezien: '', // maandag van de week waarvan je de afsluiting wegklikte
+    maandafsluitingGezien: '', // "YYYY-MM" van de maand waarvan je de afsluiting wegklikte
+    doelLog: [],              // [{datum, veld, van, naar}]: wanneer je een doel aanpaste
     goedeDagDrempel: 70,      // % vanaf wanneer een dag als "goed" telt (streak)
     countMissingAsZero: true, // lege dagen in het verleden tellen als 0%
     autoMacro: true,          // eiwit/kcal doel automatisch afleiden uit ingevulde waarden

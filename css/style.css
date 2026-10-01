@@ -615,6 +615,19 @@ textarea { resize: vertical; padding-right: 12px; }
   letter-spacing: .12em;
   margin-top: 5px;
 }
+/* Maandafsluiting: vier cijfers naast elkaar, op een telefoon twee bij twee. */
+.rv-cijfers-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rv-vergelijk {
+  color: var(--faint);
+  font-size: .68rem;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.pijl { font-weight: 700; }
+.pijl-goed { color: #00e5a0; }
+.pijl-slecht { color: #ff6b2b; }
+html[data-theme="light"] .pijl-goed { color: #00815b; }
+html[data-theme="light"] .pijl-slecht { color: #c2410c; }
 
 .rv-blokken { display: flex; flex-direction: column; }
 .rv-blok {
@@ -1074,6 +1087,7 @@ ol.explain { list-style: decimal; }
   .seg { font-size: .78rem; padding: 11px 3px; }
   .stat-value { font-size: 1.25rem; }
   .rv-waarde { font-size: 1.15rem; }
+  .rv-cijfers-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rv-tekst { padding-left: 0; }
   .bd-row { grid-template-columns: 1fr 44px; grid-template-areas: "name pct" "bar bar" "counts counts"; }
   .daybar-track { height: 88px; }

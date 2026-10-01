@@ -176,8 +176,11 @@
         }
       }
       // Lijsten moeten lijsten blijven, ook als er ooit iets raars binnenkomt.
-      ['oefeningen', 'schemas'].forEach(function (k) {
+      ['oefeningen', 'schemas', 'doelLog'].forEach(function (k) {
         if (!Array.isArray(s.settings[k])) s.settings[k] = [];
+      });
+      s.settings.doelLog = s.settings.doelLog.filter(function (r) {
+        return r && typeof r.datum === 'string' && typeof r.veld === 'string';
       });
       if (typeof data.settingsTs === 'number') s.settingsTs = data.settingsTs;
       if (data.entries && typeof data.entries === 'object') {
@@ -318,7 +321,39 @@
 
   function settings() { return load().settings; }
 
+  /* Doelen waarvan de app onthoudt wanneer je ze aanpaste. De maandafsluiting
+     laat zien wat er die maand veranderde, en de dagscore van vóór een
+     aanpassing blijft rusten op het caloriedoel dat toen gold. */
+  var LOG_VELDEN = ['calorieDoel', 'calorieRichting', 'eiwitDoel', 'eiwitBasis', 'eiwitPerKg',
+    'waterDoel', 'gewichtDoel', 'gewichtRichting', 'gewichtTempo'];
+  var LOG_MAX = 500;
+
+  function zelfde(a, b) {
+    var leegA = a === null || a === undefined || a === '';
+    var leegB = b === null || b === undefined || b === '';
+    if (leegA || leegB) return leegA && leegB;
+    return String(a) === String(b);
+  }
+
+  /* Twee keer op één dag is één aanpassing, vanaf het getal van die ochtend;
+     zet je het dezelfde dag terug, dan is er niets aangepast. */
+  function logWijziging(s, key, oud, nieuw) {
+    if (LOG_VELDEN.indexOf(key) < 0 || zelfde(oud, nieuw)) return;
+    var log = Array.isArray(s.doelLog) ? s.doelLog.slice() : [];
+    var vandaag = today();
+    for (var i = log.length - 1; i >= 0; i--) {
+      if (log[i].datum !== vandaag || log[i].veld !== key) continue;
+      if (zelfde(log[i].van, nieuw)) log.splice(i, 1);
+      else log[i] = { datum: vandaag, veld: key, van: log[i].van, naar: nieuw };
+      s.doelLog = log;
+      return;
+    }
+    log.push({ datum: vandaag, veld: key, van: oud === undefined ? null : oud, naar: nieuw });
+    s.doelLog = log.length > LOG_MAX ? log.slice(log.length - LOG_MAX) : log;
+  }
+
   function setSetting(key, value) {
+    logWijziging(load().settings, key, load().settings[key], value);
     load().settings[key] = value;
     load().settingsTs = Date.now();
     save();
