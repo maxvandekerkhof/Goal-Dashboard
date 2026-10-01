@@ -75,7 +75,7 @@
     if (goal.macro === 'calories') {
       var kcal = num(entry.kcal);
       if (kcal === null) return null;
-      var doel = num(settings.calorieDoel, 0);
+      var doel = calorieDoelOp(entry.date, settings);
       var richting = settings.calorieRichting || 'max';
       var speling = calorieSpeling(doel);
       var marge = num(settings.calorieMarge, 0);
@@ -578,6 +578,50 @@
     var noemer = Sw * Sxx - Sx * Sx;
     if (Math.abs(noemer) < 1e-9) return null;
     return (Sw * Sxy - Sx * Sy) / noemer;
+  }
+
+  /**
+   * Alle aanpassingen van één instelling, oudste eerst.
+   * -> [{ datum, van, naar }]
+   *
+   * Het caloriedoel werd al onthouden vóór er een logboek was, in
+   * `calorieDoelWissel`: die tellen hier ook mee, als ze niet al in het
+   * logboek staan.
+   */
+  function doelGeschiedenis(veld, settings) {
+    var s = settings || store.settings();
+    var lijst = (Array.isArray(s.doelLog) ? s.doelLog : []).filter(function (r) {
+      return r.veld === veld;
+    }).map(function (r) { return { datum: r.datum, van: r.van, naar: r.naar }; });
+    if (veld === 'calorieDoel') {
+      var w = s.calorieDoelWissel;
+      [w, w && w.eerder].forEach(function (x) {
+        if (!x || typeof x.datum !== 'string') return;
+        var al = lijst.some(function (r) { return r.datum === x.datum; });
+        if (!al) lijst.push({ datum: x.datum, van: x.van, naar: x.naar });
+      });
+    }
+    return lijst.sort(function (a, b) { return a.datum < b.datum ? -1 : (a.datum > b.datum ? 1 : 0); });
+  }
+
+  /**
+   * Het caloriedoel dat op `datum` gold.
+   *
+   * Zelfde gedachte als bij het eiwitdoel: zet je je doel vandaag lager, dan
+   * waren de dagen van vorige maand op het oude doel niet ineens mislukt. De
+   * dag van de aanpassing zelf telt al op het nieuwe doel; vanaf je laatste
+   * aanpassing geldt gewoon wat er nu in je instellingen staat.
+   */
+  function calorieDoelOp(datum, settings) {
+    var s = settings || store.settings();
+    var nu = num(s.calorieDoel, 0);
+    var lijst = doelGeschiedenis('calorieDoel', s);
+    if (!datum || !lijst.length || datum >= lijst[lijst.length - 1].datum) return nu;
+    var gold = null;
+    lijst.forEach(function (r) { if (r.datum <= datum) gold = r.naar; });
+    if (gold === null) gold = lijst[0].van;
+    var n = num(gold, 0);
+    return n > 0 ? n : nu;
   }
 
   /**
@@ -1261,6 +1305,8 @@
     trendHelling: trendHelling,
     kcalStap: kcalStap,
     doelWissel: doelWissel,
+    doelGeschiedenis: doelGeschiedenis,
+    calorieDoelOp: calorieDoelOp,
     sindsWissel: sindsWissel,
     DOEL_RUST: DOEL_RUST,
     SINDS_MIN_DAGEN: SINDS_MIN_DAGEN,

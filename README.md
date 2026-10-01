@@ -300,6 +300,42 @@ Twee dingen kan de app niet: **met minder dan drie ingevulde caloriedagen** zegt
 plaats van een advies te verzinnen op basis van gokwerk. En zonder gewicht in deze én de
 vorige week is er niets te vergelijken; dan vraagt hij je een paar ochtenden te wegen.
 
+## Maandafsluiting
+
+Bovenaan de **maandweergave** staat een afsluiting van die maand, en de **eerste drie dagen
+van een nieuwe maand** staat die van de vorige maand ook bovenaan je dagpagina. Daar kun je
+hem wegklikken met *Verbergen tot volgende maand*, of met *Hele maand bekijken* naar het
+maandoverzicht springen. Met de pijltjes bovenin blader je terug naar oudere maanden.
+
+Bovenin vier cijfers — maandscore, keer getraind, gemiddeld gegeten en hoeveel je gewicht
+veranderde — met eronder het verschil met de maand ervoor (*↑ 9 vs aug*). Trainingen staan
+daar per week, zodat een maand van 28 dagen eerlijk naast een van 31 staat. Daaronder:
+
+- **Gewicht**: hoe vaak je woog, je gemiddelde in de eerste en laatste week van de maand, en
+  de lijn door al je wegingen in kilo per week naast je tempo.
+- **Eten en caloriedoel**: wat je gemiddeld at en op hoeveel dagen je je doel haalde. Zette
+  je je caloriedoel deze maand of vorige maand om, dan staat erbij wat je at en wat je
+  gewicht deed in de vier weken **vóór** die aanpassing en **sindsdien**. Zo zie je wat
+  minder of meer eten echt met je weekgewicht deed. De lijn sinds de aanpassing komt er pas
+  na een week en vijf wegingen.
+- **Wat je aanpaste**: elk doel dat je die maand veranderde, met datum en van-naar.
+- **Training**: hoe vaak, je nieuwe records (de drie grootste stappen bij naam) en hoeveel
+  oefeningen sterker staan dan aan het begin van de maand, op je geschatte 1RM.
+- **Doelen**: goede dagen, je sterkste en zwakste doel, eiwit en water.
+
+Lopende maand? Dan gaan de cijfers tot en met vandaag en je eten tot en met gisteren.
+
+### Je doelen hebben een geschiedenis
+
+Vanaf nu onthoudt de app wanneer je je caloriedoel, eiwitdoel, waterdoel, streefgewicht,
+gewichtsdoel of tempo aanpast. Twee keer op één dag telt als één aanpassing; zet je het
+dezelfde dag terug, dan is er niets aangepast. Wat je vóór deze versie aanpaste kent de app
+niet, behalve je laatste aanpassing van het caloriedoel.
+
+Daardoor telt een dag ook op het caloriedoel dat **die dag** gold, net als het eiwitdoel al
+deed. Zet je je doel van 2530 op 2360, dan worden je dagen op 2530 van vorige maand niet
+alsnog rood.
+
 ## Synchroniseren tussen telefoon en laptop
 
 Standaard staat je data alleen in de browser waarin je hem invult. Wil je op allebei je
@@ -582,11 +618,11 @@ npm test                # alle suites
 npm test -- advies      # alleen suites met "advies" in de naam
 ```
 
-`npm test` start zelf een kleine webserver en draait elf suites achter elkaar: de dagscore,
+`npm test` start zelf een kleine webserver en draait twaalf suites achter elkaar: de dagscore,
 de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
 gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
 terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten, de twee
-weken na een nieuw caloriedoel en alle
+weken na een nieuw caloriedoel, de maandafsluiting en alle
 schermen op telefoonbreedte.
 
 Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op

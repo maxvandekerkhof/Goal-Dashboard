@@ -122,6 +122,10 @@ async function main() {
     await D1.evaluate(() => GD.store.writeNow()); await D2.evaluate(() => GD.store.writeNow());
     await D1.evaluate(() => GD.store.setField('2026-09-03', 'gewicht', 73.3));
     await D1.evaluate(() => GD.store.writeNow());
+    // Chrome geeft localStorage tussen tabbladen asynchroon door: tot twee
+    // seconden wachten tot C ziet wat D1 net wegschreef.
+    await C.waitForFunction(() => !!JSON.parse(localStorage.getItem('goaldash.v1')).entries['2026-09-03'],
+      null, { timeout: 2000 }).catch(() => {});
     const opgeslagen = await C.evaluate(() => JSON.parse(localStorage.getItem('goaldash.v1')).entries);
     check('drie dagen uit twee tabbladen staan er allemaal', ['2026-09-01', '2026-09-02', '2026-09-03'].every((x) => opgeslagen[x]),
       Object.keys(opgeslagen));
