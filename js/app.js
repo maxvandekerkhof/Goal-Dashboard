@@ -1934,12 +1934,16 @@
       '. Terugzetten overschrijft niets: dagen die ontbreken of gewist zijn komen terug, dagen die hier ' +
       'nieuwer zijn blijven staan.</p>' +
       '<hr class="scheiding">' +
-      '<h3 class="sub-kop">Automatische kopieën</h3>' +
+      '<div class="inklap inklap-deel' + (isOpen('kopieen') ? '' : ' dicht') + '">' +
+      inklapKop('kopieen', 'Automatische kopieën' + (ui.kopieen && ui.kopieen.length
+        ? ' <span class="inklap-aantal">' + ui.kopieen.length + '</span>' : ''), 'h3', 'sub-kop') +
+      '<div class="inklap-inhoud" id="inklap-kopieen">' +
       '<p class="hint">Elke dag bij het openen, en vlak voor wissen of terugzetten, legt de app zelf een ' +
       'kopie van alles weg. De laatste ' + (GD.vangnet ? GD.vangnet.DAGELIJKS_HOUDEN : 14) + ' dagen blijven ' +
       'bewaard. Ze staan op dit apparaat, dus tegen een kwijtgeraakte telefoon helpen ze niet — daarvoor ' +
       'is de back-up hierboven.</p>' +
       kopieenLijst() +
+      '</div></div>' +
       '<hr class="scheiding">' +
       '<div class="row-actions"><button class="btn btn-danger" data-action="wipe">Alles van dit apparaat wissen</button></div>' +
       '</section>';
@@ -1961,11 +1965,51 @@
       '</section>';
   }
 
+  /* ----------------------------- inklappen ---------------------------- */
+
+  /* Welke blokken in de instellingen openstaan, per apparaat onthouden. Alles
+     begint dicht: dan zie je eerst welke blokken er zijn, en klap je open wat
+     je nodig hebt. Hoort niet bij je gegevens, dus synchroniseert niet. */
+  var INKLAP_KEY = 'goaldash.inklap';
+  var inklapStand = null;
+
+  function inklapStanden() {
+    if (!inklapStand) {
+      try { inklapStand = JSON.parse(global.localStorage.getItem(INKLAP_KEY)); } catch (e) { /* standaard */ }
+      if (!inklapStand || typeof inklapStand !== 'object' || Array.isArray(inklapStand)) inklapStand = {};
+    }
+    return inklapStand;
+  }
+
+  function isOpen(id) { return inklapStanden()[id] === true; }
+
+  function wisselInklap(id) {
+    var st = inklapStanden();
+    st[id] = !st[id];
+    try { global.localStorage.setItem(INKLAP_KEY, JSON.stringify(st)); } catch (e) { /* dan alleen voor nu */ }
+  }
+
+  /** Een kopje dat zijn blok open- en dichtklapt. */
+  function inklapKop(id, binnen, tag, klasse) {
+    return '<' + tag + (klasse ? ' class="' + klasse + '"' : '') + '>' +
+      '<button type="button" class="inklap-knop" data-action="inklap" data-sectie="' + id + '" ' +
+      'aria-expanded="' + isOpen(id) + '" aria-controls="inklap-' + id + '">' + binnen +
+      '<span class="inklap-pijl">' + GD.icon('chevron') + '</span></button></' + tag + '>';
+  }
+
+  /** Maakt van een blok (<section class="card"><h2>…</h2>…</section>) een inklapbaar blok. */
+  function inklapSectie(id, sectie) {
+    var m = /^<section class="card"><h2>([\s\S]*?)<\/h2>([\s\S]*)<\/section>$/.exec(sectie);
+    if (!m) return sectie;
+    return '<section class="card inklap' + (isOpen(id) ? '' : ' dicht') + '">' + inklapKop(id, m[1], 'h2') +
+      '<div class="inklap-inhoud" id="inklap-' + id + '">' + m[2] + '</div></section>';
+  }
+
   function renderSettings() {
     var s = store.settings();
     var dates = store.allDates();
 
-    var html = '<section class="card"><h2>' + GD.icon('eiwit') + 'Voedingsdoelen</h2><div class="form-grid">' +
+    var html = inklapSectie('voeding', '<section class="card"><h2>' + GD.icon('eiwit') + 'Voedingsdoelen</h2><div class="form-grid">' +
       '<label class="field"><span class="field-label">Eiwitdoel is</span>' +
       '<select data-setting="eiwitBasis">' +
       opt('vast', 'Een vast aantal gram', s.eiwitBasis) +
@@ -1987,9 +2031,9 @@
       (s.calorieRichting === 'rond'
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
-      '</div>' + eiwitUitleg(s) + '</section>';
+      '</div>' + eiwitUitleg(s) + '</section>');
 
-    html += '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
+    html += inklapSectie('gewichtsdoel', '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
       '<p class="hint">Hiermee wordt je gewicht afgezet tegen je tempo — nooit met je laatste ' +
       'weging, want die schommelt te veel. Woog je in de afgelopen drie weken minstens tien keer, ' +
       'dan beslist de lijn door al die wegingen. Met minder wegingen vergelijkt de app je ' +
@@ -2014,18 +2058,18 @@
         ? '<p class="hint">Vuistregel voor een rustige bulk: 0,25 tot 0,5 kg per week. ' +
           'Sneller levert vooral extra vet op.</p>'
         : '') +
-      '</section>';
+      '</section>');
 
-    html += schemaSection();
+    html += inklapSectie('schemas', schemaSection());
 
-    html += '<section class="card"><h2>' + GD.icon('instellingen') + 'Scoreregels</h2><div class="form-grid">' +
+    html += inklapSectie('scoreregels', '<section class="card"><h2>' + GD.icon('instellingen') + 'Scoreregels</h2><div class="form-grid">' +
       settingNumber('goedeDagDrempel', 'Drempel goede dag', '% voor streak', s.goedeDagDrempel, '5') +
       '</div>' +
       toggle('countMissingAsZero', 'Lege dagen in het verleden tellen als 0%',
         'Uit betekent: alleen ingevulde dagen tellen mee in week- en maandpercentages.', s.countMissingAsZero) +
       toggle('autoMacro', 'Eiwit- en caloriedoel automatisch bepalen',
         'Leidt “behaald ja/nee” af uit de ingevulde grammen en calorieën.', s.autoMacro) +
-      '</section>';
+      '</section>');
 
     var weightRows = GD.GOALS.map(function (g) {
       var w = S.weightOf(g, s);
@@ -2036,18 +2080,18 @@
         '</div>';
     }).join('');
 
-    html += '<section class="card"><h2>' + GD.icon('week') + 'Gewicht per doel</h2>' +
+    html += inklapSectie('doelgewicht', '<section class="card"><h2>' + GD.icon('week') + 'Gewicht per doel</h2>' +
       '<p class="hint">Hoe zwaar telt elk doel mee in je dagscore? Op 0 telt het doel helemaal niet mee.</p>' +
       '<div class="weights">' + weightRows + '</div>' +
       '<div class="card-foot"><button class="btn btn-ghost btn-sm" data-action="reset-weights">Standaardgewichten herstellen</button></div>' +
-      '</section>';
+      '</section>');
 
-    html += syncSection();
-    html += healthSection();
+    html += inklapSectie('sync', syncSection());
+    html += inklapSectie('health', healthSection());
 
     html += dataSection(dates);
 
-    html += '<section class="card"><h2>' + GD.icon('melding') + 'Hoe wordt de score berekend?</h2>' +
+    html += inklapSectie('uitleg', '<section class="card"><h2>' + GD.icon('melding') + 'Hoe wordt de score berekend?</h2>' +
       '<ul class="explain">' +
       '<li>Elk doel levert punten op: <em>Ja (eiwitrijk)</em> = vol, <em>Ja</em> = 60%, <em>Nee</em> = niets.</li>' +
       '<li>Eiwit, calorieën en progressive overload gaan niet op ja of nee maar op hoe ver je kwam: ' +
@@ -2073,7 +2117,7 @@
       'wegingen van de afgelopen drie weken, zodra je daarin tien keer woog. Eén week kan zomaar ' +
       'een kilo vocht zijn; een lijn door drie weken niet. Met minder wegingen vergelijkt de app ' +
       'weekgemiddelden en waarschuwt hij pas als hetzelfde twee weken op rij te zien is.</li>' +
-      '</ul></section>';
+      '</ul></section>');
 
     return html;
   }
@@ -2698,6 +2742,11 @@
     }
     if (action === 'review-week') {
       ui.view = 'week';
+      render();
+      return;
+    }
+    if (action === 'inklap') {
+      wisselInklap(el.dataset.sectie);
       render();
       return;
     }

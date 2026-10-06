@@ -309,6 +309,10 @@ async function main() {
     // Terughalen uit die kopie
     await page.evaluate(() => { GD.ui.kopieen = null; });
     await page.click('[data-view="dag"]'); await page.click('[data-view="instellingen"]');
+    // De kopieën staan ingeklapt: eerst openklappen, zoals je dat zelf ook doet.
+    check('de automatische kopieën staan standaard ingeklapt',
+      await page.$eval('.inklap-deel', (e) => e.classList.contains('dicht')));
+    await page.click('[data-action="inklap"][data-sectie="kopieen"]');
     await page.waitForSelector('[data-action="kopie-terug"]');
     await page.click('[data-action="kopie-terug"]');
     await page.waitForFunction(() => /teruggezet/.test(document.getElementById('toast').textContent));

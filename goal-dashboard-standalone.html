@@ -307,6 +307,48 @@ html[data-theme="light"] .topbar-vast { box-shadow: 0 6px 18px rgba(16, 24, 40, 
   background: var(--accent-zacht);
 }
 
+/* Inklapbare blokken (instellingen). Het hele kopje is de knop; het pijltje
+   rechts draait mee. Dicht blijft alleen het kopje over, zodat de pagina een
+   overzicht is van wat er te regelen valt. */
+.inklap-knop {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: inherit;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.inklap-knop:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.inklap-pijl { margin-left: auto; display: flex; color: var(--muted); transition: transform .2s ease; }
+.inklap:not(.dicht) > * > .inklap-knop .inklap-pijl { transform: rotate(180deg); }
+.view > .card > h2 .inklap-pijl .ico {
+  width: 20px; height: 20px; padding: 0; background: none; color: var(--muted);
+}
+.inklap-knop:hover .inklap-pijl { color: var(--text); }
+.inklap.dicht > .inklap-inhoud { display: none; }
+.view > .card.inklap.dicht > h2 { margin-bottom: 0; }
+.view > .card.inklap { padding-bottom: 22px; }
+/* Dicht is het alleen een rij in een lijst; daar hoort minder lucht bij. */
+.view > .card.inklap.dicht { padding-top: 14px; padding-bottom: 14px; }
+.inklap-deel > .sub-kop { margin: 0; }
+.inklap-deel > .sub-kop .inklap-knop { gap: 8px; padding: 4px 0; }
+.inklap-deel:not(.dicht) > .sub-kop { margin-bottom: 6px; }
+.inklap-aantal {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  color: var(--kluis, var(--muted));
+}
+@media (prefers-reduced-motion: reduce) { .inklap-pijl { transition: none; } }
+
 /* De back-up: het enige dat je gegevens redt als je telefoon of de cloud ze
    kwijtraakt. Daarom als enige blok een eigen kader, in het blauw zolang hij
    recent is en in oranje zodra hij te oud is. */
@@ -1625,6 +1667,7 @@ ol.explain { list-style: decimal; }
     kruis: '<path d="M18 6 6 18" /> <path d="m6 6 12 12" />',
     omhoog: '<path d="m5 12 7-7 7 7" /> <path d="M12 19V5" />',
     omlaag: '<path d="M12 5v14" /> <path d="m19 12-7 7-7-7" />',
+    chevron: '<path d="m6 9 6 6 6-6" />',
     opnieuw: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" />',
     vink: '<path d="M20 6 9 17l-5-5" />',
     download: '<path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path '
@@ -8431,12 +8474,16 @@ ol.explain { list-style: decimal; }
       '. Terugzetten overschrijft niets: dagen die ontbreken of gewist zijn komen terug, dagen die hier ' +
       'nieuwer zijn blijven staan.</p>' +
       '<hr class="scheiding">' +
-      '<h3 class="sub-kop">Automatische kopieën</h3>' +
+      '<div class="inklap inklap-deel' + (isOpen('kopieen') ? '' : ' dicht') + '">' +
+      inklapKop('kopieen', 'Automatische kopieën' + (ui.kopieen && ui.kopieen.length
+        ? ' <span class="inklap-aantal">' + ui.kopieen.length + '</span>' : ''), 'h3', 'sub-kop') +
+      '<div class="inklap-inhoud" id="inklap-kopieen">' +
       '<p class="hint">Elke dag bij het openen, en vlak voor wissen of terugzetten, legt de app zelf een ' +
       'kopie van alles weg. De laatste ' + (GD.vangnet ? GD.vangnet.DAGELIJKS_HOUDEN : 14) + ' dagen blijven ' +
       'bewaard. Ze staan op dit apparaat, dus tegen een kwijtgeraakte telefoon helpen ze niet — daarvoor ' +
       'is de back-up hierboven.</p>' +
       kopieenLijst() +
+      '</div></div>' +
       '<hr class="scheiding">' +
       '<div class="row-actions"><button class="btn btn-danger" data-action="wipe">Alles van dit apparaat wissen</button></div>' +
       '</section>';
@@ -8458,11 +8505,51 @@ ol.explain { list-style: decimal; }
       '</section>';
   }
 
+  /* ----------------------------- inklappen ---------------------------- */
+
+  /* Welke blokken in de instellingen openstaan, per apparaat onthouden. Alles
+     begint dicht: dan zie je eerst welke blokken er zijn, en klap je open wat
+     je nodig hebt. Hoort niet bij je gegevens, dus synchroniseert niet. */
+  var INKLAP_KEY = 'goaldash.inklap';
+  var inklapStand = null;
+
+  function inklapStanden() {
+    if (!inklapStand) {
+      try { inklapStand = JSON.parse(global.localStorage.getItem(INKLAP_KEY)); } catch (e) { /* standaard */ }
+      if (!inklapStand || typeof inklapStand !== 'object' || Array.isArray(inklapStand)) inklapStand = {};
+    }
+    return inklapStand;
+  }
+
+  function isOpen(id) { return inklapStanden()[id] === true; }
+
+  function wisselInklap(id) {
+    var st = inklapStanden();
+    st[id] = !st[id];
+    try { global.localStorage.setItem(INKLAP_KEY, JSON.stringify(st)); } catch (e) { /* dan alleen voor nu */ }
+  }
+
+  /** Een kopje dat zijn blok open- en dichtklapt. */
+  function inklapKop(id, binnen, tag, klasse) {
+    return '<' + tag + (klasse ? ' class="' + klasse + '"' : '') + '>' +
+      '<button type="button" class="inklap-knop" data-action="inklap" data-sectie="' + id + '" ' +
+      'aria-expanded="' + isOpen(id) + '" aria-controls="inklap-' + id + '">' + binnen +
+      '<span class="inklap-pijl">' + GD.icon('chevron') + '</span></button></' + tag + '>';
+  }
+
+  /** Maakt van een blok (<section class="card"><h2>…</h2>…</section>) een inklapbaar blok. */
+  function inklapSectie(id, sectie) {
+    var m = /^<section class="card"><h2>([\s\S]*?)<\/h2>([\s\S]*)<\/section>$/.exec(sectie);
+    if (!m) return sectie;
+    return '<section class="card inklap' + (isOpen(id) ? '' : ' dicht') + '">' + inklapKop(id, m[1], 'h2') +
+      '<div class="inklap-inhoud" id="inklap-' + id + '">' + m[2] + '</div></section>';
+  }
+
   function renderSettings() {
     var s = store.settings();
     var dates = store.allDates();
 
-    var html = '<section class="card"><h2>' + GD.icon('eiwit') + 'Voedingsdoelen</h2><div class="form-grid">' +
+    var html = inklapSectie('voeding', '<section class="card"><h2>' + GD.icon('eiwit') + 'Voedingsdoelen</h2><div class="form-grid">' +
       '<label class="field"><span class="field-label">Eiwitdoel is</span>' +
       '<select data-setting="eiwitBasis">' +
       opt('vast', 'Een vast aantal gram', s.eiwitBasis) +
@@ -8484,9 +8571,9 @@ ol.explain { list-style: decimal; }
       (s.calorieRichting === 'rond'
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
-      '</div>' + eiwitUitleg(s) + '</section>';
+      '</div>' + eiwitUitleg(s) + '</section>');
 
-    html += '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
+    html += inklapSectie('gewichtsdoel', '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
       '<p class="hint">Hiermee wordt je gewicht afgezet tegen je tempo — nooit met je laatste ' +
       'weging, want die schommelt te veel. Woog je in de afgelopen drie weken minstens tien keer, ' +
       'dan beslist de lijn door al die wegingen. Met minder wegingen vergelijkt de app je ' +
@@ -8511,18 +8598,18 @@ ol.explain { list-style: decimal; }
         ? '<p class="hint">Vuistregel voor een rustige bulk: 0,25 tot 0,5 kg per week. ' +
           'Sneller levert vooral extra vet op.</p>'
         : '') +
-      '</section>';
+      '</section>');
 
-    html += schemaSection();
+    html += inklapSectie('schemas', schemaSection());
 
-    html += '<section class="card"><h2>' + GD.icon('instellingen') + 'Scoreregels</h2><div class="form-grid">' +
+    html += inklapSectie('scoreregels', '<section class="card"><h2>' + GD.icon('instellingen') + 'Scoreregels</h2><div class="form-grid">' +
       settingNumber('goedeDagDrempel', 'Drempel goede dag', '% voor streak', s.goedeDagDrempel, '5') +
       '</div>' +
       toggle('countMissingAsZero', 'Lege dagen in het verleden tellen als 0%',
         'Uit betekent: alleen ingevulde dagen tellen mee in week- en maandpercentages.', s.countMissingAsZero) +
       toggle('autoMacro', 'Eiwit- en caloriedoel automatisch bepalen',
         'Leidt “behaald ja/nee” af uit de ingevulde grammen en calorieën.', s.autoMacro) +
-      '</section>';
+      '</section>');
 
     var weightRows = GD.GOALS.map(function (g) {
       var w = S.weightOf(g, s);
@@ -8533,18 +8620,18 @@ ol.explain { list-style: decimal; }
         '</div>';
     }).join('');
 
-    html += '<section class="card"><h2>' + GD.icon('week') + 'Gewicht per doel</h2>' +
+    html += inklapSectie('doelgewicht', '<section class="card"><h2>' + GD.icon('week') + 'Gewicht per doel</h2>' +
       '<p class="hint">Hoe zwaar telt elk doel mee in je dagscore? Op 0 telt het doel helemaal niet mee.</p>' +
       '<div class="weights">' + weightRows + '</div>' +
       '<div class="card-foot"><button class="btn btn-ghost btn-sm" data-action="reset-weights">Standaardgewichten herstellen</button></div>' +
-      '</section>';
+      '</section>');
 
-    html += syncSection();
-    html += healthSection();
+    html += inklapSectie('sync', syncSection());
+    html += inklapSectie('health', healthSection());
 
     html += dataSection(dates);
 
-    html += '<section class="card"><h2>' + GD.icon('melding') + 'Hoe wordt de score berekend?</h2>' +
+    html += inklapSectie('uitleg', '<section class="card"><h2>' + GD.icon('melding') + 'Hoe wordt de score berekend?</h2>' +
       '<ul class="explain">' +
       '<li>Elk doel levert punten op: <em>Ja (eiwitrijk)</em> = vol, <em>Ja</em> = 60%, <em>Nee</em> = niets.</li>' +
       '<li>Eiwit, calorieën en progressive overload gaan niet op ja of nee maar op hoe ver je kwam: ' +
@@ -8570,7 +8657,7 @@ ol.explain { list-style: decimal; }
       'wegingen van de afgelopen drie weken, zodra je daarin tien keer woog. Eén week kan zomaar ' +
       'een kilo vocht zijn; een lijn door drie weken niet. Met minder wegingen vergelijkt de app ' +
       'weekgemiddelden en waarschuwt hij pas als hetzelfde twee weken op rij te zien is.</li>' +
-      '</ul></section>';
+      '</ul></section>');
 
     return html;
   }
@@ -9195,6 +9282,11 @@ ol.explain { list-style: decimal; }
     }
     if (action === 'review-week') {
       ui.view = 'week';
+      render();
+      return;
+    }
+    if (action === 'inklap') {
+      wisselInklap(el.dataset.sectie);
       render();
       return;
     }

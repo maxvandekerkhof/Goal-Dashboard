@@ -288,6 +288,48 @@ html[data-theme="light"] .topbar-vast { box-shadow: 0 6px 18px rgba(16, 24, 40, 
   background: var(--accent-zacht);
 }
 
+/* Inklapbare blokken (instellingen). Het hele kopje is de knop; het pijltje
+   rechts draait mee. Dicht blijft alleen het kopje over, zodat de pagina een
+   overzicht is van wat er te regelen valt. */
+.inklap-knop {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: inherit;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.inklap-knop:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.inklap-pijl { margin-left: auto; display: flex; color: var(--muted); transition: transform .2s ease; }
+.inklap:not(.dicht) > * > .inklap-knop .inklap-pijl { transform: rotate(180deg); }
+.view > .card > h2 .inklap-pijl .ico {
+  width: 20px; height: 20px; padding: 0; background: none; color: var(--muted);
+}
+.inklap-knop:hover .inklap-pijl { color: var(--text); }
+.inklap.dicht > .inklap-inhoud { display: none; }
+.view > .card.inklap.dicht > h2 { margin-bottom: 0; }
+.view > .card.inklap { padding-bottom: 22px; }
+/* Dicht is het alleen een rij in een lijst; daar hoort minder lucht bij. */
+.view > .card.inklap.dicht { padding-top: 14px; padding-bottom: 14px; }
+.inklap-deel > .sub-kop { margin: 0; }
+.inklap-deel > .sub-kop .inklap-knop { gap: 8px; padding: 4px 0; }
+.inklap-deel:not(.dicht) > .sub-kop { margin-bottom: 6px; }
+.inklap-aantal {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  color: var(--kluis, var(--muted));
+}
+@media (prefers-reduced-motion: reduce) { .inklap-pijl { transition: none; } }
+
 /* De back-up: het enige dat je gegevens redt als je telefoon of de cloud ze
    kwijtraakt. Daarom als enige blok een eigen kader, in het blauw zolang hij
    recent is en in oranje zodra hij te oud is. */
