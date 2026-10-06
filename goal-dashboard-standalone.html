@@ -395,7 +395,7 @@ html[data-theme="light"] .topbar-vast { box-shadow: 0 6px 18px rgba(16, 24, 40, 
 }
 
 input[type="number"], input[type="text"], input[type="email"], input[type="url"],
-input[type="password"], select, textarea {
+input[type="password"], input[type="date"], select, textarea {
   width: 100%;
   font: inherit;
   font-size: .95rem;
@@ -612,6 +612,37 @@ textarea { resize: vertical; padding-right: 12px; }
 .bd-off { opacity: .45; }
 .bd-icon { display: flex; color: var(--faint); }
 
+/* Op de kleinste telefoons passen vijf tabs alleen zonder icoontjes; het
+   tandwiel blijft, want daar staat geen woord naast. */
+@media (max-width: 360px) {
+  .tab:not([data-view="instellingen"]) .ico { display: none; }
+}
+
+/* ------------------------------- gewicht ------------------------------ */
+
+.gw-datums { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Safari geeft een datumveld anders een eigen hoogte en lijnt de tekst raar uit. */
+input[type="date"] { min-height: 44px; -webkit-appearance: none; appearance: none; color-scheme: dark; }
+html[data-theme="light"] input[type="date"] { color-scheme: light; }
+.gw-snel { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.gw-actief, .gw-actief:hover { border-color: var(--accent); color: var(--accent); }
+.gw-details {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 12px 0 0;
+}
+.gw-details dt {
+  color: var(--faint);
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+.gw-details dd { margin: 3px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gw-details dd span { display: block; color: var(--faint); font-weight: 400; font-size: .72rem; }
+.gw-wijzigingen { margin: 0; padding-left: 18px; color: var(--muted); font-size: .88rem; display: flex; flex-direction: column; gap: 6px; }
+.weight-chart + .gw-details { margin-top: 14px; }
+
 /* ---------------------------- weekafsluiting -------------------------- */
 
 .rv-cijfers {
@@ -781,6 +812,9 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
 .wc-axis { fill: var(--faint); font-family: var(--font-mono); font-size: 10px; }
 .wc-goal { stroke: #ffd60a; stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .wc-goal-label { fill: #ffd60a; font-family: var(--font-mono); font-size: 10px; }
+.wc-trend { stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 6 5; opacity: .55; vector-effect: non-scaling-stroke; }
+.wc-marker { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 4; vector-effect: non-scaling-stroke; }
+.wc-marker-label { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; }
 
 .lijn-grafiek { width: 100%; height: auto; aspect-ratio: 640 / 200; display: block; }
 .lc-line { fill: none; stroke: var(--lc-kleur, var(--accent)); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
@@ -1095,6 +1129,10 @@ ol.explain { list-style: decimal; }
      dichter op elkaar staan. */
   .tab { padding: 10px 7px 8px; font-size: .72rem; letter-spacing: .06em; gap: 5px; }
   .tab .ico { width: 14px; height: 14px; }
+  /* Vijf tabs: Instellingen is op een telefoon alleen het tandwiel. */
+  .tab { position: relative; }
+  .tab-tekst { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .gw-details { grid-template-columns: 1fr 1fr; }
 
   .hero { gap: 16px; justify-content: center; }
   .hero-ring svg { width: 150px; height: 150px; }
@@ -1149,7 +1187,8 @@ ol.explain { list-style: decimal; }
       <button class="tab tab-active" data-view="dag" role="tab" aria-selected="true"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" /> <path d="M12 6v6l4 2" /></svg>Dag</button>
       <button class="tab" data-view="week" role="tab" aria-selected="false"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg>Week</button>
       <button class="tab" data-view="maand" role="tab" aria-selected="false"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 2v3" /> <path d="M16 2v3" /> <rect x="3" y="3" width="18" height="18" rx="2" /> <path d="M3 9h18" /> <path d="M8 13h.01" /> <path d="M12 13h.01" /> <path d="M16 13h.01" /> <path d="M8 17h.01" /> <path d="M12 17h.01" /> <path d="M16 17h.01" /></svg>Maand</button>
-      <button class="tab" data-view="instellingen" role="tab" aria-selected="false"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /> <circle cx="12" cy="12" r="3" /></svg>Instellingen</button>
+      <button class="tab" data-view="gewicht" role="tab" aria-selected="false"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v18" /> <path d="m19 8 3 8a5 5 0 0 1-6 0zV7" /> <path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1" /> <path d="m5 8 3 8a5 5 0 0 1-6 0zV7" /> <path d="M7 21h10" /></svg>Gewicht</button>
+      <button class="tab" data-view="instellingen" role="tab" aria-selected="false" aria-label="Instellingen"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /> <circle cx="12" cy="12" r="3" /></svg><span class="tab-tekst">Instellingen</span></button>
     </nav>
 
     <div class="period-nav" id="period-nav">
@@ -4468,8 +4507,13 @@ ol.explain { list-style: decimal; }
   /**
    * Lijngrafiek voor gewicht.
    * points: [{date, w}], doel: number|null
+   * opts  : { van, tot   — de x-as loopt over deze datums in plaats van je eerste
+   *                        tot je laatste weging
+   *           lijn       — [{date, w}, {date, w}], gestippelde trendlijn
+   *           markeringen — [{ datum, label }], verticale streep op die dag }
    */
-  function weightChart(points, doel) {
+  function weightChart(points, doel, opts) {
+    opts = opts || {};
     var W = 640, H = 200, padL = 44, padR = 12, padT = 16, padB = 26;
     if (!points || points.length === 0) {
       return '<p class="empty">Nog geen gewicht ingevuld in deze periode.</p>';
@@ -4487,8 +4531,10 @@ ol.explain { list-style: decimal; }
     min -= span * 0.15;
     max += span * 0.15;
 
-    var t0 = D.parse(points[0].date).getTime();
-    var t1 = D.parse(points[points.length - 1].date).getTime();
+    var eersteDag = opts.van || points[0].date;
+    var laatsteDag = opts.tot || points[points.length - 1].date;
+    var t0 = D.parse(eersteDag).getTime();
+    var t1 = D.parse(laatsteDag).getTime();
     var tSpan = (t1 - t0) || 1;
 
     function x(date) {
@@ -4505,9 +4551,10 @@ ol.explain { list-style: decimal; }
     var area = line + ' L' + x(points[points.length - 1].date).toFixed(1) + ' ' + (H - padB) +
       ' L' + x(points[0].date).toFixed(1) + ' ' + (H - padB) + ' Z';
 
+    var r = points.length > 60 ? 2 : 3;  // een half jaar aan wegingen wordt anders één streep
     var dots = points.map(function (p) {
       return '<circle cx="' + x(p.date).toFixed(1) + '" cy="' + y(p.w).toFixed(1) +
-        '" r="3" class="wc-dot"><title>' + esc(D.formatShort(p.date) + ': ' + p.w.toFixed(1) + ' kg') + '</title></circle>';
+        '" r="' + r + '" class="wc-dot"><title>' + esc(D.formatShort(p.date) + ': ' + p.w.toFixed(1) + ' kg') + '</title></circle>';
     }).join('');
 
     var gridVals = [min + (max - min) * 0.15, (min + max) / 2, max - (max - min) * 0.15];
@@ -4523,15 +4570,40 @@ ol.explain { list-style: decimal; }
         '" text-anchor="end" class="wc-goal-label">doel ' + doel.toFixed(1) + ' kg</text>';
     }
 
-    var xLabels = '<text x="' + padL + '" y="' + (H - 6) + '" class="wc-axis">' + esc(D.formatShort(points[0].date)) + '</text>' +
+    var xLabels = '<text x="' + padL + '" y="' + (H - 6) + '" class="wc-axis">' + esc(D.formatShort(eersteDag)) + '</text>' +
       '<text x="' + (W - padR) + '" y="' + (H - 6) + '" text-anchor="end" class="wc-axis">' +
-      esc(D.formatShort(points[points.length - 1].date)) + '</text>';
+      esc(D.formatShort(laatsteDag)) + '</text>';
+    // Bij een lange periode ook het midden, anders weet je bij een punt
+    // halverwege niet of dat juni of augustus was.
+    if (D.dagenTussen(eersteDag, laatsteDag) >= 28) {
+      var midden = D.addDays(eersteDag, Math.round(D.dagenTussen(eersteDag, laatsteDag) / 2));
+      xLabels += '<text x="' + x(midden).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" class="wc-axis">' +
+        esc(D.formatShort(midden)) + '</text>';
+    }
+
+    var trend = '';
+    if (opts.lijn && opts.lijn.length === 2) {
+      trend = '<line x1="' + x(opts.lijn[0].date).toFixed(1) + '" y1="' + y(opts.lijn[0].w).toFixed(1) +
+        '" x2="' + x(opts.lijn[1].date).toFixed(1) + '" y2="' + y(opts.lijn[1].w).toFixed(1) + '" class="wc-trend"/>';
+    }
+
+    var markeringen = (opts.markeringen || []).filter(function (m) {
+      return m.datum >= eersteDag && m.datum <= laatsteDag;
+    }).map(function (m) {
+      var mx = x(m.datum);
+      // Het label aan de kant waar plaats is, zodat het niet over de rand valt.
+      var rechts = mx > W - 110;
+      return '<line x1="' + mx.toFixed(1) + '" x2="' + mx.toFixed(1) + '" y1="' + padT + '" y2="' + (H - padB) +
+        '" class="wc-marker"/>' +
+        '<text x="' + (mx + (rechts ? -5 : 5)).toFixed(1) + '" y="' + (padT + 9) + '"' +
+        (rechts ? ' text-anchor="end"' : '') + ' class="wc-marker-label">' + esc(m.label) + '</text>';
+    }).join('');
 
     return '<svg class="weight-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Gewichtsverloop">' +
-      grid + goalLine +
+      grid + goalLine + markeringen +
       '<path d="' + area + '" class="wc-area"/>' +
       '<path d="' + line + '" class="wc-line"/>' +
-      dots + xLabels +
+      trend + dots + xLabels +
       '</svg>';
   }
 
@@ -5449,7 +5521,98 @@ ol.explain { list-style: decimal; }
     };
   }
 
+  /* ------------------------- gewicht over een periode ------------------------- */
+
+  /* Begin en eind zijn het gemiddelde van je eerste en laatste week aan
+     wegingen, zodra er twee weken tussen zitten. Eén ochtend na een zoute
+     maaltijd verschuift dan niet je hele periode. Korter dan dat, dan de eerste
+     en de laatste weging zelf. */
+  var GEMIDDELD_VANAF = 14;
+  var WEEK = 7;
+
+  /**
+   * Je gewicht van `van` tot en met `tot`, allebei "YYYY-MM-DD".
+   * -> { van, tot, eind, dagen, punten: [{date, w}], wegingen, begin, eindGewicht,
+   *      gemiddeld, verschil, perWeek, lijn, laagste, hoogste, kcalGem, kcalDagen,
+   *      calorieWissels: [{datum, van, naar}], wijzigingen }
+   *
+   * `eind` is `tot`, maar nooit later dan vandaag. Liggen de datums verkeerd
+   * om, dan draait de functie ze om.
+   */
+  function maakGewicht(van, tot) {
+    if (van > tot) { var t = van; van = tot; tot = t; }
+    var vandaag = D.today();
+    var eind = tot > vandaag ? vandaag : tot;
+    var uit = {
+      van: van, tot: tot, eind: eind, dagen: van > eind ? 0 : D.dagenTussen(van, eind) + 1,
+      punten: [], wegingen: 0, begin: null, eindGewicht: null, gemiddeld: null,
+      verschil: null, perWeek: null, lijn: null, weekGemiddeld: false, laagste: null, hoogste: null,
+      kcalGem: null, kcalDagen: 0, calorieWissels: [], wijzigingen: []
+    };
+    if (van > eind) return uit;
+
+    var regressie = [], kcalSom = 0;
+    D.range(van, eind).forEach(function (d, i) {
+      var e = store.entry(d);
+      if (!e) return;
+      var kg = S.num(e.gewicht);
+      if (kg !== null) {
+        uit.punten.push({ date: d, w: kg });
+        regressie.push({ x: i, y: kg, w: 1 });
+      }
+      var k = S.num(e.kcal);
+      if (k !== null && d < vandaag) { kcalSom += k; uit.kcalDagen++; }
+    });
+    if (uit.kcalDagen) uit.kcalGem = kcalSom / uit.kcalDagen;
+
+    uit.calorieWissels = S.doelGeschiedenis('calorieDoel', store.settings()).filter(function (r) {
+      return r.datum >= van && r.datum <= eind;
+    });
+    uit.wijzigingen = maandWijzigingen(van, eind);
+
+    var p = uit.punten;
+    uit.wegingen = p.length;
+    if (!p.length) return uit;
+
+    function gem(lijst) {
+      return lijst.reduce(function (a, q) { return a + q.w; }, 0) / lijst.length;
+    }
+    var eerste = p[0].date, laatste = p[p.length - 1].date;
+    uit.gemiddeld = gem(p);
+    uit.weekGemiddeld = D.dagenTussen(eerste, laatste) >= GEMIDDELD_VANAF - 1;
+    if (uit.weekGemiddeld) {
+      var beginTot = D.addDays(eerste, WEEK - 1), eindVanaf = D.addDays(laatste, -(WEEK - 1));
+      uit.begin = gem(p.filter(function (q) { return q.date <= beginTot; }));
+      uit.eindGewicht = gem(p.filter(function (q) { return q.date >= eindVanaf; }));
+    } else {
+      uit.begin = p[0].w;
+      uit.eindGewicht = p[p.length - 1].w;
+    }
+    if (p.length > 1) uit.verschil = uit.eindGewicht - uit.begin;
+
+    p.forEach(function (q) {
+      if (!uit.laagste || q.w < uit.laagste.w) uit.laagste = q;
+      if (!uit.hoogste || q.w > uit.hoogste.w) uit.hoogste = q;
+    });
+
+    // Dezelfde drempel als na een nieuw caloriedoel: minder dan een week of
+    // vijf wegingen geeft een lijn die vooral ruis volgt.
+    if (D.dagenTussen(eerste, laatste) >= S.SINDS_MIN_DAGEN && p.length >= S.SINDS_MIN_WEEG) {
+      var h = S.trendHelling(regressie);
+      if (h !== null) {
+        uit.perWeek = h * 7;
+        // De lijn zelf, van je eerste tot je laatste weging, voor in de grafiek.
+        var mx = regressie.reduce(function (a, q) { return a + q.x; }, 0) / regressie.length;
+        var y0 = uit.gemiddeld - h * mx;
+        var x0 = regressie[0].x, x1 = regressie[regressie.length - 1].x;
+        uit.lijn = [{ date: eerste, w: y0 + h * x0 }, { date: laatste, w: y0 + h * x1 }];
+      }
+    }
+    return uit;
+  }
+
   GD.review = {
+    maakGewicht: maakGewicht,
     maandSleutel: maandSleutel,
     maandVensterOpen: maandVensterOpen,
     maandGezien: maandGezien,
@@ -7846,7 +8009,7 @@ ol.explain { list-style: decimal; }
       'week ' + D.isoWeek(dates[0]), 'week ' + D.isoWeek(vorigeStart), 1, tot);
 
     html += '<section class="card"><h2>' + GD.icon('grafiek') + 'Gewicht</h2>' +
-      C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
+      C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + gewichtLink() + '</section>';
     return html;
   }
 
@@ -7876,7 +8039,163 @@ ol.explain { list-style: decimal; }
       dates.length / 7);
 
     html += '<section class="card"><h2>' + GD.icon('grafiek') + 'Gewicht</h2>' +
-      C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + '</section>';
+      C.weightChart(period.stats.weights, S.num(s.gewichtDoel)) + gewichtLink() + '</section>';
+    return html;
+  }
+
+  /* ------------------------------ gewicht ----------------------------- */
+
+  /* Welke periode je bekijkt, per apparaat onthouden. Een snelkeuze blijft een
+     snelkeuze: "3 maanden" is morgen ook de laatste drie maanden, niet de
+     datums van vandaag. Zelf gekozen datums blijven staan. */
+  var GEWICHT_KEY = 'goaldash.gewichtPeriode';
+
+  var SNELKEUZES = [
+    { id: '4w', label: '4 weken' },
+    { id: '3m', label: '3 maanden' },
+    { id: '6m', label: '6 maanden' },
+    { id: '1j', label: '1 jaar' },
+    { id: 'alles', label: 'Alles' }
+  ];
+
+  function gewichtKeuze() {
+    if (!ui.gewicht) {
+      var bewaard = null;
+      try { bewaard = JSON.parse(global.localStorage.getItem(GEWICHT_KEY)); } catch (e) { /* standaard */ }
+      ui.gewicht = bewaard && (bewaard.snel || (bewaard.van && bewaard.tot)) ? bewaard : { snel: '3m' };
+    }
+    return ui.gewicht;
+  }
+
+  function zetGewichtKeuze(k) {
+    ui.gewicht = k;
+    try { global.localStorage.setItem(GEWICHT_KEY, JSON.stringify(k)); } catch (e) { /* dan alleen voor nu */ }
+  }
+
+  /** De eerste dag waarop je een gewicht invulde, of null. */
+  function eersteWeging() {
+    var dagen = store.allDates();
+    for (var i = 0; i < dagen.length; i++) {
+      var e = store.entry(dagen[i]);
+      if (e && S.num(e.gewicht) !== null) return dagen[i];
+    }
+    return null;
+  }
+
+  /** -> { van, tot } voor een snelkeuze of je eigen datums */
+  function gewichtPeriode(k) {
+    var vandaag = D.today();
+    if (!k.snel) return { van: k.van, tot: k.tot };
+    var van;
+    if (k.snel === '4w') van = D.addDays(vandaag, -27);
+    else if (k.snel === '6m') van = D.addDays(D.addMonths(vandaag, -6), 1);
+    else if (k.snel === '1j') van = D.addDays(D.addMonths(vandaag, -12), 1);
+    else if (k.snel === 'alles') van = eersteWeging() || D.addDays(vandaag, -27);
+    else if (k.snel === 'calorie') {
+      var wissels = S.doelGeschiedenis('calorieDoel', store.settings());
+      van = wissels.length ? wissels[wissels.length - 1].datum : D.addDays(D.addMonths(vandaag, -3), 1);
+    }
+    else van = D.addDays(D.addMonths(vandaag, -3), 1);
+    return { van: van, tot: vandaag };
+  }
+
+  function gewichtLink() {
+    return '<div class="card-foot"><button class="btn btn-ghost btn-sm" data-action="naar-gewicht">' +
+      'Zelf een periode kiezen</button></div>';
+  }
+
+  function renderGewicht() {
+    var s = store.settings();
+    var k = gewichtKeuze();
+    var p = gewichtPeriode(k);
+    var g = GD.review.maakGewicht(p.van, p.tot);
+    var vandaag = D.today();
+
+    var wissels = S.doelGeschiedenis('calorieDoel', s);
+    var snel = SNELKEUZES.slice();
+    if (wissels.length) snel.push({ id: 'calorie', label: 'Sinds caloriedoel' });
+
+    var kiezer = '<section class="card"><h2>' + GD.icon('maand') + 'Periode</h2>' +
+      '<div class="gw-datums">' +
+      '<label class="field"><span class="field-label">Van</span>' +
+      '<input type="date" data-gewicht-periode="van" value="' + g.van + '" max="' + vandaag + '"></label>' +
+      '<label class="field"><span class="field-label">Tot en met</span>' +
+      '<input type="date" data-gewicht-periode="tot" value="' + g.tot + '" max="' + vandaag + '"></label>' +
+      '</div>' +
+      '<div class="gw-snel" role="group" aria-label="Snelkeuze">' + snel.map(function (o) {
+        var actief = k.snel === o.id;
+        return '<button class="btn btn-sm' + (actief ? ' gw-actief' : '') + '" data-action="gewicht-snel" data-snel="' +
+          o.id + '" aria-pressed="' + actief + '">' + esc(o.label) + '</button>';
+      }).join('') + '</div></section>';
+
+    var titel = D.formatShort(g.van) + (g.van.slice(0, 4) !== g.eind.slice(0, 4) ? ' ' + g.van.slice(0, 4) : '') +
+      ' – ' + D.formatShort(g.eind) + ' ' + g.eind.slice(0, 4);
+
+    if (!g.wegingen) {
+      return kiezer + '<section class="card"><h2>' + GD.icon('weegschaal') + esc(titel) + '</h2>' +
+        '<p class="empty">Geen gewicht ingevuld tussen ' + esc(D.formatShort(g.van)) + ' en ' +
+        esc(D.formatShort(g.eind)) + '. Kies een andere periode.</p></section>';
+    }
+
+    var richting = s.gewichtRichting || 'uit';
+    var tempo = Math.abs(S.num(s.gewichtTempo, 0.25));
+    var status = richting !== 'uit' && g.perWeek !== null ? S.gewichtStatus(g.perWeek, richting, tempo) : null;
+    var tempoTekst = richting === 'uit' ? '' : 'doel ' + (RICHTING_TEKEN[richting] || '') + fmt(tempo, 2);
+
+    var cijfers = '<div class="rv-cijfers rv-cijfers-4">' +
+      maandCijfer(fmt(g.begin, 1) + '<span class="unit">kg</span>', 'Begin') +
+      maandCijfer(fmt(g.eindGewicht, 1) + '<span class="unit">kg</span>', 'Eind') +
+      maandCijfer(g.verschil === null ? '–' : esc(kgVerschil(g.verschil)).replace(' kg', '<span class="unit">kg</span>'),
+        'Verschil') +
+      maandCijfer(g.perWeek === null ? '–' : esc(kgVerschil(g.perWeek)).replace(' kg', '<span class="unit">kg</span>'),
+        'Per week', status ? GD.scoreInk(status.pct) : null, esc(tempoTekst)) +
+      '</div>';
+
+    var markeringen = g.calorieWissels.map(function (w) {
+      return { datum: w.datum, label: fmt(w.naar) + ' kcal' };
+    });
+
+    var uitleg = (g.punten[0].date > g.van
+      ? 'Je eerste weging in deze periode is van ' + D.formatShort(g.punten[0].date) + '. ' : '') +
+      (g.wegingen === 1
+      ? 'Eén weging in deze periode.'
+      : (g.weekGemiddeld
+        ? 'Begin en eind zijn het gemiddelde van je eerste en je laatste week aan wegingen, zodat één ' +
+          'uitschieter niet alles bepaalt.'
+        : 'Begin en eind zijn je eerste en je laatste weging; vanaf twee weken worden het weekgemiddelden.') +
+        (g.perWeek !== null
+          ? ' De stippellijn loopt door al je ' + g.wegingen + ' wegingen.'
+          : ' Voor een lijn door je wegingen zijn minstens ' + S.SINDS_MIN_WEEG + ' wegingen over een week nodig.') +
+        (status
+          ? ' Met ' + kgVerschil(g.perWeek) + ' per week ' +
+            (status.status === 'op-schema' || richting === 'behouden' ? 'zit je ' : 'ga je ') +
+            (richting === 'behouden' && status.status === 'verkeerd' ? 'buiten je marge'
+              : (GEWICHT_OORDEEL[status.status] || status.status)) +
+            ' (' + (RICHTING_TEKEN[richting] || '') + fmt(tempo, 2) + ' kg per week).'
+          : '') +
+        (markeringen.length ? ' De verticale strepen zijn de dagen waarop je je caloriedoel aanpaste.' : ''));
+
+    var details = '<dl class="gw-details">' +
+      '<div><dt>Laagste</dt><dd>' + fmt(g.laagste.w, 1) + ' kg <span>' + esc(D.formatShort(g.laagste.date)) + '</span></dd></div>' +
+      '<div><dt>Hoogste</dt><dd>' + fmt(g.hoogste.w, 1) + ' kg <span>' + esc(D.formatShort(g.hoogste.date)) + '</span></dd></div>' +
+      '<div><dt>Wegingen</dt><dd>' + g.wegingen + '× <span>in ' + g.dagen + ' dagen</span></dd></div>' +
+      '<div><dt>Gem. gegeten</dt><dd>' + (g.kcalGem === null ? '–' : fmt(g.kcalGem) + ' kcal <span>' +
+        g.kcalDagen + ' dag' + (g.kcalDagen === 1 ? '' : 'en') + '</span>') + '</dd></div>' +
+      '</dl>';
+
+    var html = kiezer +
+      '<section class="card"><h2>' + GD.icon('weegschaal') + esc(titel) + '</h2>' + cijfers +
+      // De grafiek begint bij je eerste weging: drie maanden kiezen terwijl je
+      // pas zes weken weegt, gaf anders een halve grafiek leegte.
+      C.weightChart(g.punten, S.num(s.gewichtDoel), { van: g.punten[0].date, tot: g.eind, lijn: g.lijn, markeringen: markeringen }) +
+      details + '<p class="hint">' + esc(uitleg) + '</p></section>';
+
+    if (g.wijzigingen.length) {
+      html += '<section class="card"><h2>' + GD.icon('rapport') + 'Wat je in deze periode aanpaste</h2>' +
+        '<ul class="gw-wijzigingen">' + g.wijzigingen.map(function (w) {
+          return '<li>' + esc(w.tekst) + '</li>';
+        }).join('') + '</ul></section>';
+    }
     return html;
   }
 
@@ -8587,7 +8906,7 @@ ol.explain { list-style: decimal; }
     });
 
     var nav = $('#period-nav');
-    if (ui.view === 'instellingen') {
+    if (ui.view === 'instellingen' || ui.view === 'gewicht') {
       nav.hidden = true;
     } else {
       nav.hidden = false;
@@ -8599,6 +8918,7 @@ ol.explain { list-style: decimal; }
     if (ui.view === 'dag') html = renderDay();
     else if (ui.view === 'week') html = renderWeek();
     else if (ui.view === 'maand') html = renderMonth();
+    else if (ui.view === 'gewicht') html = renderGewicht();
     else html = renderSettings();
 
     // Een klik op een doel tekent het hele scherm opnieuw. Alleen bij écht
@@ -8819,6 +9139,16 @@ ol.explain { list-style: decimal; }
     }
     if (action === 'review-week') {
       ui.view = 'week';
+      render();
+      return;
+    }
+    if (action === 'gewicht-snel') {
+      zetGewichtKeuze({ snel: el.dataset.snel });
+      render();
+      return;
+    }
+    if (action === 'naar-gewicht') {
+      ui.view = 'gewicht';
       render();
       return;
     }
@@ -9190,6 +9520,21 @@ ol.explain { list-style: decimal; }
         // Wie oefeningen invult heeft getraind; dat hoef je niet ook nog te melden.
         var e2 = store.entry(ui.anchor);
         if (e2 && e2.oefeningen && !e2.gesport) store.setField(ui.anchor, 'gesport', 'ja');
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.gewichtPeriode) {
+        // Leeggemaakt (kan op een iPhone): dan blijft de periode zoals hij was.
+        if (/^\d{4}-\d{2}-\d{2}$/.test(t.value)) {
+          var huidig = gewichtPeriode(gewichtKeuze());
+          var nieuw = { van: huidig.van, tot: huidig.tot };
+          nieuw[t.dataset.gewichtPeriode] = t.value;
+          // Van na tot: dan schuift de andere datum mee in plaats van een lege periode.
+          if (nieuw.van > nieuw.tot) {
+            if (t.dataset.gewichtPeriode === 'van') nieuw.tot = nieuw.van; else nieuw.van = nieuw.tot;
+          }
+          zetGewichtKeuze(nieuw);
+        }
         render();
         return;
       }

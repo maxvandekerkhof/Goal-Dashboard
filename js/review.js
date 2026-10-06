@@ -745,7 +745,98 @@
     };
   }
 
+  /* ------------------------- gewicht over een periode ------------------------- */
+
+  /* Begin en eind zijn het gemiddelde van je eerste en laatste week aan
+     wegingen, zodra er twee weken tussen zitten. Eén ochtend na een zoute
+     maaltijd verschuift dan niet je hele periode. Korter dan dat, dan de eerste
+     en de laatste weging zelf. */
+  var GEMIDDELD_VANAF = 14;
+  var WEEK = 7;
+
+  /**
+   * Je gewicht van `van` tot en met `tot`, allebei "YYYY-MM-DD".
+   * -> { van, tot, eind, dagen, punten: [{date, w}], wegingen, begin, eindGewicht,
+   *      gemiddeld, verschil, perWeek, lijn, laagste, hoogste, kcalGem, kcalDagen,
+   *      calorieWissels: [{datum, van, naar}], wijzigingen }
+   *
+   * `eind` is `tot`, maar nooit later dan vandaag. Liggen de datums verkeerd
+   * om, dan draait de functie ze om.
+   */
+  function maakGewicht(van, tot) {
+    if (van > tot) { var t = van; van = tot; tot = t; }
+    var vandaag = D.today();
+    var eind = tot > vandaag ? vandaag : tot;
+    var uit = {
+      van: van, tot: tot, eind: eind, dagen: van > eind ? 0 : D.dagenTussen(van, eind) + 1,
+      punten: [], wegingen: 0, begin: null, eindGewicht: null, gemiddeld: null,
+      verschil: null, perWeek: null, lijn: null, weekGemiddeld: false, laagste: null, hoogste: null,
+      kcalGem: null, kcalDagen: 0, calorieWissels: [], wijzigingen: []
+    };
+    if (van > eind) return uit;
+
+    var regressie = [], kcalSom = 0;
+    D.range(van, eind).forEach(function (d, i) {
+      var e = store.entry(d);
+      if (!e) return;
+      var kg = S.num(e.gewicht);
+      if (kg !== null) {
+        uit.punten.push({ date: d, w: kg });
+        regressie.push({ x: i, y: kg, w: 1 });
+      }
+      var k = S.num(e.kcal);
+      if (k !== null && d < vandaag) { kcalSom += k; uit.kcalDagen++; }
+    });
+    if (uit.kcalDagen) uit.kcalGem = kcalSom / uit.kcalDagen;
+
+    uit.calorieWissels = S.doelGeschiedenis('calorieDoel', store.settings()).filter(function (r) {
+      return r.datum >= van && r.datum <= eind;
+    });
+    uit.wijzigingen = maandWijzigingen(van, eind);
+
+    var p = uit.punten;
+    uit.wegingen = p.length;
+    if (!p.length) return uit;
+
+    function gem(lijst) {
+      return lijst.reduce(function (a, q) { return a + q.w; }, 0) / lijst.length;
+    }
+    var eerste = p[0].date, laatste = p[p.length - 1].date;
+    uit.gemiddeld = gem(p);
+    uit.weekGemiddeld = D.dagenTussen(eerste, laatste) >= GEMIDDELD_VANAF - 1;
+    if (uit.weekGemiddeld) {
+      var beginTot = D.addDays(eerste, WEEK - 1), eindVanaf = D.addDays(laatste, -(WEEK - 1));
+      uit.begin = gem(p.filter(function (q) { return q.date <= beginTot; }));
+      uit.eindGewicht = gem(p.filter(function (q) { return q.date >= eindVanaf; }));
+    } else {
+      uit.begin = p[0].w;
+      uit.eindGewicht = p[p.length - 1].w;
+    }
+    if (p.length > 1) uit.verschil = uit.eindGewicht - uit.begin;
+
+    p.forEach(function (q) {
+      if (!uit.laagste || q.w < uit.laagste.w) uit.laagste = q;
+      if (!uit.hoogste || q.w > uit.hoogste.w) uit.hoogste = q;
+    });
+
+    // Dezelfde drempel als na een nieuw caloriedoel: minder dan een week of
+    // vijf wegingen geeft een lijn die vooral ruis volgt.
+    if (D.dagenTussen(eerste, laatste) >= S.SINDS_MIN_DAGEN && p.length >= S.SINDS_MIN_WEEG) {
+      var h = S.trendHelling(regressie);
+      if (h !== null) {
+        uit.perWeek = h * 7;
+        // De lijn zelf, van je eerste tot je laatste weging, voor in de grafiek.
+        var mx = regressie.reduce(function (a, q) { return a + q.x; }, 0) / regressie.length;
+        var y0 = uit.gemiddeld - h * mx;
+        var x0 = regressie[0].x, x1 = regressie[regressie.length - 1].x;
+        uit.lijn = [{ date: eerste, w: y0 + h * x0 }, { date: laatste, w: y0 + h * x1 }];
+      }
+    }
+    return uit;
+  }
+
   GD.review = {
+    maakGewicht: maakGewicht,
     maandSleutel: maandSleutel,
     maandVensterOpen: maandVensterOpen,
     maandGezien: maandGezien,

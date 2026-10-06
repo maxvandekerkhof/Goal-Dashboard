@@ -97,8 +97,13 @@
   /**
    * Lijngrafiek voor gewicht.
    * points: [{date, w}], doel: number|null
+   * opts  : { van, tot   — de x-as loopt over deze datums in plaats van je eerste
+   *                        tot je laatste weging
+   *           lijn       — [{date, w}, {date, w}], gestippelde trendlijn
+   *           markeringen — [{ datum, label }], verticale streep op die dag }
    */
-  function weightChart(points, doel) {
+  function weightChart(points, doel, opts) {
+    opts = opts || {};
     var W = 640, H = 200, padL = 44, padR = 12, padT = 16, padB = 26;
     if (!points || points.length === 0) {
       return '<p class="empty">Nog geen gewicht ingevuld in deze periode.</p>';
@@ -116,8 +121,10 @@
     min -= span * 0.15;
     max += span * 0.15;
 
-    var t0 = D.parse(points[0].date).getTime();
-    var t1 = D.parse(points[points.length - 1].date).getTime();
+    var eersteDag = opts.van || points[0].date;
+    var laatsteDag = opts.tot || points[points.length - 1].date;
+    var t0 = D.parse(eersteDag).getTime();
+    var t1 = D.parse(laatsteDag).getTime();
     var tSpan = (t1 - t0) || 1;
 
     function x(date) {
@@ -134,9 +141,10 @@
     var area = line + ' L' + x(points[points.length - 1].date).toFixed(1) + ' ' + (H - padB) +
       ' L' + x(points[0].date).toFixed(1) + ' ' + (H - padB) + ' Z';
 
+    var r = points.length > 60 ? 2 : 3;  // een half jaar aan wegingen wordt anders één streep
     var dots = points.map(function (p) {
       return '<circle cx="' + x(p.date).toFixed(1) + '" cy="' + y(p.w).toFixed(1) +
-        '" r="3" class="wc-dot"><title>' + esc(D.formatShort(p.date) + ': ' + p.w.toFixed(1) + ' kg') + '</title></circle>';
+        '" r="' + r + '" class="wc-dot"><title>' + esc(D.formatShort(p.date) + ': ' + p.w.toFixed(1) + ' kg') + '</title></circle>';
     }).join('');
 
     var gridVals = [min + (max - min) * 0.15, (min + max) / 2, max - (max - min) * 0.15];
@@ -152,15 +160,40 @@
         '" text-anchor="end" class="wc-goal-label">doel ' + doel.toFixed(1) + ' kg</text>';
     }
 
-    var xLabels = '<text x="' + padL + '" y="' + (H - 6) + '" class="wc-axis">' + esc(D.formatShort(points[0].date)) + '</text>' +
+    var xLabels = '<text x="' + padL + '" y="' + (H - 6) + '" class="wc-axis">' + esc(D.formatShort(eersteDag)) + '</text>' +
       '<text x="' + (W - padR) + '" y="' + (H - 6) + '" text-anchor="end" class="wc-axis">' +
-      esc(D.formatShort(points[points.length - 1].date)) + '</text>';
+      esc(D.formatShort(laatsteDag)) + '</text>';
+    // Bij een lange periode ook het midden, anders weet je bij een punt
+    // halverwege niet of dat juni of augustus was.
+    if (D.dagenTussen(eersteDag, laatsteDag) >= 28) {
+      var midden = D.addDays(eersteDag, Math.round(D.dagenTussen(eersteDag, laatsteDag) / 2));
+      xLabels += '<text x="' + x(midden).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" class="wc-axis">' +
+        esc(D.formatShort(midden)) + '</text>';
+    }
+
+    var trend = '';
+    if (opts.lijn && opts.lijn.length === 2) {
+      trend = '<line x1="' + x(opts.lijn[0].date).toFixed(1) + '" y1="' + y(opts.lijn[0].w).toFixed(1) +
+        '" x2="' + x(opts.lijn[1].date).toFixed(1) + '" y2="' + y(opts.lijn[1].w).toFixed(1) + '" class="wc-trend"/>';
+    }
+
+    var markeringen = (opts.markeringen || []).filter(function (m) {
+      return m.datum >= eersteDag && m.datum <= laatsteDag;
+    }).map(function (m) {
+      var mx = x(m.datum);
+      // Het label aan de kant waar plaats is, zodat het niet over de rand valt.
+      var rechts = mx > W - 110;
+      return '<line x1="' + mx.toFixed(1) + '" x2="' + mx.toFixed(1) + '" y1="' + padT + '" y2="' + (H - padB) +
+        '" class="wc-marker"/>' +
+        '<text x="' + (mx + (rechts ? -5 : 5)).toFixed(1) + '" y="' + (padT + 9) + '"' +
+        (rechts ? ' text-anchor="end"' : '') + ' class="wc-marker-label">' + esc(m.label) + '</text>';
+    }).join('');
 
     return '<svg class="weight-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Gewichtsverloop">' +
-      grid + goalLine +
+      grid + goalLine + markeringen +
       '<path d="' + area + '" class="wc-area"/>' +
       '<path d="' + line + '" class="wc-line"/>' +
-      dots + xLabels +
+      trend + dots + xLabels +
       '</svg>';
   }
 
