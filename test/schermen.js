@@ -51,7 +51,7 @@ function verzonnen() {
     else await p.evaluate(verzonnen);
     await p.reload();
     await p.waitForTimeout(600);
-    for (const view of ['dag', 'week', 'maand', 'instellingen']) {
+    for (const view of ['dag', 'week', 'maand', 'gewicht', 'instellingen']) {
       await p.click('.tab[data-view="' + view + '"]');
       await p.waitForTimeout(350);
       const over = await p.evaluate(() =>

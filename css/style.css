@@ -376,7 +376,7 @@ html[data-theme="light"] .topbar-vast { box-shadow: 0 6px 18px rgba(16, 24, 40, 
 }
 
 input[type="number"], input[type="text"], input[type="email"], input[type="url"],
-input[type="password"], select, textarea {
+input[type="password"], input[type="date"], select, textarea {
   width: 100%;
   font: inherit;
   font-size: .95rem;
@@ -593,6 +593,37 @@ textarea { resize: vertical; padding-right: 12px; }
 .bd-off { opacity: .45; }
 .bd-icon { display: flex; color: var(--faint); }
 
+/* Op de kleinste telefoons passen vijf tabs alleen zonder icoontjes; het
+   tandwiel blijft, want daar staat geen woord naast. */
+@media (max-width: 360px) {
+  .tab:not([data-view="instellingen"]) .ico { display: none; }
+}
+
+/* ------------------------------- gewicht ------------------------------ */
+
+.gw-datums { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Safari geeft een datumveld anders een eigen hoogte en lijnt de tekst raar uit. */
+input[type="date"] { min-height: 44px; -webkit-appearance: none; appearance: none; color-scheme: dark; }
+html[data-theme="light"] input[type="date"] { color-scheme: light; }
+.gw-snel { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.gw-actief, .gw-actief:hover { border-color: var(--accent); color: var(--accent); }
+.gw-details {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 12px 0 0;
+}
+.gw-details dt {
+  color: var(--faint);
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+.gw-details dd { margin: 3px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gw-details dd span { display: block; color: var(--faint); font-weight: 400; font-size: .72rem; }
+.gw-wijzigingen { margin: 0; padding-left: 18px; color: var(--muted); font-size: .88rem; display: flex; flex-direction: column; gap: 6px; }
+.weight-chart + .gw-details { margin-top: 14px; }
+
 /* ---------------------------- weekafsluiting -------------------------- */
 
 .rv-cijfers {
@@ -762,6 +793,9 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
 .wc-axis { fill: var(--faint); font-family: var(--font-mono); font-size: 10px; }
 .wc-goal { stroke: #ffd60a; stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .wc-goal-label { fill: #ffd60a; font-family: var(--font-mono); font-size: 10px; }
+.wc-trend { stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 6 5; opacity: .55; vector-effect: non-scaling-stroke; }
+.wc-marker { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 4; vector-effect: non-scaling-stroke; }
+.wc-marker-label { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; }
 
 .lijn-grafiek { width: 100%; height: auto; aspect-ratio: 640 / 200; display: block; }
 .lc-line { fill: none; stroke: var(--lc-kleur, var(--accent)); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
@@ -1076,6 +1110,10 @@ ol.explain { list-style: decimal; }
      dichter op elkaar staan. */
   .tab { padding: 10px 7px 8px; font-size: .72rem; letter-spacing: .06em; gap: 5px; }
   .tab .ico { width: 14px; height: 14px; }
+  /* Vijf tabs: Instellingen is op een telefoon alleen het tandwiel. */
+  .tab { position: relative; }
+  .tab-tekst { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .gw-details { grid-template-columns: 1fr 1fr; }
 
   .hero { gap: 16px; justify-content: center; }
   .hero-ring svg { width: 150px; height: 150px; }

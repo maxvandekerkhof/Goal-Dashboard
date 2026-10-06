@@ -336,6 +336,25 @@ Daardoor telt een dag ook op het caloriedoel dat **die dag** gold, net als het e
 deed. Zet je je doel van 2530 op 2360, dan worden je dagen op 2530 van vorige maand niet
 alsnog rood.
 
+## Gewicht over een periode
+
+Het tabblad **Gewicht** laat je gewicht zien over een periode die je zelf kiest. Vul bij
+*Van* en *Tot en met* twee datums in, of kies een snelkeuze: *4 weken*, *3 maanden*,
+*6 maanden*, *1 jaar*, *Alles* (vanaf je eerste weging) of *Sinds caloriedoel* (vanaf je
+laatste aanpassing). Een snelkeuze schuift elke dag mee; zelf gekozen datums blijven staan.
+Wat je koos onthoudt dit apparaat, los van je gegevens — het synchroniseert niet en zit niet
+in je back-up. In het week- en maandoverzicht brengt *Zelf een periode kiezen* onder de
+gewichtsgrafiek je hier ook.
+
+Bovenin vier cijfers: **begin**, **eind**, het **verschil** en de lijn door al je wegingen
+in **kilo per week**, naast je tempo. Begin en eind zijn het gemiddelde van je eerste en
+laatste week aan wegingen zodra die minstens twee weken uit elkaar liggen; korter dan dat
+zijn het je eerste en laatste weging zelf. Een lijn komt er vanaf een week en vijf wegingen.
+
+In de grafiek is die lijn gestippeld, en een verticale streep markeert elke dag waarop je
+je caloriedoel aanpaste. Daaronder je laagste en hoogste weging, hoe vaak je woog en wat je
+gemiddeld at, en onder de grafiek elk doel dat je in die periode veranderde.
+
 ## Synchroniseren tussen telefoon en laptop
 
 Standaard staat je data alleen in de browser waarin je hem invult. Wil je op allebei je
@@ -566,7 +585,8 @@ staan en word je uitgelogd, zodat het niet meteen weer terugkomt.
 
 ## Bediening
 
-- Tabs bovenaan: **Dag**, **Week**, **Maand**, **Instellingen**.
+- Tabs bovenaan: **Dag**, **Week**, **Maand**, **Gewicht**, **Instellingen** (op een telefoon
+  alleen het tandwiel).
 - `‹` en `›` (of pijltjestoetsen) om een dag, week of maand op te schuiven; `T` springt
   terug naar vandaag.
 - Klik in de week- of maandweergave op een dag om hem meteen in te vullen.
@@ -590,7 +610,7 @@ js/vangnet.js       automatische kopieën (IndexedDB) en de back-upherinnering
 js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
 js/score.js         scoreberekening per dag en per periode, streaks, gewichtstrend
 js/charts.js        SVG-ring, balken, kalender, gewichts- en oefeninggrafiek
-js/review.js        weekafsluiting: eten tegenover gewicht, adviezen
+js/review.js        week- en maandafsluiting, gewicht over een periode
 js/voeding.js       calorieën en eiwitten uit Apple Health toepassen
 js/sync.js          synchronisatie via de REST-API van Supabase
 js/app.js           weergave en interactie
@@ -618,11 +638,11 @@ npm test                # alle suites
 npm test -- advies      # alleen suites met "advies" in de naam
 ```
 
-`npm test` start zelf een kleine webserver en draait twaalf suites achter elkaar: de dagscore,
+`npm test` start zelf een kleine webserver en draait dertien suites achter elkaar: de dagscore,
 de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
 gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
 terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten, de twee
-weken na een nieuw caloriedoel, de maandafsluiting en alle
+weken na een nieuw caloriedoel, de maandafsluiting, gewicht over een zelfgekozen periode en alle
 schermen op telefoonbreedte.
 
 Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op

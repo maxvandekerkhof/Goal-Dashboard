@@ -20,7 +20,7 @@ const SOORT = {
 
 const SUITES = [
   'dagscore', 'voedingsdoelen', 'eiwitdoel', 'overload', 'verbruik', 'gewicht',
-  'gegevensveiligheid', 'advies', 'kleine-punten', 'doelwissel', 'maand', 'schermen'
+  'gegevensveiligheid', 'advies', 'kleine-punten', 'doelwissel', 'maand', 'gewichtperiode', 'schermen'
 ];
 
 const server = http.createServer((req, res) => {
