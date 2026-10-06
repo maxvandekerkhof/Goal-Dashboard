@@ -2483,6 +2483,7 @@
     laatsteAnchor = ui.anchor;
 
     $('#view').innerHTML = html;
+    $('#view').setAttribute('data-view', ui.view);
     if (navigatie) naarBoven();
     onthulKaarten(navigatie);
   }

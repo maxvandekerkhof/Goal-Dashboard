@@ -283,6 +283,30 @@ html[data-theme="light"] .topbar-vast { box-shadow: 0 6px 18px rgba(16, 24, 40, 
 }
 .view > .card:first-child { border-top: 0; padding-top: 16px; }
 
+/* Instellingen: elk blok staat vol veldlabels in dezelfde kleine grijze
+   hoofdletters als een kopje. Daar moet het kopje er dus duidelijk bovenuit
+   komen: groter, vet, in de tekstkleur, met het icoon in een eigen vakje. */
+.view[data-view="instellingen"] > .card { padding-top: 22px; }
+.view[data-view="instellingen"] > .card > h2,
+.view[data-view="instellingen"] > .card > .card-head > h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  color: var(--text);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.view[data-view="instellingen"] > .card > h2 .ico,
+.view[data-view="instellingen"] > .card > .card-head > h2 .ico {
+  box-sizing: content-box;
+  width: 16px;
+  height: 16px;
+  padding: 6px;
+  border-radius: 8px;
+  color: var(--accent);
+  background: var(--accent-zacht);
+}
+
 /* Mag afbreken: "Weekafsluiting · week 38" met daarnaast een datumbereik past
    op 390 px niet op één regel, en duwde zijn eigen chip het scherm af. */
 .card-head {
@@ -835,6 +859,8 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
 /* ---------------------------- instellingen ---------------------------- */
 
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+/* Een uitleg boven de velden plakte anders tegen het eerste label aan. */
+.hint + .form-grid { margin-top: 14px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field-label {
   font-family: var(--font-cond);
@@ -8929,6 +8955,7 @@ ol.explain { list-style: decimal; }
     laatsteAnchor = ui.anchor;
 
     $('#view').innerHTML = html;
+    $('#view').setAttribute('data-view', ui.view);
     if (navigatie) naarBoven();
     onthulKaarten(navigatie);
   }
