@@ -264,6 +264,52 @@ html[data-theme="light"] .topbar-vast { box-shadow: 0 6px 18px rgba(16, 24, 40, 
 }
 .view > .card:first-child { border-top: 0; padding-top: 16px; }
 
+/* Kopjes van een blok. Elk blok staat vol veldlabels en ondertitels in kleine
+   grijze hoofdletters; het kopje moet er dus duidelijk bovenuit komen: groter,
+   vet, in de tekstkleur, met het icoon in een eigen vakje. */
+.view > .card { padding-top: 22px; }
+.view > .card > h2,
+.view > .card > .card-head > h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  color: var(--text);
+  gap: 10px;
+}
+.view > .card > h2 { margin-bottom: 16px; }
+.view > .card > h2 .ico,
+.view > .card > .card-head > h2 .ico {
+  box-sizing: content-box;
+  width: 16px;
+  height: 16px;
+  padding: 6px;
+  border-radius: 8px;
+  color: var(--accent);
+  background: var(--accent-zacht);
+}
+
+/* De back-up: het enige dat je gegevens redt als je telefoon of de cloud ze
+   kwijtraakt. Daarom als enige blok een eigen kader, in het blauw zolang hij
+   recent is en in oranje zodra hij te oud is. */
+.view > .card.kluis {
+  --kluis: var(--accent);
+  margin: 18px 0;
+  padding: 20px 18px 18px;
+  border: 1px solid color-mix(in srgb, var(--kluis) 50%, transparent);
+  border-radius: var(--radius);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--kluis) 13%, var(--card)) 0%, var(--card) 65%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--kluis) 8%, transparent);
+}
+.view > .card.kluis-let-op { --kluis: #ff9f0a; }
+html[data-theme="light"] .view > .card.kluis-let-op { --kluis: #b45309; }
+.view > .card.kluis + .card { border-top: 0; }
+.view > .card.kluis > .card-head > h2 .ico { color: #fff; background: var(--kluis); }
+.kluis-regel { font-size: .95rem; color: var(--text); }
+.kluis-regel strong { color: var(--kluis); }
+.kluis .chip { color: var(--kluis); border-color: color-mix(in srgb, var(--kluis) 50%, transparent); }
+.kluis .btn-primary { display: inline-flex; align-items: center; gap: 7px; }
+.kluis .btn-primary .ico { width: 16px; height: 16px; }
+
 /* Mag afbreken: "Weekafsluiting · week 38" met daarnaast een datumbereik past
    op 390 px niet op één regel, en duwde zijn eigen chip het scherm af. */
 .card-head {
@@ -816,6 +862,8 @@ html[data-theme="light"] .rv-slecht { --rv-kleur: #cf2a20; }
 /* ---------------------------- instellingen ---------------------------- */
 
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+/* Een uitleg boven de velden plakte anders tegen het eerste label aan. */
+.hint + .form-grid { margin-top: 14px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field-label {
   font-family: var(--font-cond);

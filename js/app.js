@@ -1918,12 +1918,15 @@
       : 'Je gegevens staan alleen in deze browser. Download af en toe een back-up en zet hem buiten ' +
         'dit apparaat, bijvoorbeeld in iCloud Drive. Met dat bestand zet je ze ook op een ander apparaat.';
 
-    return '<section class="card"><h2>' + GD.icon('download') + 'Je data</h2>' +
-      '<p class="hint">' + waar + '</p>' +
-      '<p class="' + (herinner ? 'alert alert-bad' : 'hint') + '">Laatste back-up op dit apparaat: <strong>' +
+    // De back-up is het enige dat je gegevens redt als dit apparaat of de cloud
+    // ze kwijtraakt; daarom een eigen kader, oranje zodra hij te oud is.
+    return '<section class="card kluis' + (herinner ? ' kluis-let-op' : '') + '">' +
+      '<div class="card-head"><h2>' + GD.icon('schild') + 'Back-up en je data</h2></div>' +
+      '<p class="kluis-regel">Laatste back-up op dit apparaat: <strong>' +
       (n === null ? 'nog nooit' : dagenGeleden(n)) + '</strong>.</p>' +
+      '<p class="hint">' + waar + '</p>' +
       '<div class="row-actions">' +
-      '<button class="btn' + (herinner ? ' btn-primary' : '') + '" data-action="export">Back-up downloaden</button>' +
+      '<button class="btn btn-primary" data-action="export">' + GD.icon('download') + 'Back-up downloaden</button>' +
       '<button class="btn" data-action="pick-json">Back-up terugzetten</button>' +
       '</div>' +
       '<p class="hint">' + dates.length + ' dag' + (dates.length === 1 ? '' : 'en') + ' opgeslagen' +
@@ -1946,8 +1949,9 @@
   function backupHerinnering() {
     if (!GD.vangnet || !GD.vangnet.herinneren()) return '';
     var n = GD.vangnet.dagenSindsBackup();
-    return '<section class="card">' +
-      '<div class="card-head"><h2>' + GD.icon('download') + 'Back-up</h2></div>' +
+    return '<section class="card kluis kluis-let-op">' +
+      '<div class="card-head"><h2>' + GD.icon('schild') + 'Back-up</h2>' +
+      '<span class="chip">' + (n === null ? 'nog nooit' : 'laatste ' + dagenGeleden(n)) + '</span></div>' +
       '<p class="hint">' + (n === null
         ? 'Je hebt op dit apparaat nog geen back-up gedownload.'
         : 'Je laatste back-up is van ' + n + ' dagen geleden.') +
@@ -2483,6 +2487,7 @@
     laatsteAnchor = ui.anchor;
 
     $('#view').innerHTML = html;
+    $('#view').setAttribute('data-view', ui.view);
     if (navigatie) naarBoven();
     onthulKaarten(navigatie);
   }
