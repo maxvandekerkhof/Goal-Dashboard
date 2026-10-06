@@ -587,6 +587,10 @@ staan en word je uitgelogd, zodat het niet meteen weer terugkomt.
 
 - Tabs bovenaan: **Dag**, **Week**, **Maand**, **Gewicht**, **Instellingen** (op een telefoon
   alleen het tandwiel).
+- In de instellingen klapt elk blok open en dicht met een tik op het kopje. Alles begint
+  dicht, zodat je eerst ziet wat er te regelen valt; wat je openzet onthoudt dit apparaat.
+  Het blok **Back-up en je data** blijft altijd open, alleen de lijst met automatische
+  kopieën daarin klapt in.
 - `‹` en `›` (of pijltjestoetsen) om een dag, week of maand op te schuiven; `T` springt
   terug naar vandaag.
 - Klik in de week- of maandweergave op een dag om hem meteen in te vullen.
@@ -638,11 +642,11 @@ npm test                # alle suites
 npm test -- advies      # alleen suites met "advies" in de naam
 ```
 
-`npm test` start zelf een kleine webserver en draait dertien suites achter elkaar: de dagscore,
+`npm test` start zelf een kleine webserver en draait veertien suites achter elkaar: de dagscore,
 de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
 gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
 terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten, de twee
-weken na een nieuw caloriedoel, de maandafsluiting, gewicht over een zelfgekozen periode en alle
+weken na een nieuw caloriedoel, de maandafsluiting, gewicht over een zelfgekozen periode, het inklappen van de instellingen en alle
 schermen op telefoonbreedte.
 
 Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op
