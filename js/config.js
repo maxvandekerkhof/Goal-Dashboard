@@ -113,7 +113,9 @@
     gewichtDoel: null,        // kg, optioneel streefgewicht (lijn in de grafiek)
     gewichtRichting: 'aankomen', // 'aankomen' | 'afvallen' | 'behouden' | 'uit'
     gewichtTempo: 0.25,       // kg per week; bij 'behouden' is dit de marge
-    oefeningen: [],           // [{id, naam, type:'gewicht'|'reps', perArm, startDatum}]
+    oefeningen: [],           // [{id, naam, type:'gewicht'|'reps', perArm, startDatum, rust}]
+    rustStandaard: 120,       // seconden rust tussen sets, voor oefeningen zonder eigen rusttijd
+    rustGeluid: true,         // piepje als je rust voorbij is
     schemas: [],              // [{id, naam, oefeningen:[oefening-id]}]
     voedingSync: false,       // calorieën en eiwitten ophalen uit de tabel voeding
     weekafsluitingGezien: '', // maandag van de week waarvan je de afsluiting wegklikte

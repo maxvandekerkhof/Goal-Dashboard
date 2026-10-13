@@ -852,11 +852,17 @@
     }).join('');
 
     var open = ui.liftGrafiek === oid;
+    // Rusten doe je tijdens de training, dus alleen vandaag.
+    var rust = GD.rust && date === D.today()
+      ? '<button class="btn btn-ghost btn-sm rust-start" data-action="rust-start" data-oef="' + esc(oid) + '"' +
+        ' title="Rusttimer starten" aria-label="Rusttimer van ' + esc(GD.rust.tijd(GD.rust.voor(oid))) + ' starten">' +
+        GD.icon('timer', 15) + esc(GD.rust.tijd(GD.rust.voor(oid))) + '</button>'
+      : '';
 
     return '<div class="lift">' +
       '<div class="lift-head">' +
       '<span class="lift-name">' + esc(oef.naam) + '</span>' +
-      '<span class="lift-knoppen">' +
+      '<span class="lift-knoppen">' + rust +
       '<button class="btn btn-ghost btn-sm' + (open ? ' btn-aan' : '') + '"' +
       ' data-action="lift-grafiek" data-oef="' + esc(oid) + '"' +
       ' aria-expanded="' + (open ? 'true' : 'false') + '"' +
@@ -1773,6 +1779,7 @@
       '<label class="schema-arm" title="Rechts en links apart bijhouden">' +
       '<input type="checkbox" data-oef-arm="' + esc(oid) + '"' + (o.perArm ? ' checked' : '') + '>' +
       '<span>per arm</span></label>' +
+      (GD.rust ? rustKeuze(oid) : '') +
       '<span class="schema-tel" title="Aantal ingevulde sessies">' + aantal + '×</span>' +
       '<span class="schema-knoppen">' +
       '<button class="btn btn-ghost btn-sm" data-action="oef-up" data-schema="' + esc(s.id) + '"' +
@@ -1784,6 +1791,40 @@
       '<button class="btn btn-ghost btn-sm" data-action="oef-remove" data-schema="' + esc(s.id) + '"' +
       ' data-oef="' + esc(oid) + '" title="Uit dit schema halen (je historie blijft)">✕</button>' +
       '</span></li>';
+  }
+
+  /** De rusttijd van één oefening: je standaard, of een eigen tijd. */
+  function rustKeuze(oid) {
+    var eigen = GD.rust.eigen(oid);
+    var keuzes = GD.rust.KEUZES.slice();
+    if (eigen && keuzes.indexOf(eigen) < 0) keuzes.push(eigen);
+    keuzes.sort(function (a, b) { return a - b; });
+    return '<select class="schema-rust" data-oef-rust="' + esc(oid) + '" aria-label="Rusttijd tussen sets">' +
+      '<option value=""' + (eigen ? '' : ' selected') + '>Rust: standaard</option>' +
+      keuzes.map(function (k) {
+        return '<option value="' + k + '"' + (k === eigen ? ' selected' : '') + '>Rust ' + GD.rust.tijd(k) + '</option>';
+      }).join('') +
+      '</select>';
+  }
+
+  /** Standaard rusttijd en het piepje, boven je schema's. */
+  function rustInstellingen(s) {
+    if (!GD.rust) return '';
+    var nu = GD.rust.standaard();
+    var keuzes = GD.rust.KEUZES.slice();
+    if (keuzes.indexOf(nu) < 0) keuzes.push(nu);
+    keuzes.sort(function (a, b) { return a - b; });
+    return '<div class="form-grid rust-instellingen">' +
+      '<label class="field"><span class="field-label">Standaard rusttijd</span>' +
+      '<select data-rust-standaard>' + keuzes.map(function (k) {
+        return '<option value="' + k + '"' + (k === nu ? ' selected' : '') + '>' + GD.rust.tijd(k) + ' min</option>';
+      }).join('') + '</select></label>' +
+      '</div>' +
+      toggle('rustGeluid', 'Piepje als je rust voorbij is',
+        'Alleen zolang de app open staat; met je telefoon op stil hoor je het niet.', s.rustGeluid !== false) +
+      '<p class="hint">Op de dagpagina staat bij elke oefening een klokje met zijn rusttijd. Tik erop ' +
+      'na je set, dan telt onderin de balk af. Hieronder geef je een oefening een eigen tijd, ' +
+      'bijvoorbeeld drie minuten bij bankdrukken en anderhalve bij curls.</p>';
   }
 
   function schemaSection() {
@@ -1817,6 +1858,7 @@
       '<p class="hint">Per training kies je op de dagpagina één schema en vul je per oefening je ' +
       'beste set in. De app onthoudt je startpunt en je vorige keer, en bepaalt daaruit zelf of je ' +
       'progressive overload hebt gehaald.</p>' +
+      rustInstellingen(store.settings()) +
       '<datalist id="alle-oefeningen">' + namen + '</datalist>' +
       (blokken ? '<div class="schemas">' + blokken + '</div>' : '') +
       '<div class="lift-add">' +
@@ -2877,6 +2919,10 @@
       }
       return;
     }
+    if (action === 'rust-start') {
+      if (GD.rust) GD.rust.start(el.dataset.oef);
+      return;
+    }
     if (action === 'calorie-wissel-erbij') {
       var cwDatum = $('#cw-datum').value;
       var cwFout = store.calorieWisselAchteraf(cwDatum, S.num($('#cw-van').value), S.num($('#cw-naar').value));
@@ -3225,6 +3271,16 @@
       }
       if (t.dataset && t.dataset.oefArm) {
         GD.lifts.updateOefening(t.dataset.oefArm, { perArm: t.checked });
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.oefRust) {
+        GD.lifts.updateOefening(t.dataset.oefRust, { rust: S.num(t.value) || null });
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.rustStandaard !== undefined) {
+        store.setSetting('rustStandaard', S.num(t.value) || GD.DEFAULT_SETTINGS.rustStandaard);
         render();
         return;
       }

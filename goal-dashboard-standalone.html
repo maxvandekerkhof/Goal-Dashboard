@@ -1216,6 +1216,63 @@ ol.explain { list-style: decimal; }
   to { opacity: 1; }
 }
 
+/* ------------------------------- rusttimer ---------------------------- */
+
+/* Onderin, over de inhoud heen, zodat hij blijft staan terwijl je scrolt naar
+   je volgende oefening. Hetzelfde blauw als alles wat je kunt indrukken; als
+   de rust voorbij is wordt hij groen, de kleur van "goed zo" in deze app. */
+.rust {
+  --rust-klaar: #00e5a0;
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(calc(100vw - 24px), 520px);
+  z-index: 40;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "naam naam" "tijd knoppen";
+  align-items: center;
+  gap: 2px 12px;
+  padding: 9px 12px 13px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  overflow: hidden;
+}
+html[data-theme="light"] .rust { --rust-klaar: #00875e; box-shadow: 0 8px 24px rgba(16, 24, 40, .16); }
+.rust-naam {
+  grid-area: naam; display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+.rust-naam > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rust-tijd {
+  grid-area: tijd;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 1.9rem; font-weight: 700; line-height: 1.15;
+}
+.rust-knoppen { grid-area: knoppen; display: flex; gap: 6px; }
+.rust-knoppen .btn { min-width: 46px; padding: 9px 10px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.rust-voortgang { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--track); }
+.rust-vulling { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s linear; }
+.rust-klaar { border-color: var(--rust-klaar); animation: rustflits 1s ease-in-out 3; }
+.rust-klaar .rust-naam .ico { color: var(--rust-klaar); }
+.rust-klaar-tekst { font-family: var(--font-body); font-size: 1.35rem; color: var(--rust-klaar); }
+.rust-klaar .rust-knoppen .btn { font-family: inherit; }
+@keyframes rustflits { 50% { background: color-mix(in srgb, var(--rust-klaar) 20%, var(--bg-elev)); } }
+@media (prefers-reduced-motion: reduce) {
+  .rust-klaar { animation: none; }
+  .rust-vulling { transition: none; }
+}
+/* De balk mag niets van de pagina afdekken, en de meldingen schuiven erboven. */
+body.rust-aan { padding-bottom: 96px; }
+body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
+
+.rust-start { gap: 5px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.schema-oef select.schema-rust { min-width: 0; }
+.rust-instellingen { margin-bottom: 4px; }
+
 /* ------------------------------- responsive --------------------------- */
 
 @media (max-width: 560px) {
@@ -1304,6 +1361,8 @@ ol.explain { list-style: decimal; }
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <div id="rust" class="rust" hidden></div>
 
   <input type="file" id="file-json" accept=".json,application/json" hidden>
 
@@ -1423,7 +1482,9 @@ ol.explain { list-style: decimal; }
     gewichtDoel: null,        // kg, optioneel streefgewicht (lijn in de grafiek)
     gewichtRichting: 'aankomen', // 'aankomen' | 'afvallen' | 'behouden' | 'uit'
     gewichtTempo: 0.25,       // kg per week; bij 'behouden' is dit de marge
-    oefeningen: [],           // [{id, naam, type:'gewicht'|'reps', perArm, startDatum}]
+    oefeningen: [],           // [{id, naam, type:'gewicht'|'reps', perArm, startDatum, rust}]
+    rustStandaard: 120,       // seconden rust tussen sets, voor oefeningen zonder eigen rusttijd
+    rustGeluid: true,         // piepje als je rust voorbij is
     schemas: [],              // [{id, naam, oefeningen:[oefening-id]}]
     voedingSync: false,       // calorieën en eiwitten ophalen uit de tabel voeding
     weekafsluitingGezien: '', // maandag van de week waarvan je de afsluiting wegklikte
@@ -1686,7 +1747,13 @@ ol.explain { list-style: decimal; }
       + '1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />',
     schild: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 '
       + '0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /> <path d="m9 '
-      + '12 2 2 4-4" />'
+      + '12 2 2 4-4" />',
+    timer: '<line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle '
+      + 'cx="12" cy="14" r="8" />',
+    trofee: '<path d="M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978" /> <path d="M14 '
+      + '14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978" /> <path d="M18 9h1.5a1 1 0 0 0 0-5H18" '
+      + '/> <path d="M4 22h16" /> <path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z" /> '
+      + '<path d="M6 9H4.5a1 1 0 0 1 0-5H6" />'
   };
 
   /* Het vlammetje doet dubbel dienst: calorieen en je reeks goede dagen. */
@@ -6632,6 +6699,310 @@ ol.explain { list-style: decimal; }
 
   </script>
   <script>
+/* Goal Dashboard - rusttimer tussen sets
+ *
+ * Eén timer tegelijk: je tikt bij een oefening op de klok en hij telt de
+ * rusttijd van díe oefening af, of je standaardtijd als de oefening er geen
+ * eigen heeft. Onderin staat een balk met de tijd die nog over is, en knoppen
+ * om er vijftien seconden af of bij te doen.
+ *
+ * De timer rekent vanaf een eindtijd, niet met een tellertje. Zet je telefoon
+ * de app in de achtergrond stil, dan klopt de tijd nog steeds zodra je
+ * terugkomt. Een piepje kan alleen als de app open staat; daarom houdt de
+ * timer zolang hij loopt je scherm aan, waar de browser dat toestaat.
+ *
+ * Hij hoort bij dit apparaat en niet bij je gegevens: hij synchroniseert niet
+ * en zit niet in je back-up. Wel overleeft hij een herlaadbeurt.
+ */
+(function (global) {
+  'use strict';
+
+  var GD = global.GD;
+  var KEY = 'goaldash.rust';
+  var STAP = 15;              // seconden per tik op −15 / +15
+  var MAX = 900;              // nooit meer dan een kwartier rust over
+  var KLAAR_ZICHTBAAR = 60;   // zo lang blijft "rust voorbij" staan
+  var PIEP_MARGE = 3;         // later dan dit na het eind is een piepje zinloos
+
+  /* De keuzes bij Instellingen: van een halve minuut tot vijf minuten. */
+  var KEUZES = [30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240, 300];
+
+  function tijd(sec) {
+    sec = Math.max(0, Math.ceil(sec));
+    var s = sec % 60;
+    return Math.floor(sec / 60) + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function standaard() {
+    var n = +GD.store.settings().rustStandaard;
+    return n > 0 ? n : 120;
+  }
+
+  /** De eigen rusttijd van een oefening, of null. */
+  function eigen(oid) {
+    var o = GD.lifts.byId(oid);
+    var n = o ? +o.rust : 0;
+    return n > 0 ? n : null;
+  }
+
+  /** De rusttijd die geldt voor een oefening, in seconden. */
+  function voor(oid) {
+    return eigen(oid) || standaard();
+  }
+
+  /* ------------------------------ toestand ------------------------------ */
+
+  var stand = null;   // { oef, naam, duur, eind, gemeld }
+
+  function lees() {
+    try {
+      var r = JSON.parse(global.localStorage.getItem(KEY));
+      if (r && typeof r.eind === 'number' && typeof r.duur === 'number') return r;
+    } catch (e) { /* geen timer */ }
+    return null;
+  }
+
+  function bewaar() {
+    try {
+      if (stand) global.localStorage.setItem(KEY, JSON.stringify(stand));
+      else global.localStorage.removeItem(KEY);
+    } catch (e) { /* dan alleen in dit tabblad */ }
+  }
+
+  function over() { return stand ? (stand.eind - Date.now()) / 1000 : 0; }
+
+  function start(oid) {
+    var duur = voor(oid);
+    stand = { oef: oid, naam: GD.lifts.naam(oid), duur: duur, eind: Date.now() + duur * 1000, gemeld: false };
+    ontgrendelGeluid();
+    houdWakker(true);
+    bewaar();
+    teken(true);
+    loop();
+  }
+
+  function stop() {
+    stand = null;
+    bewaar();
+    houdWakker(false);
+    teken(true);
+  }
+
+  /** Er seconden bij doen (of af, met een negatief getal). */
+  function bij(sec) {
+    if (!stand) return;
+    var nu = Math.max(0, over());
+    var nieuw = Math.min(MAX, Math.max(0, nu + sec));
+    stand.eind = Date.now() + nieuw * 1000;
+    stand.duur = Math.max(stand.duur + (nieuw - nu), nieuw, 1);
+    if (nieuw > 0) stand.gemeld = false;
+    bewaar();
+    teken(true);
+    loop();
+  }
+
+  /* ------------------------------ weergave ------------------------------ */
+
+  var getekend = null;   // 'loopt', 'klaar' of null
+
+  function balk() { return global.document.getElementById('rust'); }
+
+  function teken(helemaal) {
+    var el = balk();
+    if (!el) return;
+    var fase = !stand ? null : (over() > 0 ? 'loopt' : 'klaar');
+    global.document.body.classList.toggle('rust-aan', !!fase);
+    if (!fase) {
+      el.hidden = true;
+      el.innerHTML = '';
+      getekend = null;
+      return;
+    }
+    if (helemaal || fase !== getekend) {
+      el.hidden = false;
+      el.className = 'rust' + (fase === 'klaar' ? ' rust-klaar' : '');
+      el.innerHTML = fase === 'loopt'
+        ? '<span class="rust-naam">' + GD.icon('timer', 14) + '<span>Rust · ' + esc(stand.naam) + '</span></span>' +
+          '<span class="rust-tijd" role="timer"></span>' +
+          '<div class="rust-knoppen">' +
+          '<button type="button" class="btn btn-sm" data-rust="min" aria-label="15 seconden korter">−15</button>' +
+          '<button type="button" class="btn btn-sm" data-rust="plus" aria-label="15 seconden langer">+15</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm" data-rust="stop" aria-label="Timer stoppen">' +
+          GD.icon('kruis', 16) + '</button></div>' +
+          '<div class="rust-voortgang"><span class="rust-vulling"></span></div>'
+        : '<span class="rust-naam">' + GD.icon('timer', 14) + '<span>Rust voorbij · ' + esc(stand.naam) + '</span></span>' +
+          '<span class="rust-tijd rust-klaar-tekst" role="status">Volgende set!</span>' +
+          '<div class="rust-knoppen">' +
+          '<button type="button" class="btn btn-sm" data-rust="opnieuw">Nog een keer</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm" data-rust="stop" aria-label="Sluiten">' +
+          GD.icon('kruis', 16) + '</button></div>';
+      getekend = fase;
+    }
+    if (fase === 'loopt') {
+      var t = el.querySelector('.rust-tijd');
+      var v = el.querySelector('.rust-vulling');
+      if (t) t.textContent = tijd(over());
+      if (v) v.style.width = Math.min(100, Math.max(0, (1 - over() / stand.duur) * 100)).toFixed(1) + '%';
+    }
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* ------------------------------- tikken ------------------------------- */
+
+  var interval = null;
+
+  function loop() {
+    if (interval) return;
+    interval = global.setInterval(tik, 250);
+  }
+
+  function tik() {
+    if (!stand) {
+      global.clearInterval(interval);
+      interval = null;
+      return;
+    }
+    var o = over();
+    if (o <= 0 && !stand.gemeld) {
+      stand.gemeld = true;
+      bewaar();
+      if (-o <= PIEP_MARGE && global.document.visibilityState !== 'hidden') meld();
+    }
+    if (o <= -KLAAR_ZICHTBAAR) { stop(); return; }
+    teken(false);
+  }
+
+  /* ------------------------- geluid en scherm aan ------------------------ */
+
+  var audio = null;
+
+  /* Een browser laat pas geluid toe na een tik van jou. Daarom gaat het
+     geluid open op het moment dat je de timer start, met een onhoorbaar
+     toontje: anders blijft hij op een iPhone stil als de tijd om is. */
+  function ontgrendelGeluid() {
+    var AC = global.AudioContext || global.webkitAudioContext;
+    if (!AC) return;
+    try {
+      if (!audio) audio = new AC();
+      if (audio.state === 'suspended') audio.resume();
+      var o = audio.createOscillator(), g = audio.createGain();
+      g.gain.value = 0;
+      o.connect(g);
+      g.connect(audio.destination);
+      o.start();
+      o.stop(audio.currentTime + 0.02);
+    } catch (e) { audio = null; }
+  }
+
+  /* Drie korte tonen, de laatste hoger: duidelijk genoeg boven muziek uit,
+     kort genoeg om niet te storen. */
+  function piep() {
+    if (!audio) return;
+    try {
+      [0, 0.22, 0.44].forEach(function (na, i) {
+        var o = audio.createOscillator(), g = audio.createGain();
+        var t0 = audio.currentTime + na;
+        o.type = 'sine';
+        o.frequency.value = i === 2 ? 1320 : 880;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+        o.connect(g);
+        g.connect(audio.destination);
+        o.start(t0);
+        o.stop(t0 + 0.18);
+      });
+    } catch (e) { /* dan alleen de balk */ }
+  }
+
+  function meld() {
+    if (GD.store.settings().rustGeluid !== false) piep();
+    try { if (global.navigator.vibrate) global.navigator.vibrate([200, 100, 200]); } catch (e) { /* geen trilling */ }
+  }
+
+  var wakker = null;
+
+  function houdWakker(aan) {
+    var nav = global.navigator;
+    if (aan) {
+      if (wakker || !nav.wakeLock || global.document.visibilityState === 'hidden') return;
+      nav.wakeLock.request('screen').then(function (slot) {
+        wakker = slot;
+        slot.addEventListener('release', function () { wakker = null; });
+        if (!stand) houdWakker(false);
+      }, function () { /* niet toegestaan: dan maar niet */ });
+    } else if (wakker) {
+      var w = wakker;
+      wakker = null;
+      w.release().catch(function () { /* al los */ });
+    }
+  }
+
+  /* ------------------------------- opstarten ----------------------------- */
+
+  global.document.addEventListener('click', function (e) {
+    var knop = e.target.closest ? e.target.closest('[data-rust]') : null;
+    if (!knop || !stand) return;
+    var wat = knop.getAttribute('data-rust');
+    if (wat === 'min') bij(-STAP);
+    else if (wat === 'plus') bij(STAP);
+    else if (wat === 'opnieuw') start(stand.oef);
+    else if (wat === 'stop') stop();
+  });
+
+  // Terug in de app: de tijd bijwerken en het scherm weer aanhouden.
+  global.document.addEventListener('visibilitychange', function () {
+    if (global.document.visibilityState !== 'visible' || !stand) return;
+    if (over() > 0) houdWakker(true);
+    tik();
+  });
+
+  // Een ander tabblad startte of stopte de timer.
+  global.addEventListener('storage', function (e) {
+    if (e.key !== KEY) return;
+    stand = lees();
+    teken(true);
+    if (stand) loop();
+  });
+
+  function init() {
+    stand = lees();
+    if (stand && over() <= -KLAAR_ZICHTBAAR) { stand = null; bewaar(); }
+    if (!stand) return;
+    // Na herladen is het geluid weer dicht; de eerstvolgende tik zet het open.
+    global.document.addEventListener('pointerdown', function eerst() {
+      global.document.removeEventListener('pointerdown', eerst);
+      ontgrendelGeluid();
+    });
+    teken(true);
+    loop();
+  }
+
+  if (global.document.readyState === 'loading') global.document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+  GD.rust = {
+    start: start,
+    stop: stop,
+    bij: bij,
+    voor: voor,
+    eigen: eigen,
+    standaard: standaard,
+    tijd: tijd,
+    loopt: function () { return !!stand && over() > 0; },
+    stand: function () { return stand ? { oef: stand.oef, naam: stand.naam, duur: stand.duur, over: over() } : null; },
+    KEUZES: KEUZES,
+    STAP: STAP
+  };
+})(window);
+
+  </script>
+  <script>
 /* Goal Dashboard - weergave en interactie */
 (function (global) {
   'use strict';
@@ -7486,11 +7857,17 @@ ol.explain { list-style: decimal; }
     }).join('');
 
     var open = ui.liftGrafiek === oid;
+    // Rusten doe je tijdens de training, dus alleen vandaag.
+    var rust = GD.rust && date === D.today()
+      ? '<button class="btn btn-ghost btn-sm rust-start" data-action="rust-start" data-oef="' + esc(oid) + '"' +
+        ' title="Rusttimer starten" aria-label="Rusttimer van ' + esc(GD.rust.tijd(GD.rust.voor(oid))) + ' starten">' +
+        GD.icon('timer', 15) + esc(GD.rust.tijd(GD.rust.voor(oid))) + '</button>'
+      : '';
 
     return '<div class="lift">' +
       '<div class="lift-head">' +
       '<span class="lift-name">' + esc(oef.naam) + '</span>' +
-      '<span class="lift-knoppen">' +
+      '<span class="lift-knoppen">' + rust +
       '<button class="btn btn-ghost btn-sm' + (open ? ' btn-aan' : '') + '"' +
       ' data-action="lift-grafiek" data-oef="' + esc(oid) + '"' +
       ' aria-expanded="' + (open ? 'true' : 'false') + '"' +
@@ -8407,6 +8784,7 @@ ol.explain { list-style: decimal; }
       '<label class="schema-arm" title="Rechts en links apart bijhouden">' +
       '<input type="checkbox" data-oef-arm="' + esc(oid) + '"' + (o.perArm ? ' checked' : '') + '>' +
       '<span>per arm</span></label>' +
+      (GD.rust ? rustKeuze(oid) : '') +
       '<span class="schema-tel" title="Aantal ingevulde sessies">' + aantal + '×</span>' +
       '<span class="schema-knoppen">' +
       '<button class="btn btn-ghost btn-sm" data-action="oef-up" data-schema="' + esc(s.id) + '"' +
@@ -8418,6 +8796,40 @@ ol.explain { list-style: decimal; }
       '<button class="btn btn-ghost btn-sm" data-action="oef-remove" data-schema="' + esc(s.id) + '"' +
       ' data-oef="' + esc(oid) + '" title="Uit dit schema halen (je historie blijft)">✕</button>' +
       '</span></li>';
+  }
+
+  /** De rusttijd van één oefening: je standaard, of een eigen tijd. */
+  function rustKeuze(oid) {
+    var eigen = GD.rust.eigen(oid);
+    var keuzes = GD.rust.KEUZES.slice();
+    if (eigen && keuzes.indexOf(eigen) < 0) keuzes.push(eigen);
+    keuzes.sort(function (a, b) { return a - b; });
+    return '<select class="schema-rust" data-oef-rust="' + esc(oid) + '" aria-label="Rusttijd tussen sets">' +
+      '<option value=""' + (eigen ? '' : ' selected') + '>Rust: standaard</option>' +
+      keuzes.map(function (k) {
+        return '<option value="' + k + '"' + (k === eigen ? ' selected' : '') + '>Rust ' + GD.rust.tijd(k) + '</option>';
+      }).join('') +
+      '</select>';
+  }
+
+  /** Standaard rusttijd en het piepje, boven je schema's. */
+  function rustInstellingen(s) {
+    if (!GD.rust) return '';
+    var nu = GD.rust.standaard();
+    var keuzes = GD.rust.KEUZES.slice();
+    if (keuzes.indexOf(nu) < 0) keuzes.push(nu);
+    keuzes.sort(function (a, b) { return a - b; });
+    return '<div class="form-grid rust-instellingen">' +
+      '<label class="field"><span class="field-label">Standaard rusttijd</span>' +
+      '<select data-rust-standaard>' + keuzes.map(function (k) {
+        return '<option value="' + k + '"' + (k === nu ? ' selected' : '') + '>' + GD.rust.tijd(k) + ' min</option>';
+      }).join('') + '</select></label>' +
+      '</div>' +
+      toggle('rustGeluid', 'Piepje als je rust voorbij is',
+        'Alleen zolang de app open staat; met je telefoon op stil hoor je het niet.', s.rustGeluid !== false) +
+      '<p class="hint">Op de dagpagina staat bij elke oefening een klokje met zijn rusttijd. Tik erop ' +
+      'na je set, dan telt onderin de balk af. Hieronder geef je een oefening een eigen tijd, ' +
+      'bijvoorbeeld drie minuten bij bankdrukken en anderhalve bij curls.</p>';
   }
 
   function schemaSection() {
@@ -8451,6 +8863,7 @@ ol.explain { list-style: decimal; }
       '<p class="hint">Per training kies je op de dagpagina één schema en vul je per oefening je ' +
       'beste set in. De app onthoudt je startpunt en je vorige keer, en bepaalt daaruit zelf of je ' +
       'progressive overload hebt gehaald.</p>' +
+      rustInstellingen(store.settings()) +
       '<datalist id="alle-oefeningen">' + namen + '</datalist>' +
       (blokken ? '<div class="schemas">' + blokken + '</div>' : '') +
       '<div class="lift-add">' +
@@ -9511,6 +9924,10 @@ ol.explain { list-style: decimal; }
       }
       return;
     }
+    if (action === 'rust-start') {
+      if (GD.rust) GD.rust.start(el.dataset.oef);
+      return;
+    }
     if (action === 'calorie-wissel-erbij') {
       var cwDatum = $('#cw-datum').value;
       var cwFout = store.calorieWisselAchteraf(cwDatum, S.num($('#cw-van').value), S.num($('#cw-naar').value));
@@ -9859,6 +10276,16 @@ ol.explain { list-style: decimal; }
       }
       if (t.dataset && t.dataset.oefArm) {
         GD.lifts.updateOefening(t.dataset.oefArm, { perArm: t.checked });
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.oefRust) {
+        GD.lifts.updateOefening(t.dataset.oefRust, { rust: S.num(t.value) || null });
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.rustStandaard !== undefined) {
+        store.setSetting('rustStandaard', S.num(t.value) || GD.DEFAULT_SETTINGS.rustStandaard);
         render();
         return;
       }

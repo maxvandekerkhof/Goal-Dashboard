@@ -1197,6 +1197,63 @@ ol.explain { list-style: decimal; }
   to { opacity: 1; }
 }
 
+/* ------------------------------- rusttimer ---------------------------- */
+
+/* Onderin, over de inhoud heen, zodat hij blijft staan terwijl je scrolt naar
+   je volgende oefening. Hetzelfde blauw als alles wat je kunt indrukken; als
+   de rust voorbij is wordt hij groen, de kleur van "goed zo" in deze app. */
+.rust {
+  --rust-klaar: #00e5a0;
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(calc(100vw - 24px), 520px);
+  z-index: 40;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "naam naam" "tijd knoppen";
+  align-items: center;
+  gap: 2px 12px;
+  padding: 9px 12px 13px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  overflow: hidden;
+}
+html[data-theme="light"] .rust { --rust-klaar: #00875e; box-shadow: 0 8px 24px rgba(16, 24, 40, .16); }
+.rust-naam {
+  grid-area: naam; display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+.rust-naam > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rust-tijd {
+  grid-area: tijd;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 1.9rem; font-weight: 700; line-height: 1.15;
+}
+.rust-knoppen { grid-area: knoppen; display: flex; gap: 6px; }
+.rust-knoppen .btn { min-width: 46px; padding: 9px 10px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.rust-voortgang { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--track); }
+.rust-vulling { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s linear; }
+.rust-klaar { border-color: var(--rust-klaar); animation: rustflits 1s ease-in-out 3; }
+.rust-klaar .rust-naam .ico { color: var(--rust-klaar); }
+.rust-klaar-tekst { font-family: var(--font-body); font-size: 1.35rem; color: var(--rust-klaar); }
+.rust-klaar .rust-knoppen .btn { font-family: inherit; }
+@keyframes rustflits { 50% { background: color-mix(in srgb, var(--rust-klaar) 20%, var(--bg-elev)); } }
+@media (prefers-reduced-motion: reduce) {
+  .rust-klaar { animation: none; }
+  .rust-vulling { transition: none; }
+}
+/* De balk mag niets van de pagina afdekken, en de meldingen schuiven erboven. */
+body.rust-aan { padding-bottom: 96px; }
+body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
+
+.rust-start { gap: 5px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.schema-oef select.schema-rust { min-width: 0; }
+.rust-instellingen { margin-bottom: 4px; }
+
 /* ------------------------------- responsive --------------------------- */
 
 @media (max-width: 560px) {

@@ -110,6 +110,37 @@ volgorde wisselen, uit een schema halen (je ingevulde sessies blijven staan) en 
 opnieuw beginnen met tellen, bijvoorbeeld na een blessure of een deload. Staat er nog niets,
 dan zet één knop **Push** en **Pull** voor je klaar.
 
+### Rusttimer
+
+Op de dagpagina van **vandaag** staat bij elke oefening een klokje met zijn rusttijd. Tik
+erop na je set, dan telt onderin een balk af, met de oefening erbij:
+
+```
+⏱ RUST · INCLINE BENCH PRESS
+2:12                                   [−15] [+15] [✕]
+▬▬▬▬▬▬▬▬▬▬▬▬────────────────────────────────────────────
+```
+
+Met **−15** en **+15** schuif je deze ene rust een kwart minuut op; **✕** stopt hem. Is de
+tijd om, dan wordt de balk groen met *Volgende set!*, klinken er drie korte piepjes en trilt
+je telefoon als die dat kan. Met **Nog een keer** start dezelfde rust opnieuw. Een minuut
+later verdwijnt de balk vanzelf.
+
+De rusttijd stel je in bij **Instellingen → Trainingsschema's**: bovenaan een **standaard
+rusttijd** (begint op 2:00) en bij elke oefening een eigen tijd, van 0:30 tot 5:00, of
+*Rust: standaard*. Zo rust je drie minuten na bankdrukken en anderhalve na curls. Het
+piepje zet je daar ook uit.
+
+Goed om te weten:
+
+- De timer telt vanaf een eindtijd, dus hij klopt nog steeds als je even een ander scherm
+  opent, de app herlaadt of je telefoon wegstopt.
+- Een piepje kan alleen zolang de app open staat. Zolang de timer loopt, houdt de app je
+  scherm daarom aan, als je browser dat toestaat. Staat je iPhone op stil, dan hoor je het
+  piepje niet; de balk wordt wel groen.
+- De timer hoort bij dit apparaat. Hij synchroniseert niet en zit niet in je back-up. De
+  rusttijden zelf wel, want die horen bij je oefeningen.
+
 ## Waterteller
 
 Op de dagweergave staat een aparte kaart met drie knoppen: **+25 cl**, **+50 cl** en
@@ -621,7 +652,8 @@ staan en word je uitgelogd, zodat het niet meteen weer terugkomt.
 - **Neem gisteren over** kopieert je vinkjes van gisteren, handig op vaste dagen. Metingen
   (gewicht, calorieën, eiwit), water, oefeningen en progressive overload gaan niet mee, en
   eiwit- en caloriedoel behaald ook niet zolang de app die zelf uit je getallen afleidt.
-- **📈** naast een oefening klapt de grafiek van díe oefening uit.
+- **📈** naast een oefening klapt de grafiek van díe oefening uit; het **klokje** ernaast
+  start de rusttimer.
 - Het icoon rechtsboven wisselt tussen donker en licht.
 - Ben je ingelogd voor synchronisatie, dan staat er een **⟳** naast: die synchroniseert
   vanaf elke pagina, zonder eerst naar de instellingen te gaan. Hij draait terwijl hij
@@ -641,6 +673,7 @@ js/charts.js        SVG-ring, balken, kalender, gewichts- en oefeninggrafiek
 js/review.js        week- en maandafsluiting, gewicht over een periode
 js/voeding.js       calorieën en eiwitten uit Apple Health toepassen
 js/sync.js          synchronisatie via de REST-API van Supabase
+js/rust.js          de rusttimer tussen sets
 js/app.js           weergave en interactie
 
 icons/apple-touch-icon.png  het icoon voor je beginscherm
