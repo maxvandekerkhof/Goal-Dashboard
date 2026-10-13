@@ -990,6 +990,14 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .kopie { grid-template-columns: 1fr; }
   .kopie-knoppen { grid-column: 1; grid-row: auto; margin-top: 4px; }
 }
+/* Een aanpassing van je caloriedoel achteraf: datum over de hele breedte,
+   van en naar naast elkaar. */
+.cw-form { grid-template-columns: 1fr 1fr; margin-top: 12px; }
+.cw-form .cw-datum { grid-column: 1 / -1; }
+@media (min-width: 640px) {
+  .cw-form { grid-template-columns: 1.2fr 1fr 1fr; }
+  .cw-form .cw-datum { grid-column: auto; }
+}
 .uitleg { margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius-s); padding: 11px 13px; }
 .uitleg summary { cursor: pointer; font-weight: 600; font-size: .88rem; }
 .uitleg[open] summary { margin-bottom: 10px; }
@@ -2100,6 +2108,86 @@ ol.explain { list-style: decimal; }
     return !!(nu && nu.datum === vandaag && nu.naar === kcal);
   }
 
+  function isKcal(n) { return typeof n === 'number' && isFinite(n) && n >= 500 && n <= 10000; }
+
+  /* De laatste twee aanpassingen die als aanpassing tellen, opnieuw uit alles
+     wat er bekend is: wat er al stond plus het logboek. Het advies kijkt
+     alleen naar de laatste aanpassing vóór de dag waar je naar kijkt, en één
+     stap terug is genoeg om een week van vóór de laatste goed te tonen. */
+  function herbouwWissel(s, zonder) {
+    var perDatum = {};
+    var w = s.calorieDoelWissel;
+    [w, w && w.eerder].forEach(function (x) {
+      if (x && typeof x.datum === 'string' && x.datum !== zonder) {
+        perDatum[x.datum] = { datum: x.datum, van: x.van, naar: x.naar };
+      }
+    });
+    (Array.isArray(s.doelLog) ? s.doelLog : []).forEach(function (r) {
+      if (r.veld !== 'calorieDoel' || r.datum === zonder || perDatum[r.datum]) return;
+      if (+r.van > 0 && +r.naar > 0 && Math.abs(r.naar - r.van) >= DOEL_KLEIN) {
+        perDatum[r.datum] = { datum: r.datum, van: +r.van, naar: +r.naar };
+      }
+    });
+    var lijst = Object.keys(perDatum).sort().map(function (d) { return perDatum[d]; });
+    if (!lijst.length) { s.calorieDoelWissel = null; return; }
+    var laatste = lijst[lijst.length - 1];
+    var ervoor = lijst.length > 1 ? lijst[lijst.length - 2] : null;
+    s.calorieDoelWissel = { datum: laatste.datum, van: laatste.van, naar: laatste.naar };
+    if (ervoor) s.calorieDoelWissel.eerder = ervoor;
+  }
+
+  /* Een aanpassing van je caloriedoel die de app niet meekreeg, alsnog
+     vastleggen. Je verzette je doel bijvoorbeeld vóór de app dat onthield.
+     Zonder die datum rekent het advies met weken waarin je nog op je oude
+     doel at, en kent het geen rust na de aanpassing; en dagen van vóór de
+     aanpassing worden gemeten aan een doel dat toen nog niet gold.
+
+     Alleen voor dagen vóór vandaag: wie vandaag iets verzet, past gewoon zijn
+     doel aan. Je huidige doel blijft staan; dit gaat over wat er toen gold.
+     -> null als het gelukt is, anders een zin die zegt wat er niet klopt */
+  function calorieWisselAchteraf(datum, van, naar) {
+    var s = load().settings;
+    if (typeof datum !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(datum)) return 'Kies een datum.';
+    if (datum >= today()) return 'Kies een dag vóór vandaag. Vandaag pas je gewoon je caloriedoel hierboven aan.';
+    van = +van; naar = +naar;
+    if (!isKcal(van) || !isKcal(naar)) return 'Vul bij allebei een caloriedoel tussen 500 en 10.000 kcal in.';
+    if (van === naar) return 'Van en naar zijn hetzelfde, dan was er niets aangepast.';
+    var al = (Array.isArray(s.doelLog) ? s.doelLog : []).some(function (r) {
+      return r.veld === 'calorieDoel' && r.datum === datum;
+    }) || [s.calorieDoelWissel, s.calorieDoelWissel && s.calorieDoelWissel.eerder].some(function (x) {
+      return x && x.datum === datum;
+    });
+    if (al) return 'Op ' + formatShort(datum) + ' staat al een aanpassing.';
+
+    var log = Array.isArray(s.doelLog) ? s.doelLog.slice() : [];
+    log.push({ datum: datum, veld: 'calorieDoel', van: van, naar: naar, achteraf: true });
+    // Op datum, zodat het inkorten bij een vol logboek de oudste weghaalt.
+    log.sort(function (a, b) { return a.datum < b.datum ? -1 : (a.datum > b.datum ? 1 : 0); });
+    s.doelLog = log.length > LOG_MAX ? log.slice(log.length - LOG_MAX) : log;
+    herbouwWissel(s);
+    load().settingsTs = Date.now();
+    save();
+    changed();
+    return null;
+  }
+
+  /* Een achteraf ingevulde aanpassing weer weghalen. Wat de app zelf
+     vastlegde blijft staan: dat is echt gebeurd. -> true als er iets weg is */
+  function calorieWisselWeg(datum) {
+    var s = load().settings;
+    var log = Array.isArray(s.doelLog) ? s.doelLog : [];
+    var over = log.filter(function (r) {
+      return !(r.veld === 'calorieDoel' && r.datum === datum && r.achteraf);
+    });
+    if (over.length === log.length) return false;
+    s.doelLog = over;
+    herbouwWissel(s, datum);
+    load().settingsTs = Date.now();
+    save();
+    changed();
+    return true;
+  }
+
   function setWeight(key, value) {
     load().settings.weights[key] = value;
     load().settingsTs = Date.now();
@@ -2252,6 +2340,8 @@ ol.explain { list-style: decimal; }
     settings: settings,
     setSetting: setSetting,
     zetCalorieDoel: zetCalorieDoel,
+    calorieWisselAchteraf: calorieWisselAchteraf,
+    calorieWisselWeg: calorieWisselWeg,
     setWeight: setWeight,
     entry: entry,
     ensureEntry: ensureEntry,
@@ -3772,7 +3862,11 @@ ol.explain { list-style: decimal; }
     var s = settings || store.settings();
     var lijst = (Array.isArray(s.doelLog) ? s.doelLog : []).filter(function (r) {
       return r.veld === veld;
-    }).map(function (r) { return { datum: r.datum, van: r.van, naar: r.naar }; });
+    }).map(function (r) {
+      var uit = { datum: r.datum, van: r.van, naar: r.naar };
+      if (r.achteraf) uit.achteraf = true;
+      return uit;
+    });
     if (veld === 'calorieDoel') {
       var w = s.calorieDoelWissel;
       [w, w && w.eerder].forEach(function (x) {
@@ -8571,7 +8665,7 @@ ol.explain { list-style: decimal; }
       (s.calorieRichting === 'rond'
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
-      '</div>' + eiwitUitleg(s) + '</section>');
+      '</div>' + eiwitUitleg(s) + calorieWisselBlok(s) + '</section>');
 
     html += inklapSectie('gewichtsdoel', '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
       '<p class="hint">Hiermee wordt je gewicht afgezet tegen je tempo — nooit met je laatste ' +
@@ -8956,6 +9050,47 @@ ol.explain { list-style: decimal; }
       '</details></section>';
 
     return html;
+  }
+
+  /**
+   * Je aanpassingen van het caloriedoel, en er één alsnog invullen die de app
+   * niet meekreeg. Zonder die datum rekent het advies met weken waarin je nog
+   * op je oude doel at, en zegt het "eet minder" terwijl je dat al doet.
+   */
+  function calorieWisselBlok(s) {
+    var lijst = S.doelGeschiedenis('calorieDoel', s).filter(function (r) {
+      return +r.van > 0 && +r.naar > 0;
+    }).reverse();
+    var rijen = lijst.length
+      ? '<ul class="kopieen">' + lijst.map(function (r) {
+        return '<li class="kopie">' +
+          '<span class="kopie-wanneer">' + esc(D.formatShort(r.datum) + ' ' + D.parse(r.datum).getFullYear()) + '</span>' +
+          '<span class="kopie-wat">' + fmt(+r.van) + ' → ' + fmt(+r.naar) + ' kcal' +
+          (r.achteraf ? ' · achteraf ingevuld' : '') + '</span>' +
+          (r.achteraf
+            ? '<span class="kopie-knoppen"><button class="btn btn-ghost btn-sm" data-action="calorie-wissel-weg"' +
+              ' data-datum="' + esc(r.datum) + '">Weghalen</button></span>'
+            : '') +
+          '</li>';
+      }).join('') + '</ul>'
+      : '<p class="hint">De app kent nog geen aanpassingen van je caloriedoel.</p>';
+
+    return '<hr class="scheiding">' +
+      '<h3 class="sub-kop">Aanpassingen van je caloriedoel</h3>' + rijen +
+      '<p class="hint">Verzette je je caloriedoel zonder dat de app het weet, bijvoorbeeld voordat hij ' +
+      'dat bijhield? Vul het hier alsnog in. Het advies rekent dan vanaf die dag, met twee weken rust ' +
+      'erna, en de dagen ervóór worden weer gemeten aan het doel dat toen gold.</p>' +
+      '<div class="form-grid cw-form">' +
+      '<label class="field cw-datum"><span class="field-label">Datum</span>' +
+      '<input type="date" id="cw-datum" max="' + D.addDays(D.today(), -1) + '"></label>' +
+      '<label class="field"><span class="field-label">Van</span><span class="field-input">' +
+      '<input type="number" inputmode="numeric" step="10" id="cw-van" placeholder="oud doel">' +
+      '<span class="field-unit">kcal</span></span></label>' +
+      '<label class="field"><span class="field-label">Naar</span><span class="field-input">' +
+      '<input type="number" inputmode="numeric" step="10" id="cw-naar" value="' + esc(s.calorieDoel) + '">' +
+      '<span class="field-unit">kcal</span></span></label>' +
+      '</div>' +
+      '<div class="row-actions"><button class="btn btn-sm" data-action="calorie-wissel-erbij">Aanpassing toevoegen</button></div>';
   }
 
   function opt(v, label, current) {
@@ -9372,6 +9507,26 @@ ol.explain { list-style: decimal; }
       if (nieuw !== null) {
         toast('Caloriedoel staat op ' + nieuw + ' kcal.' + (store.zetCalorieDoel(nieuw)
           ? ' Over twee weken kijk ik of het klopt.' : ''));
+        render();
+      }
+      return;
+    }
+    if (action === 'calorie-wissel-erbij') {
+      var cwDatum = $('#cw-datum').value;
+      var cwFout = store.calorieWisselAchteraf(cwDatum, S.num($('#cw-van').value), S.num($('#cw-naar').value));
+      if (cwFout) { toast(cwFout, 'bad'); return; }
+      var cw = S.doelWissel();
+      toast('Aanpassing van ' + D.formatShort(cwDatum) + ' toegevoegd.' + (cw && cw.datum === cwDatum
+        ? (cw.rust ? ' Tot ' + D.formatShort(cw.totDatum) + ' wacht het advies af.'
+          : ' Het advies rekent nu vanaf die dag.')
+        : ''));
+      render();
+      return;
+    }
+    if (action === 'calorie-wissel-weg') {
+      if (confirm('De aanpassing van ' + D.formatShort(el.dataset.datum) + ' weghalen?')) {
+        store.calorieWisselWeg(el.dataset.datum);
+        toast('Weggehaald.');
         render();
       }
       return;

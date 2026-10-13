@@ -971,6 +971,14 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .kopie { grid-template-columns: 1fr; }
   .kopie-knoppen { grid-column: 1; grid-row: auto; margin-top: 4px; }
 }
+/* Een aanpassing van je caloriedoel achteraf: datum over de hele breedte,
+   van en naar naast elkaar. */
+.cw-form { grid-template-columns: 1fr 1fr; margin-top: 12px; }
+.cw-form .cw-datum { grid-column: 1 / -1; }
+@media (min-width: 640px) {
+  .cw-form { grid-template-columns: 1.2fr 1fr 1fr; }
+  .cw-form .cw-datum { grid-column: auto; }
+}
 .uitleg { margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius-s); padding: 11px 13px; }
 .uitleg summary { cursor: pointer; font-weight: 600; font-size: .88rem; }
 .uitleg[open] summary { margin-bottom: 10px; }

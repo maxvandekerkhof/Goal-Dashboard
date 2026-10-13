@@ -336,6 +336,30 @@ Daardoor telt een dag ook op het caloriedoel dat **die dag** gold, net als het e
 deed. Zet je je doel van 2530 op 2360, dan worden je dagen op 2530 van vorige maand niet
 alsnog rood.
 
+### Een aanpassing achteraf invullen
+
+Verzette je je caloriedoel zonder dat de app het weet, bijvoorbeeld vóór hij dat bijhield?
+Dan rekent het advies met weken waarin je nog op je oude doel at, en kent het geen rust na
+de aanpassing. Vul hem daarom alsnog in bij **Instellingen → Voedingsdoelen → Aanpassingen
+van je caloriedoel**: de datum, van welk doel en naar welk doel (*Naar* staat al op je
+huidige doel).
+
+```
+Datum  23-09-2026     Van  2800 kcal     Naar  2530 kcal     [Aanpassing toevoegen]
+```
+
+Vanaf dan telt hij als elke andere aanpassing:
+
+- Het advies en Verbruik rekenen vanaf die dag. Ligt hij nog geen twee weken terug, dan wacht
+  het advies tot die twee weken om zijn.
+- De dagen ervóór worden weer gemeten aan het doel dat toen gold.
+- De maandafsluiting en het gewichtscherm noemen hem bij wat je aanpaste.
+
+Het kan alleen voor dagen vóór vandaag, want vandaag pas je gewoon je doel aan. Je huidige
+doel verandert er niet door. In de lijst staan al je aanpassingen, nieuwste eerst. Wat je
+achteraf invulde kun je weer weghalen; wat de app zelf onthield niet, want dat is echt zo
+gebeurd.
+
 ## Gewicht over een periode
 
 Het tabblad **Gewicht** laat je gewicht zien over een periode die je zelf kiest. Vul bij

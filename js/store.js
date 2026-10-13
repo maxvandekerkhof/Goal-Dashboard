@@ -393,6 +393,86 @@
     return !!(nu && nu.datum === vandaag && nu.naar === kcal);
   }
 
+  function isKcal(n) { return typeof n === 'number' && isFinite(n) && n >= 500 && n <= 10000; }
+
+  /* De laatste twee aanpassingen die als aanpassing tellen, opnieuw uit alles
+     wat er bekend is: wat er al stond plus het logboek. Het advies kijkt
+     alleen naar de laatste aanpassing vóór de dag waar je naar kijkt, en één
+     stap terug is genoeg om een week van vóór de laatste goed te tonen. */
+  function herbouwWissel(s, zonder) {
+    var perDatum = {};
+    var w = s.calorieDoelWissel;
+    [w, w && w.eerder].forEach(function (x) {
+      if (x && typeof x.datum === 'string' && x.datum !== zonder) {
+        perDatum[x.datum] = { datum: x.datum, van: x.van, naar: x.naar };
+      }
+    });
+    (Array.isArray(s.doelLog) ? s.doelLog : []).forEach(function (r) {
+      if (r.veld !== 'calorieDoel' || r.datum === zonder || perDatum[r.datum]) return;
+      if (+r.van > 0 && +r.naar > 0 && Math.abs(r.naar - r.van) >= DOEL_KLEIN) {
+        perDatum[r.datum] = { datum: r.datum, van: +r.van, naar: +r.naar };
+      }
+    });
+    var lijst = Object.keys(perDatum).sort().map(function (d) { return perDatum[d]; });
+    if (!lijst.length) { s.calorieDoelWissel = null; return; }
+    var laatste = lijst[lijst.length - 1];
+    var ervoor = lijst.length > 1 ? lijst[lijst.length - 2] : null;
+    s.calorieDoelWissel = { datum: laatste.datum, van: laatste.van, naar: laatste.naar };
+    if (ervoor) s.calorieDoelWissel.eerder = ervoor;
+  }
+
+  /* Een aanpassing van je caloriedoel die de app niet meekreeg, alsnog
+     vastleggen. Je verzette je doel bijvoorbeeld vóór de app dat onthield.
+     Zonder die datum rekent het advies met weken waarin je nog op je oude
+     doel at, en kent het geen rust na de aanpassing; en dagen van vóór de
+     aanpassing worden gemeten aan een doel dat toen nog niet gold.
+
+     Alleen voor dagen vóór vandaag: wie vandaag iets verzet, past gewoon zijn
+     doel aan. Je huidige doel blijft staan; dit gaat over wat er toen gold.
+     -> null als het gelukt is, anders een zin die zegt wat er niet klopt */
+  function calorieWisselAchteraf(datum, van, naar) {
+    var s = load().settings;
+    if (typeof datum !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(datum)) return 'Kies een datum.';
+    if (datum >= today()) return 'Kies een dag vóór vandaag. Vandaag pas je gewoon je caloriedoel hierboven aan.';
+    van = +van; naar = +naar;
+    if (!isKcal(van) || !isKcal(naar)) return 'Vul bij allebei een caloriedoel tussen 500 en 10.000 kcal in.';
+    if (van === naar) return 'Van en naar zijn hetzelfde, dan was er niets aangepast.';
+    var al = (Array.isArray(s.doelLog) ? s.doelLog : []).some(function (r) {
+      return r.veld === 'calorieDoel' && r.datum === datum;
+    }) || [s.calorieDoelWissel, s.calorieDoelWissel && s.calorieDoelWissel.eerder].some(function (x) {
+      return x && x.datum === datum;
+    });
+    if (al) return 'Op ' + formatShort(datum) + ' staat al een aanpassing.';
+
+    var log = Array.isArray(s.doelLog) ? s.doelLog.slice() : [];
+    log.push({ datum: datum, veld: 'calorieDoel', van: van, naar: naar, achteraf: true });
+    // Op datum, zodat het inkorten bij een vol logboek de oudste weghaalt.
+    log.sort(function (a, b) { return a.datum < b.datum ? -1 : (a.datum > b.datum ? 1 : 0); });
+    s.doelLog = log.length > LOG_MAX ? log.slice(log.length - LOG_MAX) : log;
+    herbouwWissel(s);
+    load().settingsTs = Date.now();
+    save();
+    changed();
+    return null;
+  }
+
+  /* Een achteraf ingevulde aanpassing weer weghalen. Wat de app zelf
+     vastlegde blijft staan: dat is echt gebeurd. -> true als er iets weg is */
+  function calorieWisselWeg(datum) {
+    var s = load().settings;
+    var log = Array.isArray(s.doelLog) ? s.doelLog : [];
+    var over = log.filter(function (r) {
+      return !(r.veld === 'calorieDoel' && r.datum === datum && r.achteraf);
+    });
+    if (over.length === log.length) return false;
+    s.doelLog = over;
+    herbouwWissel(s, datum);
+    load().settingsTs = Date.now();
+    save();
+    changed();
+    return true;
+  }
+
   function setWeight(key, value) {
     load().settings.weights[key] = value;
     load().settingsTs = Date.now();
@@ -545,6 +625,8 @@
     settings: settings,
     setSetting: setSetting,
     zetCalorieDoel: zetCalorieDoel,
+    calorieWisselAchteraf: calorieWisselAchteraf,
+    calorieWisselWeg: calorieWisselWeg,
     setWeight: setWeight,
     entry: entry,
     ensureEntry: ensureEntry,

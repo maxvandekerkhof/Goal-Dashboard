@@ -2031,7 +2031,7 @@
       (s.calorieRichting === 'rond'
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
-      '</div>' + eiwitUitleg(s) + '</section>');
+      '</div>' + eiwitUitleg(s) + calorieWisselBlok(s) + '</section>');
 
     html += inklapSectie('gewichtsdoel', '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
       '<p class="hint">Hiermee wordt je gewicht afgezet tegen je tempo — nooit met je laatste ' +
@@ -2416,6 +2416,47 @@
       '</details></section>';
 
     return html;
+  }
+
+  /**
+   * Je aanpassingen van het caloriedoel, en er één alsnog invullen die de app
+   * niet meekreeg. Zonder die datum rekent het advies met weken waarin je nog
+   * op je oude doel at, en zegt het "eet minder" terwijl je dat al doet.
+   */
+  function calorieWisselBlok(s) {
+    var lijst = S.doelGeschiedenis('calorieDoel', s).filter(function (r) {
+      return +r.van > 0 && +r.naar > 0;
+    }).reverse();
+    var rijen = lijst.length
+      ? '<ul class="kopieen">' + lijst.map(function (r) {
+        return '<li class="kopie">' +
+          '<span class="kopie-wanneer">' + esc(D.formatShort(r.datum) + ' ' + D.parse(r.datum).getFullYear()) + '</span>' +
+          '<span class="kopie-wat">' + fmt(+r.van) + ' → ' + fmt(+r.naar) + ' kcal' +
+          (r.achteraf ? ' · achteraf ingevuld' : '') + '</span>' +
+          (r.achteraf
+            ? '<span class="kopie-knoppen"><button class="btn btn-ghost btn-sm" data-action="calorie-wissel-weg"' +
+              ' data-datum="' + esc(r.datum) + '">Weghalen</button></span>'
+            : '') +
+          '</li>';
+      }).join('') + '</ul>'
+      : '<p class="hint">De app kent nog geen aanpassingen van je caloriedoel.</p>';
+
+    return '<hr class="scheiding">' +
+      '<h3 class="sub-kop">Aanpassingen van je caloriedoel</h3>' + rijen +
+      '<p class="hint">Verzette je je caloriedoel zonder dat de app het weet, bijvoorbeeld voordat hij ' +
+      'dat bijhield? Vul het hier alsnog in. Het advies rekent dan vanaf die dag, met twee weken rust ' +
+      'erna, en de dagen ervóór worden weer gemeten aan het doel dat toen gold.</p>' +
+      '<div class="form-grid cw-form">' +
+      '<label class="field cw-datum"><span class="field-label">Datum</span>' +
+      '<input type="date" id="cw-datum" max="' + D.addDays(D.today(), -1) + '"></label>' +
+      '<label class="field"><span class="field-label">Van</span><span class="field-input">' +
+      '<input type="number" inputmode="numeric" step="10" id="cw-van" placeholder="oud doel">' +
+      '<span class="field-unit">kcal</span></span></label>' +
+      '<label class="field"><span class="field-label">Naar</span><span class="field-input">' +
+      '<input type="number" inputmode="numeric" step="10" id="cw-naar" value="' + esc(s.calorieDoel) + '">' +
+      '<span class="field-unit">kcal</span></span></label>' +
+      '</div>' +
+      '<div class="row-actions"><button class="btn btn-sm" data-action="calorie-wissel-erbij">Aanpassing toevoegen</button></div>';
   }
 
   function opt(v, label, current) {
@@ -2832,6 +2873,26 @@
       if (nieuw !== null) {
         toast('Caloriedoel staat op ' + nieuw + ' kcal.' + (store.zetCalorieDoel(nieuw)
           ? ' Over twee weken kijk ik of het klopt.' : ''));
+        render();
+      }
+      return;
+    }
+    if (action === 'calorie-wissel-erbij') {
+      var cwDatum = $('#cw-datum').value;
+      var cwFout = store.calorieWisselAchteraf(cwDatum, S.num($('#cw-van').value), S.num($('#cw-naar').value));
+      if (cwFout) { toast(cwFout, 'bad'); return; }
+      var cw = S.doelWissel();
+      toast('Aanpassing van ' + D.formatShort(cwDatum) + ' toegevoegd.' + (cw && cw.datum === cwDatum
+        ? (cw.rust ? ' Tot ' + D.formatShort(cw.totDatum) + ' wacht het advies af.'
+          : ' Het advies rekent nu vanaf die dag.')
+        : ''));
+      render();
+      return;
+    }
+    if (action === 'calorie-wissel-weg') {
+      if (confirm('De aanpassing van ' + D.formatShort(el.dataset.datum) + ' weghalen?')) {
+        store.calorieWisselWeg(el.dataset.datum);
+        toast('Weggehaald.');
         render();
       }
       return;

@@ -592,7 +592,11 @@
     var s = settings || store.settings();
     var lijst = (Array.isArray(s.doelLog) ? s.doelLog : []).filter(function (r) {
       return r.veld === veld;
-    }).map(function (r) { return { datum: r.datum, van: r.van, naar: r.naar }; });
+    }).map(function (r) {
+      var uit = { datum: r.datum, van: r.van, naar: r.naar };
+      if (r.achteraf) uit.achteraf = true;
+      return uit;
+    });
     if (veld === 'calorieDoel') {
       var w = s.calorieDoelWissel;
       [w, w && w.eerder].forEach(function (x) {
