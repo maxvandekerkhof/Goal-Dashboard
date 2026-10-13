@@ -322,6 +322,7 @@
       tot: ov.open > 0 ? ov.plafondPct : null,
       label: loopt ? 'Tussenstand' : null
     });
+    html += mijlpaalKaart(date);
 
     /* Meetwaarden */
     var gm = S.gewichtMelding(date);
@@ -1498,6 +1499,7 @@
       reviewBlok('gesport', 'Training', maandTrainingTekst(m),
         m.kracht.records.length ? 'goed' : 'neutraal') +
       reviewBlok('vink', 'Doelen', maandDoelenTekst(m), 'neutraal') +
+      maandMijlpalenBlok(nu.start, nu.eind) +
       '</div>';
 
     var knoppen = opties.dagkaart
@@ -1516,6 +1518,90 @@
       'het caloriedoel telt per dag zoals het toen stond.</p>';
 
     return '<section class="card review">' + kop + cijfers + blokken + knoppen + voet + '</section>';
+  }
+
+  /* ----------------------------- mijlpalen ---------------------------- */
+
+  /** Een rijtje mijlpalen; met `datum` staat de dag erbij, met `balk` hoe ver je bent. */
+  function mijlpaalLijst(lijst, opties) {
+    opties = opties || {};
+    return '<ul class="mijlpalen">' + lijst.map(function (m) {
+      return '<li class="mijlpaal mijlpaal-' + m.soort + '">' +
+        '<span class="mijlpaal-ico">' + GD.icon(m.icoon, 16) + '</span>' +
+        '<span class="mijlpaal-tekst"><strong>' + esc(m.titel) + '</strong>' +
+        '<span>' + esc(m.tekst) + '</span>' +
+        (opties.balk
+          ? '<span class="mijlpaal-balk"><span style="width:' +
+            Math.round(Math.min(1, Math.max(0, m.voortgang)) * 100) + '%"></span></span>'
+          : '') +
+        '</span>' +
+        (opties.datum ? '<span class="mijlpaal-datum">' + esc(D.formatShort(m.datum)) + '</span>' : '') +
+        '</li>';
+    }).join('') + '</ul>';
+  }
+
+  /** Op de dag dat je hem haalt: een kaart bovenaan. */
+  function mijlpaalKaart(datum) {
+    if (!GD.mijlpalen) return '';
+    var lijst = GD.mijlpalen.op(datum);
+    if (!lijst.length) return '';
+    var vandaag = datum === D.today();
+    return '<section class="card mijlpaal-kaart' + (vandaag ? ' mijlpaal-vandaag' : '') + '">' +
+      '<div class="card-head"><h2>' + GD.icon('trofee') + (lijst.length === 1 ? 'Mijlpaal' : lijst.length + ' mijlpalen') + '</h2>' +
+      '<span class="chip">' + esc(vandaag ? 'vandaag' : D.formatShort(datum)) + '</span></div>' +
+      mijlpaalLijst(lijst) + '</section>';
+  }
+
+  /** In het maandscherm: wat je deze maand haalde, wat eraan komt en alles. */
+  function mijlpalenSection(start, eind) {
+    if (!GD.mijlpalen) return '';
+    var maand = GD.mijlpalen.tussen(start, eind).reverse();
+    var alle = GD.mijlpalen.alle().reverse();
+    var loopt = eind >= D.today();
+    var bijna = loopt ? GD.mijlpalen.bijna() : [];
+    var naam = D.monthName(start);
+
+    var html = '<h3 class="sub-kop">In ' + esc(naam) + '</h3>' + (maand.length
+      ? mijlpaalLijst(maand, { datum: true })
+      : '<p class="hint">' + (loopt ? 'Deze maand nog geen mijlpaal.' : 'Geen mijlpaal in ' + esc(naam) + '.') + '</p>');
+    if (bijna.length) {
+      html += '<h3 class="sub-kop mijlpaal-sub">Bijna</h3>' + mijlpaalLijst(bijna, { balk: true });
+    }
+    if (alle.length > maand.length) {
+      html += '<div class="inklap inklap-deel mijlpaal-sub' + (isOpen('mijlpalen') ? '' : ' dicht') + '">' +
+        inklapKop('mijlpalen', 'Alle mijlpalen <span class="inklap-aantal">' + alle.length + '</span>', 'h3', 'sub-kop') +
+        '<div class="inklap-inhoud" id="inklap-mijlpalen">' + mijlpaalLijst(alle, { datum: true }) + '</div></div>';
+    }
+    if (!alle.length && !bijna.length) {
+      html += '<p class="hint">Mijlpalen komen vanzelf: voor het eerst een rond gewicht op een oefening, ' +
+        'een hele kilo erbij sinds je begon, of een week op rij goede dagen, creatine of genoeg water.</p>';
+    }
+    return '<section class="card mijlpalen-maand"><h2>' + GD.icon('trofee') + 'Mijlpalen</h2>' + html + '</section>';
+  }
+
+  /** In de maandafsluiting: wat je die maand haalde, in één regel. */
+  function maandMijlpalenBlok(start, eind) {
+    if (!GD.mijlpalen) return '';
+    var lijst = GD.mijlpalen.tussen(start, eind);
+    if (!lijst.length) return '';
+    return reviewBlok('trofee', lijst.length === 1 ? 'Mijlpaal' : lijst.length + ' mijlpalen',
+      lijst.map(function (m) { return m.titel + ' (' + D.formatShort(m.datum) + ')'; }).join(' · ') + '.', 'goed');
+  }
+
+  /* Een mijlpaal die er vandaag net bijkwam, ook als je hem niet ziet: de kaart
+     staat bovenaan, en je zit dan meestal bij je oefeningen. */
+  var mijlpaalVandaag = null;
+  function meldNieuweMijlpaal() {
+    if (!GD.mijlpalen) return;
+    var nu = GD.mijlpalen.op(D.today());
+    var ids = nu.map(function (m) { return m.id; });
+    if (mijlpaalVandaag && mijlpaalVandaag.datum === D.today()) {
+      var nieuw = nu.filter(function (m) { return mijlpaalVandaag.ids.indexOf(m.id) < 0; });
+      if (nieuw.length) {
+        toast('Mijlpaal: ' + nieuw[0].titel + (nieuw.length > 1 ? ' (en nog ' + (nieuw.length - 1) + ')' : '') + '!');
+      }
+    }
+    mijlpaalVandaag = { datum: D.today(), ids: ids };
   }
 
   /** Oefeningen die stilstaan, als regel in de weekafsluiting. */
@@ -1586,6 +1672,7 @@
 
     var html = heroSection(period.pct, sub);
     if (dates[0] <= D.today()) html += maandSection(dates[0], {});
+    if (dates[0] <= D.today()) html += mijlpalenSection(dates[0], dates[dates.length - 1]);
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
     html += '<section class="card"><h2>' + GD.icon('maand') + 'Kalender</h2>' + C.calendar(ui.anchor, period.days) +
       C.schaal() +
@@ -2615,6 +2702,7 @@
 
     $('#view').innerHTML = html;
     $('#view').setAttribute('data-view', ui.view);
+    if (ui.view === 'dag') meldNieuweMijlpaal();
     if (navigatie) naarBoven();
     onthulKaarten(navigatie);
   }

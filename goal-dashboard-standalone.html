@@ -1216,6 +1216,61 @@ ol.explain { list-style: decimal; }
   to { opacity: 1; }
 }
 
+/* ------------------------------- mijlpalen ---------------------------- */
+
+/* Goud: buiten de scoreschaal en buiten het blauw van de knoppen. Een
+   mijlpaal is geen score en niets om op te drukken, maar iets om even bij
+   stil te staan. Op wit wordt het goud donkerder, anders leest het niet. */
+.view {
+  --goud: #ffc531;
+  --goud-zacht: rgba(255, 197, 49, .14);
+}
+html[data-theme="light"] .view {
+  --goud: #a16207;
+  --goud-zacht: rgba(161, 98, 7, .10);
+}
+.mijlpalen { list-style: none; margin: 4px 0 0; padding: 0; }
+.mijlpaal {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 11px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.mijlpaal:first-child { border-top: 0; }
+.mijlpaal-ico { display: flex; padding: 6px; border-radius: 8px; color: var(--goud); background: var(--goud-zacht); }
+.mijlpaal-tekst { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mijlpaal-tekst strong { font-size: .92rem; line-height: 1.35; }
+.mijlpaal-tekst > span { font-size: .78rem; color: var(--muted); line-height: 1.45; }
+.mijlpaal-datum { padding-top: 2px; font-size: .74rem; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mijlpaal-tekst > .mijlpaal-balk { display: block; height: 4px; margin-top: 6px; border-radius: 2px; background: var(--track); overflow: hidden; }
+.mijlpaal-balk > span { display: block; height: 100%; border-radius: 2px; background: var(--goud); }
+.mijlpaal-sub { margin-top: 18px; }
+
+/* Op de dag zelf: een eigen kader, zoals de back-up er een heeft. */
+.view > .card.mijlpaal-kaart {
+  margin: 18px 0;
+  padding: 20px 18px 14px;
+  border: 1px solid color-mix(in srgb, var(--goud) 50%, transparent);
+  border-radius: var(--radius);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--goud) 13%, var(--card)) 0%, var(--card) 65%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--goud) 8%, transparent);
+}
+.view > .card.mijlpaal-kaart + .card { border-top: 0; }
+.view > .card.mijlpaal-kaart > .card-head { margin-bottom: 6px; }
+.view > .card.mijlpaal-kaart > .card-head > h2 .ico { color: #1a1300; background: var(--goud); }
+html[data-theme="light"] .view > .card.mijlpaal-kaart > .card-head > h2 .ico { color: #fff; }
+.mijlpaal-kaart .chip { color: var(--goud); border-color: color-mix(in srgb, var(--goud) 50%, transparent); }
+.mijlpaal-vandaag > .card-head > h2 .ico { animation: mijlpaalglans 1.6s ease-out 1; }
+@keyframes mijlpaalglans {
+  0% { transform: scale(.6) rotate(-12deg); box-shadow: 0 0 0 0 color-mix(in srgb, var(--goud) 60%, transparent); }
+  45% { transform: scale(1.12) rotate(6deg); }
+  100% { transform: none; box-shadow: 0 0 0 14px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .mijlpaal-vandaag > .card-head > h2 .ico { animation: none; } }
+.view > .card.mijlpalen-maand > h2 .ico { color: var(--goud); background: var(--goud-zacht); }
+
 /* ------------------------------- rusttimer ---------------------------- */
 
 /* Onderin, over de inhoud heen, zodat hij blijft staan terwijl je scrolt naar
@@ -4663,6 +4718,386 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
 
   </script>
   <script>
+/* Goal Dashboard - mijlpalen
+ *
+ * Drie soorten, allemaal afgeleid uit wat er al in je gegevens staat:
+ *
+ * - kracht: voor het eerst een rond gewicht op een oefening (45, 50, 60 kg),
+ *   bij oefeningen zonder gewicht een rond aantal herhalingen, en je
+ *   geschatte 1RM 10, 25, 50 of 100% boven je startpunt;
+ * - lichaamsgewicht: elke hele kilo erbij (of eraf) sinds je begon, en je
+ *   streefgewicht;
+ * - reeksen: goede dagen, creatine en je waterdoel, zoveel dagen op rij.
+ *
+ * Niets hiervan wordt opgeslagen. Een mijlpaal is iets wat je deed, en dat
+ * staat al in je dagen: zo kloppen ze ook voor alles van vóór deze versie,
+ * en verdwijnt er een als je een verkeerd ingetikte set verbetert.
+ *
+ * Elke mijlpaal telt één keer: de eerste dag dat je hem haalde. Een reeks van
+ * zeven dagen die je na een onderbreking opnieuw haalt is geen nieuwe
+ * mijlpaal; de volgende is dan veertien.
+ */
+(function (global) {
+  'use strict';
+
+  var GD = global.GD;
+  var store = GD.store;
+  var D = GD.date;
+  var S = GD.score;
+  var L = GD.lifts;
+
+  var REEKSEN = [7, 14, 30, 50, 100, 200, 365];
+  var KRACHT_PCT = [10, 25, 50, 100];
+  var REPS = [5, 10, 15, 20, 25, 30, 40, 50];
+  var WEEK = 7;
+  var MIN_WEEG = 3;            // wegingen in een week voor een weekgemiddelde
+
+  /* Ronde gewichten: per vijf kilo tot vijftig, daarboven per tien. Lager
+     zitten de stappen dichter op elkaar, anders duurt een mijlpaal bij een
+     lateral raise een half jaar. */
+  function kgGrenzen(tot) {
+    var uit = [];
+    for (var k = 5; k <= tot; k += (k < 50 ? 5 : 10)) uit.push(k);
+    return uit;
+  }
+  function volgendeKg(kg) {
+    var k = 5;
+    while (k <= kg) k += (k < 50 ? 5 : 10);
+    return k;
+  }
+
+  /* Alle dagen van `van` t/m `tot`. Niet D.range: die stopt na duizend dagen
+     als vangnet, en een reeks of je eerste weging ligt daar na een paar jaar
+     gewoon voorbij. */
+  function dagen(van, tot) {
+    var uit = [];
+    for (var d = van, n = 0; d <= tot && n < 40000; d = D.addDays(d, 1), n++) uit.push(d);
+    return uit;
+  }
+
+  function kgTekst(n) {
+    var r = Math.round(n * 10) / 10;
+    return (r % 1 ? r.toFixed(1) : String(r)).replace('.', ',');
+  }
+
+  /* ------------------------------- kracht ------------------------------- */
+
+  /* Eén sessie van een oefening. Bij een oefening per arm telt wat béíde
+     armen haalden, dus de zwakste kant: een mijlpaal met één arm is er nog
+     geen. */
+  function sessies(oef) {
+    var zijden = L.zijden(oef);
+    var perDatum = {};
+    zijden.forEach(function (z) {
+      L.historie(oef.id, z.key).forEach(function (r) {
+        var d = perDatum[r.datum] = perDatum[r.datum] || { datum: r.datum, n: 0, kg: Infinity, reps: Infinity, rm: Infinity };
+        d.n++;
+        d.kg = Math.min(d.kg, r.kg);
+        d.reps = Math.min(d.reps, r.reps);
+        d.rm = Math.min(d.rm, L.geschat1RM(r.kg, r.reps));
+      });
+    });
+    return Object.keys(perDatum).sort().map(function (d) { return perDatum[d]; })
+      .filter(function (s) { return s.n === zijden.length; });
+  }
+
+  function setTekst(oef, s) {
+    return oef.type === 'reps' ? s.reps + ' reps' : kgTekst(s.kg) + ' kg × ' + s.reps;
+  }
+
+  function kracht(uit) {
+    L.oefeningen().forEach(function (oef) {
+      var h = sessies(oef);
+      if (h.length < 2) return;
+      var start = h[0];
+      var alleenReps = oef.type === 'reps';
+      var zwaarste = alleenReps ? start.reps : start.kg;
+      var gehaald = {};
+      var pctGehaald = {};
+
+      h.slice(1).forEach(function (s) {
+        var waarde = alleenReps ? s.reps : s.kg;
+        if (waarde > zwaarste) {
+          (alleenReps ? REPS : kgGrenzen(waarde)).forEach(function (g) {
+            if (g > zwaarste && g <= waarde && !gehaald[g]) {
+              gehaald[g] = true;
+              uit.push({
+                id: 'k|' + oef.id + '|' + (alleenReps ? 'reps' : 'kg') + '|' + g,
+                soort: 'kracht', icoon: 'overload', datum: s.datum, oef: oef.id,
+                titel: alleenReps
+                  ? 'Voor het eerst ' + g + ' reps bij ' + oef.naam
+                  : 'Voor het eerst ' + kgTekst(g) + ' kg bij ' + oef.naam,
+                tekst: setTekst(oef, s) + ' — je begon op ' + setTekst(oef, start) + ' (' + D.formatShort(start.datum) + ').'
+              });
+            }
+          });
+          zwaarste = waarde;
+        }
+        if (alleenReps || !(start.rm > 0)) return;
+        var winst = (s.rm / start.rm - 1) * 100;
+        KRACHT_PCT.forEach(function (p) {
+          if (winst >= p && !pctGehaald[p]) {
+            pctGehaald[p] = true;
+            uit.push({
+              id: 'k|' + oef.id + '|pct|' + p,
+              soort: 'kracht', icoon: 'overload', datum: s.datum, oef: oef.id,
+              titel: oef.naam + ' ' + p + '% sterker',
+              tekst: 'Geschat 1RM ' + kgTekst(s.rm) + ' kg, tegen ' + kgTekst(start.rm) + ' kg bij je start op ' +
+                D.formatShort(start.datum) + '.'
+            });
+          }
+        });
+      });
+    });
+  }
+
+  function krachtBijna(uit) {
+    L.oefeningen().forEach(function (oef) {
+      var h = sessies(oef);
+      if (h.length < 2) return;
+      var alleenReps = oef.type === 'reps';
+      var hoogst = 0;
+      h.forEach(function (s) { hoogst = Math.max(hoogst, alleenReps ? s.reps : s.kg); });
+      if (!(hoogst > 0)) return;
+      var doel;
+      if (alleenReps) {
+        doel = null;
+        for (var i = 0; i < REPS.length; i++) if (REPS[i] > hoogst) { doel = REPS[i]; break; }
+        if (!doel) return;
+      } else {
+        doel = volgendeKg(hoogst);
+      }
+      var voortgang = hoogst / doel;
+      if (voortgang < (alleenReps ? 0.75 : 0.9)) return;
+      uit.push({
+        id: 'k|' + oef.id + '|' + (alleenReps ? 'reps' : 'kg') + '|' + doel,
+        soort: 'kracht', icoon: 'overload', voortgang: voortgang,
+        titel: alleenReps ? doel + ' reps bij ' + oef.naam : kgTekst(doel) + ' kg bij ' + oef.naam,
+        tekst: alleenReps ? 'Je beste is ' + hoogst + ' reps.' : 'Je zwaarste is ' + kgTekst(hoogst) + ' kg.'
+      });
+    });
+  }
+
+  /* --------------------------- lichaamsgewicht -------------------------- */
+
+  /* Elke dag het gemiddelde van de wegingen in de week tot en met die dag.
+     Eén zware ochtend is geen kilo erbij; een week lang wel. */
+  function weekGemiddelden() {
+    var wegingen = [];
+    store.allDates().forEach(function (d) {
+      var e = store.entry(d);
+      var w = e ? S.num(e.gewicht) : null;
+      if (w !== null && w > 0 && d <= D.today()) wegingen.push({ datum: d, w: w });
+    });
+    if (!wegingen.length) return null;
+    var eerste = wegingen[0].datum;
+    var beginReeks = wegingen.filter(function (x) { return D.dagenTussen(eerste, x.datum) < WEEK; });
+    var begin = beginReeks.reduce(function (s, x) { return s + x.w; }, 0) / beginReeks.length;
+
+    var opDatum = {};
+    wegingen.forEach(function (x) { opDatum[x.datum] = x.w; });
+    var reeks = dagen(eerste, D.today());
+    var gemiddelden = [];
+    reeks.forEach(function (d, i) {
+      if (i < WEEK - 1) return;
+      var som = 0, n = 0;
+      for (var j = i - (WEEK - 1); j <= i; j++) {
+        var w = opDatum[reeks[j]];
+        if (w !== undefined) { som += w; n++; }
+      }
+      if (n >= MIN_WEEG) gemiddelden.push({ datum: d, w: som / n });
+    });
+    return { eerste: eerste, begin: begin, gemiddelden: gemiddelden };
+  }
+
+  function teken(richting) { return richting === 'afvallen' ? -1 : 1; }
+
+  function gewicht(uit, bijna) {
+    var s = store.settings();
+    var richting = s.gewichtRichting;
+    if (richting !== 'aankomen' && richting !== 'afvallen') return;
+    var g = weekGemiddelden();
+    if (!g) return;
+    var t = teken(richting);
+    var gehaald = 0;
+    var doel = S.num(s.gewichtDoel);
+    var doelTelt = doel !== null && doel > 0 && (doel - g.begin) * t > 0;
+    var doelGehaald = false;
+
+    g.gemiddelden.forEach(function (x) {
+      var erbij = (x.w - g.begin) * t;
+      while (erbij >= gehaald + 1 && gehaald < 50) {
+        gehaald++;
+        uit.push({
+          id: 'g|kg|' + (t * gehaald),
+          soort: 'gewicht', icoon: 'weegschaal', datum: x.datum,
+          titel: (t > 0 ? '+' : '−') + gehaald + ' kg sinds je begon',
+          tekst: 'Je weekgemiddelde staat op ' + kgTekst(x.w) + ' kg; je begon op ' + kgTekst(g.begin) +
+            ' kg (' + D.formatShort(g.eerste) + ').'
+        });
+      }
+      if (doelTelt && !doelGehaald && (x.w - doel) * t >= 0) {
+        doelGehaald = true;
+        uit.push({
+          id: 'g|doel|' + doel,
+          soort: 'gewicht', icoon: 'doel', datum: x.datum,
+          titel: 'Streefgewicht gehaald: ' + kgTekst(doel) + ' kg',
+          tekst: 'Je weekgemiddelde staat op ' + kgTekst(x.w) + ' kg, vanaf ' + kgTekst(g.begin) + ' kg op ' +
+            D.formatShort(g.eerste) + '.'
+        });
+      }
+    });
+
+    if (!bijna) return;
+    var laatste = g.gemiddelden[g.gemiddelden.length - 1];
+    if (!laatste || D.dagenTussen(laatste.datum, D.today()) > WEEK) return;
+    var nu = (laatste.w - g.begin) * t;
+    var volgende = gehaald + 1;
+    if (volgende - nu <= 0.4 && nu > 0) {
+      bijna.push({
+        id: 'g|kg|' + (t * volgende),
+        soort: 'gewicht', icoon: 'weegschaal', voortgang: nu / volgende,
+        titel: (t > 0 ? '+' : '−') + volgende + ' kg sinds je begon',
+        // Naar boven afgerond: "nog 0 kg" terwijl hij er nog niet staat klopt niet.
+        tekst: 'Nog ' + kgTekst(Math.max(0.1, Math.ceil((volgende - nu) * 10) / 10)) + ' kg; je weekgemiddelde is ' +
+          kgTekst(laatste.w) + ' kg.'
+      });
+    }
+    if (doelTelt && !doelGehaald && Math.abs(doel - laatste.w) <= 1) {
+      bijna.push({
+        id: 'g|doel|' + doel,
+        soort: 'gewicht', icoon: 'doel', voortgang: 1 - Math.abs(doel - laatste.w) / Math.abs(doel - g.begin),
+        titel: 'Streefgewicht ' + kgTekst(doel) + ' kg',
+        tekst: 'Nog ' + kgTekst(Math.max(0.1, Math.ceil(Math.abs(doel - laatste.w) * 10) / 10)) +
+          ' kg; je weekgemiddelde is ' + kgTekst(laatste.w) + ' kg.'
+      });
+    }
+  }
+
+  /* ------------------------------- reeksen ------------------------------ */
+
+  var REEKS_SOORTEN = [
+    {
+      id: 'goed', icoon: 'vlam',
+      titel: function (n) { return n + ' goede dagen op rij'; },
+      tekst: function (n, s) {
+        return n + ' dagen achter elkaar minstens ' + S.num(s.goedeDagDrempel, 70) + '% gehaald.';
+      },
+      telt: function (dag, s) { return dag.pct !== null && dag.pct >= S.num(s.goedeDagDrempel, 70); }
+    },
+    {
+      id: 'creatine', icoon: 'creatine',
+      titel: function (n) { return n + ' dagen op rij creatine'; },
+      tekst: function (n) { return 'Elke dag je creatine, ' + n + ' dagen lang.'; },
+      telt: function (dag) { return item(dag, 'creatine').value === 'ja'; }
+    },
+    {
+      id: 'water', icoon: 'water',
+      titel: function (n) { return n + ' dagen op rij je waterdoel'; },
+      tekst: function (n) { return n + ' dagen achter elkaar genoeg gedronken.'; },
+      telt: function (dag) { var it = item(dag, 'water'); return it.frac !== null && it.frac >= 1; }
+    }
+  ];
+
+  function item(dag, key) {
+    for (var i = 0; i < dag.items.length; i++) if (dag.items[i].key === key) return dag.items[i];
+    return {};
+  }
+
+  /* Elke dag van je eerste invoer tot vandaag. Vandaag telt pas mee als hij
+     al raak is, net als bij je streak: een dag die nog loopt breekt niets. */
+  function reeksen(uit, bijna) {
+    var s = store.settings();
+    var datums = store.allDates();
+    if (!datums.length) return;
+    var vandaag = D.today();
+    var lijst = dagen(datums[0], vandaag);
+    var stand = {};
+    REEKS_SOORTEN.forEach(function (r) { stand[r.id] = { lopend: 0, beste: 0 }; });
+
+    lijst.forEach(function (d) {
+      var dag = store.entry(d) ? S.scoreDay(d, d === vandaag) : null;
+      REEKS_SOORTEN.forEach(function (r) {
+        var st = stand[r.id];
+        if (dag && r.telt(dag, s)) {
+          st.lopend++;
+          if (st.lopend > st.beste) {
+            REEKSEN.forEach(function (n) {
+              if (st.lopend === n && n > st.beste) {
+                uit.push({
+                  id: 'r|' + r.id + '|' + n, soort: 'reeks', icoon: r.icoon, datum: d,
+                  titel: r.titel(n), tekst: r.tekst(n, s)
+                });
+              }
+            });
+            st.beste = st.lopend;
+          }
+        } else if (d !== vandaag) {
+          st.lopend = 0;
+        }
+      });
+    });
+
+    if (!bijna) return;
+    REEKS_SOORTEN.forEach(function (r) {
+      var st = stand[r.id];
+      if (!st.lopend) return;
+      var volgende = null;
+      for (var i = 0; i < REEKSEN.length; i++) if (REEKSEN[i] > st.beste) { volgende = REEKSEN[i]; break; }
+      if (!volgende) return;
+      var nog = volgende - st.lopend;
+      if (nog > 3 && st.lopend / volgende < 0.7) return;
+      bijna.push({
+        id: 'r|' + r.id + '|' + volgende, soort: 'reeks', icoon: r.icoon, voortgang: st.lopend / volgende,
+        titel: r.titel(volgende),
+        tekst: 'Je zit op ' + st.lopend + '; nog ' + nog + ' dag' + (nog === 1 ? '' : 'en') + '.'
+      });
+    });
+  }
+
+  /* ------------------------------- samen -------------------------------- */
+
+  var cache = null;
+  var cacheSleutel = '';
+
+  function bereken() {
+    var sleutel = store.rev() + '|' + D.today();
+    if (cache && cacheSleutel === sleutel) return cache;
+    var lijst = [], bijna = [];
+    kracht(lijst);
+    krachtBijna(bijna);
+    gewicht(lijst, bijna);
+    reeksen(lijst, bijna);
+    var VOLGORDE = { kracht: 0, gewicht: 1, reeks: 2 };
+    lijst.sort(function (a, b) {
+      if (a.datum !== b.datum) return a.datum < b.datum ? -1 : 1;
+      return VOLGORDE[a.soort] - VOLGORDE[b.soort];
+    });
+    bijna.sort(function (a, b) { return b.voortgang - a.voortgang; });
+    cache = { lijst: lijst, bijna: bijna.slice(0, 5) };
+    cacheSleutel = sleutel;
+    return cache;
+  }
+
+  GD.mijlpalen = {
+    /** Alles wat je ooit haalde, oudste eerst. */
+    alle: function () { return bereken().lijst.slice(); },
+    /** Wat je op één dag haalde. */
+    op: function (datum) {
+      return bereken().lijst.filter(function (m) { return m.datum === datum; });
+    },
+    /** Wat je tussen twee datums haalde (inclusief). */
+    tussen: function (van, tot) {
+      return bereken().lijst.filter(function (m) { return m.datum >= van && m.datum <= tot; });
+    },
+    /** Waar je nu dichtbij zit, het dichtstbij eerst; hooguit vijf. */
+    bijna: function () { return bereken().bijna.slice(); },
+    REEKSEN: REEKSEN
+  };
+})(window);
+
+  </script>
+  <script>
 /* Goal Dashboard - kleine SVG-grafieken (geen externe libraries) */
 (function (global) {
   'use strict';
@@ -7327,6 +7762,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       tot: ov.open > 0 ? ov.plafondPct : null,
       label: loopt ? 'Tussenstand' : null
     });
+    html += mijlpaalKaart(date);
 
     /* Meetwaarden */
     var gm = S.gewichtMelding(date);
@@ -8503,6 +8939,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       reviewBlok('gesport', 'Training', maandTrainingTekst(m),
         m.kracht.records.length ? 'goed' : 'neutraal') +
       reviewBlok('vink', 'Doelen', maandDoelenTekst(m), 'neutraal') +
+      maandMijlpalenBlok(nu.start, nu.eind) +
       '</div>';
 
     var knoppen = opties.dagkaart
@@ -8521,6 +8958,90 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       'het caloriedoel telt per dag zoals het toen stond.</p>';
 
     return '<section class="card review">' + kop + cijfers + blokken + knoppen + voet + '</section>';
+  }
+
+  /* ----------------------------- mijlpalen ---------------------------- */
+
+  /** Een rijtje mijlpalen; met `datum` staat de dag erbij, met `balk` hoe ver je bent. */
+  function mijlpaalLijst(lijst, opties) {
+    opties = opties || {};
+    return '<ul class="mijlpalen">' + lijst.map(function (m) {
+      return '<li class="mijlpaal mijlpaal-' + m.soort + '">' +
+        '<span class="mijlpaal-ico">' + GD.icon(m.icoon, 16) + '</span>' +
+        '<span class="mijlpaal-tekst"><strong>' + esc(m.titel) + '</strong>' +
+        '<span>' + esc(m.tekst) + '</span>' +
+        (opties.balk
+          ? '<span class="mijlpaal-balk"><span style="width:' +
+            Math.round(Math.min(1, Math.max(0, m.voortgang)) * 100) + '%"></span></span>'
+          : '') +
+        '</span>' +
+        (opties.datum ? '<span class="mijlpaal-datum">' + esc(D.formatShort(m.datum)) + '</span>' : '') +
+        '</li>';
+    }).join('') + '</ul>';
+  }
+
+  /** Op de dag dat je hem haalt: een kaart bovenaan. */
+  function mijlpaalKaart(datum) {
+    if (!GD.mijlpalen) return '';
+    var lijst = GD.mijlpalen.op(datum);
+    if (!lijst.length) return '';
+    var vandaag = datum === D.today();
+    return '<section class="card mijlpaal-kaart' + (vandaag ? ' mijlpaal-vandaag' : '') + '">' +
+      '<div class="card-head"><h2>' + GD.icon('trofee') + (lijst.length === 1 ? 'Mijlpaal' : lijst.length + ' mijlpalen') + '</h2>' +
+      '<span class="chip">' + esc(vandaag ? 'vandaag' : D.formatShort(datum)) + '</span></div>' +
+      mijlpaalLijst(lijst) + '</section>';
+  }
+
+  /** In het maandscherm: wat je deze maand haalde, wat eraan komt en alles. */
+  function mijlpalenSection(start, eind) {
+    if (!GD.mijlpalen) return '';
+    var maand = GD.mijlpalen.tussen(start, eind).reverse();
+    var alle = GD.mijlpalen.alle().reverse();
+    var loopt = eind >= D.today();
+    var bijna = loopt ? GD.mijlpalen.bijna() : [];
+    var naam = D.monthName(start);
+
+    var html = '<h3 class="sub-kop">In ' + esc(naam) + '</h3>' + (maand.length
+      ? mijlpaalLijst(maand, { datum: true })
+      : '<p class="hint">' + (loopt ? 'Deze maand nog geen mijlpaal.' : 'Geen mijlpaal in ' + esc(naam) + '.') + '</p>');
+    if (bijna.length) {
+      html += '<h3 class="sub-kop mijlpaal-sub">Bijna</h3>' + mijlpaalLijst(bijna, { balk: true });
+    }
+    if (alle.length > maand.length) {
+      html += '<div class="inklap inklap-deel mijlpaal-sub' + (isOpen('mijlpalen') ? '' : ' dicht') + '">' +
+        inklapKop('mijlpalen', 'Alle mijlpalen <span class="inklap-aantal">' + alle.length + '</span>', 'h3', 'sub-kop') +
+        '<div class="inklap-inhoud" id="inklap-mijlpalen">' + mijlpaalLijst(alle, { datum: true }) + '</div></div>';
+    }
+    if (!alle.length && !bijna.length) {
+      html += '<p class="hint">Mijlpalen komen vanzelf: voor het eerst een rond gewicht op een oefening, ' +
+        'een hele kilo erbij sinds je begon, of een week op rij goede dagen, creatine of genoeg water.</p>';
+    }
+    return '<section class="card mijlpalen-maand"><h2>' + GD.icon('trofee') + 'Mijlpalen</h2>' + html + '</section>';
+  }
+
+  /** In de maandafsluiting: wat je die maand haalde, in één regel. */
+  function maandMijlpalenBlok(start, eind) {
+    if (!GD.mijlpalen) return '';
+    var lijst = GD.mijlpalen.tussen(start, eind);
+    if (!lijst.length) return '';
+    return reviewBlok('trofee', lijst.length === 1 ? 'Mijlpaal' : lijst.length + ' mijlpalen',
+      lijst.map(function (m) { return m.titel + ' (' + D.formatShort(m.datum) + ')'; }).join(' · ') + '.', 'goed');
+  }
+
+  /* Een mijlpaal die er vandaag net bijkwam, ook als je hem niet ziet: de kaart
+     staat bovenaan, en je zit dan meestal bij je oefeningen. */
+  var mijlpaalVandaag = null;
+  function meldNieuweMijlpaal() {
+    if (!GD.mijlpalen) return;
+    var nu = GD.mijlpalen.op(D.today());
+    var ids = nu.map(function (m) { return m.id; });
+    if (mijlpaalVandaag && mijlpaalVandaag.datum === D.today()) {
+      var nieuw = nu.filter(function (m) { return mijlpaalVandaag.ids.indexOf(m.id) < 0; });
+      if (nieuw.length) {
+        toast('Mijlpaal: ' + nieuw[0].titel + (nieuw.length > 1 ? ' (en nog ' + (nieuw.length - 1) + ')' : '') + '!');
+      }
+    }
+    mijlpaalVandaag = { datum: D.today(), ids: ids };
   }
 
   /** Oefeningen die stilstaan, als regel in de weekafsluiting. */
@@ -8591,6 +9112,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
 
     var html = heroSection(period.pct, sub);
     if (dates[0] <= D.today()) html += maandSection(dates[0], {});
+    if (dates[0] <= D.today()) html += mijlpalenSection(dates[0], dates[dates.length - 1]);
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
     html += '<section class="card"><h2>' + GD.icon('maand') + 'Kalender</h2>' + C.calendar(ui.anchor, period.days) +
       C.schaal() +
@@ -9620,6 +10142,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
 
     $('#view').innerHTML = html;
     $('#view').setAttribute('data-view', ui.view);
+    if (ui.view === 'dag') meldNieuweMijlpaal();
     if (navigatie) naarBoven();
     onthulKaarten(navigatie);
   }

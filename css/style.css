@@ -1197,6 +1197,61 @@ ol.explain { list-style: decimal; }
   to { opacity: 1; }
 }
 
+/* ------------------------------- mijlpalen ---------------------------- */
+
+/* Goud: buiten de scoreschaal en buiten het blauw van de knoppen. Een
+   mijlpaal is geen score en niets om op te drukken, maar iets om even bij
+   stil te staan. Op wit wordt het goud donkerder, anders leest het niet. */
+.view {
+  --goud: #ffc531;
+  --goud-zacht: rgba(255, 197, 49, .14);
+}
+html[data-theme="light"] .view {
+  --goud: #a16207;
+  --goud-zacht: rgba(161, 98, 7, .10);
+}
+.mijlpalen { list-style: none; margin: 4px 0 0; padding: 0; }
+.mijlpaal {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 11px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.mijlpaal:first-child { border-top: 0; }
+.mijlpaal-ico { display: flex; padding: 6px; border-radius: 8px; color: var(--goud); background: var(--goud-zacht); }
+.mijlpaal-tekst { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mijlpaal-tekst strong { font-size: .92rem; line-height: 1.35; }
+.mijlpaal-tekst > span { font-size: .78rem; color: var(--muted); line-height: 1.45; }
+.mijlpaal-datum { padding-top: 2px; font-size: .74rem; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mijlpaal-tekst > .mijlpaal-balk { display: block; height: 4px; margin-top: 6px; border-radius: 2px; background: var(--track); overflow: hidden; }
+.mijlpaal-balk > span { display: block; height: 100%; border-radius: 2px; background: var(--goud); }
+.mijlpaal-sub { margin-top: 18px; }
+
+/* Op de dag zelf: een eigen kader, zoals de back-up er een heeft. */
+.view > .card.mijlpaal-kaart {
+  margin: 18px 0;
+  padding: 20px 18px 14px;
+  border: 1px solid color-mix(in srgb, var(--goud) 50%, transparent);
+  border-radius: var(--radius);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--goud) 13%, var(--card)) 0%, var(--card) 65%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--goud) 8%, transparent);
+}
+.view > .card.mijlpaal-kaart + .card { border-top: 0; }
+.view > .card.mijlpaal-kaart > .card-head { margin-bottom: 6px; }
+.view > .card.mijlpaal-kaart > .card-head > h2 .ico { color: #1a1300; background: var(--goud); }
+html[data-theme="light"] .view > .card.mijlpaal-kaart > .card-head > h2 .ico { color: #fff; }
+.mijlpaal-kaart .chip { color: var(--goud); border-color: color-mix(in srgb, var(--goud) 50%, transparent); }
+.mijlpaal-vandaag > .card-head > h2 .ico { animation: mijlpaalglans 1.6s ease-out 1; }
+@keyframes mijlpaalglans {
+  0% { transform: scale(.6) rotate(-12deg); box-shadow: 0 0 0 0 color-mix(in srgb, var(--goud) 60%, transparent); }
+  45% { transform: scale(1.12) rotate(6deg); }
+  100% { transform: none; box-shadow: 0 0 0 14px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .mijlpaal-vandaag > .card-head > h2 .ico { animation: none; } }
+.view > .card.mijlpalen-maand > h2 .ico { color: var(--goud); background: var(--goud-zacht); }
+
 /* ------------------------------- rusttimer ---------------------------- */
 
 /* Onderin, over de inhoud heen, zodat hij blijft staan terwijl je scrolt naar

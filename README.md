@@ -410,6 +410,40 @@ In de grafiek is die lijn gestippeld, en een verticale streep markeert elke dag 
 je caloriedoel aanpaste. Daaronder je laagste en hoogste weging, hoe vaak je woog en wat je
 gemiddeld at, en onder de grafiek elk doel dat je in die periode veranderde.
 
+## Mijlpalen
+
+Drie soorten, die de app uit je eigen gegevens haalt:
+
+| Soort | Wanneer |
+| --- | --- |
+| **Kracht** | Voor het eerst een rond gewicht op een oefening: per 5 kg tot 50 kg, daarboven per 10 kg. Bij oefeningen zonder gewicht een rond aantal herhalingen (5, 10, 15, 20, 25, 30, 40, 50). En je geschatte 1RM 10, 25, 50 of 100% boven je startpunt. |
+| **Lichaamsgewicht** | Elke hele kilo erbij sinds je begon (bij afvallen eraf), en je streefgewicht. |
+| **Reeksen** | 7, 14, 30, 50, 100, 200 en 365 dagen op rij: goede dagen, creatine en je waterdoel. |
+
+Een paar regels, zodat een mijlpaal ook echt iets zegt:
+
+- **Je startpunt telt niet.** Begon je op 40 kg, dan zijn 5 t/m 40 kg geen mijlpaal; 45 kg
+  wel.
+- **Per arm telt de zwakste kant.** Een mijlpaal met één arm is er nog geen.
+- **Lichaamsgewicht gaat op je weekgemiddelde**, met minstens drie wegingen in die week, en
+  begint bij het gemiddelde van je eerste week. Eén zware ochtend is geen kilo erbij.
+- **Elke mijlpaal telt één keer**, op de eerste dag dat je hem haalde. Haal je na een
+  onderbreking opnieuw zeven dagen op rij, dan is dat geen nieuwe mijlpaal; de volgende is
+  veertien.
+
+Waar je ze ziet:
+
+- **Op de dag zelf** staat bovenaan een gouden kaart. Haal je hem terwijl je invult,
+  bijvoorbeeld met een set bij je oefeningen, dan meldt de app het meteen onderin.
+- **In het maandscherm** staat een kaart **Mijlpalen**: wat je die maand haalde (nieuwste
+  eerst), in de lopende maand ook wat er **bijna** is, met hoe ver je bent, en ingeklapt
+  **alle mijlpalen** die je ooit haalde.
+- **In de maandafsluiting** staan ze op één regel.
+
+Mijlpalen worden nergens opgeslagen: de app rekent ze steeds opnieuw uit je dagen uit. Daarom
+tellen ook je trainingen van vóór deze versie mee, en verdwijnt een mijlpaal vanzelf als je
+een verkeerd ingetikte set verbetert.
+
 ## Synchroniseren tussen telefoon en laptop
 
 Standaard staat je data alleen in de browser waarin je hem invult. Wil je op allebei je
@@ -669,6 +703,7 @@ js/store.js         opslag (localStorage), samenvoegen, terugzetten, datum-helpe
 js/vangnet.js       automatische kopieën (IndexedDB) en de back-upherinnering
 js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
 js/score.js         scoreberekening per dag en per periode, streaks, gewichtstrend
+js/mijlpalen.js     mijlpalen: kracht, lichaamsgewicht en reeksen
 js/charts.js        SVG-ring, balken, kalender, gewichts- en oefeninggrafiek
 js/review.js        week- en maandafsluiting, gewicht over een periode
 js/voeding.js       calorieën en eiwitten uit Apple Health toepassen
@@ -699,12 +734,13 @@ npm test                # alle suites
 npm test -- advies      # alleen suites met "advies" in de naam
 ```
 
-`npm test` start zelf een kleine webserver en draait veertien suites achter elkaar: de dagscore,
+`npm test` start zelf een kleine webserver en draait zeventien suites achter elkaar: de dagscore,
 de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
 gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
 terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten, de twee
-weken na een nieuw caloriedoel, de maandafsluiting, gewicht over een zelfgekozen periode, het inklappen van de instellingen en alle
-schermen op telefoonbreedte.
+weken na een nieuw caloriedoel, de maandafsluiting, gewicht over een zelfgekozen periode,
+het inklappen van de instellingen, een aanpassing van je caloriedoel achteraf, de rusttimer,
+de mijlpalen en alle schermen op telefoonbreedte.
 
 Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op
 je echte wegingen hetzelfde zegt als de dagkaart. **Die gegevens staan niet in deze repo**
