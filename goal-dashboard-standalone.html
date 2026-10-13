@@ -7143,8 +7143,10 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
  *
  * De timer rekent vanaf een eindtijd, niet met een tellertje. Zet je telefoon
  * de app in de achtergrond stil, dan klopt de tijd nog steeds zodra je
- * terugkomt. Een piepje kan alleen als de app open staat; daarom houdt de
- * timer zolang hij loopt je scherm aan, waar de browser dat toestaat.
+ * terugkomt. Een seintje kan alleen als de app open staat: een iPhone laat
+ * een website niet trillen, en een melding op het vergrendelscherm zou een
+ * server nodig hebben die op het juiste moment een pushbericht stuurt. Daarom
+ * houdt de timer zolang hij loopt je scherm aan, waar de browser dat toestaat.
  *
  * Hij hoort bij dit apparaat en niet bij je gegevens: hij synchroniseert niet
  * en zit niet in je back-up. Wel overleeft hij een herlaadbeurt.
@@ -7357,6 +7359,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
 
   function meld() {
     if (GD.store.settings().rustGeluid !== false) piep();
+    // Trillen kan op Android; een iPhone negeert het.
     try { if (global.navigator.vibrate) global.navigator.vibrate([200, 100, 200]); } catch (e) { /* geen trilling */ }
   }
 
@@ -9348,7 +9351,9 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       }).join('') + '</select></label>' +
       '</div>' +
       toggle('rustGeluid', 'Piepje als je rust voorbij is',
-        'Alleen zolang de app open staat; met je telefoon op stil hoor je het niet.', s.rustGeluid !== false) +
+        'Alleen zolang de app open staat; met je telefoon op stil hoor je het niet. Een iPhone laat een ' +
+        'website niet trillen en geen melding geven op je vergrendelscherm, daarom houdt de app je scherm ' +
+        'aan zolang de timer loopt.', s.rustGeluid !== false) +
       '<p class="hint">Op de dagpagina staat bij elke oefening een klokje met zijn rusttijd. Tik erop ' +
       'na je set, dan telt onderin de balk af. Hieronder geef je een oefening een eigen tijd, ' +
       'bijvoorbeeld drie minuten bij bankdrukken en anderhalve bij curls.</p>';

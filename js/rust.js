@@ -7,8 +7,10 @@
  *
  * De timer rekent vanaf een eindtijd, niet met een tellertje. Zet je telefoon
  * de app in de achtergrond stil, dan klopt de tijd nog steeds zodra je
- * terugkomt. Een piepje kan alleen als de app open staat; daarom houdt de
- * timer zolang hij loopt je scherm aan, waar de browser dat toestaat.
+ * terugkomt. Een seintje kan alleen als de app open staat: een iPhone laat
+ * een website niet trillen, en een melding op het vergrendelscherm zou een
+ * server nodig hebben die op het juiste moment een pushbericht stuurt. Daarom
+ * houdt de timer zolang hij loopt je scherm aan, waar de browser dat toestaat.
  *
  * Hij hoort bij dit apparaat en niet bij je gegevens: hij synchroniseert niet
  * en zit niet in je back-up. Wel overleeft hij een herlaadbeurt.
@@ -221,6 +223,7 @@
 
   function meld() {
     if (GD.store.settings().rustGeluid !== false) piep();
+    // Trillen kan op Android; een iPhone negeert het.
     try { if (global.navigator.vibrate) global.navigator.vibrate([200, 100, 200]); } catch (e) { /* geen trilling */ }
   }
 

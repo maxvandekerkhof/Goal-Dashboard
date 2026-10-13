@@ -1908,7 +1908,9 @@
       }).join('') + '</select></label>' +
       '</div>' +
       toggle('rustGeluid', 'Piepje als je rust voorbij is',
-        'Alleen zolang de app open staat; met je telefoon op stil hoor je het niet.', s.rustGeluid !== false) +
+        'Alleen zolang de app open staat; met je telefoon op stil hoor je het niet. Een iPhone laat een ' +
+        'website niet trillen en geen melding geven op je vergrendelscherm, daarom houdt de app je scherm ' +
+        'aan zolang de timer loopt.', s.rustGeluid !== false) +
       '<p class="hint">Op de dagpagina staat bij elke oefening een klokje met zijn rusttijd. Tik erop ' +
       'na je set, dan telt onderin de balk af. Hieronder geef je een oefening een eigen tijd, ' +
       'bijvoorbeeld drie minuten bij bankdrukken en anderhalve bij curls.</p>';

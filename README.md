@@ -122,9 +122,8 @@ erop na je set, dan telt onderin een balk af, met de oefening erbij:
 ```
 
 Met **−15** en **+15** schuif je deze ene rust een kwart minuut op; **✕** stopt hem. Is de
-tijd om, dan wordt de balk groen met *Volgende set!*, klinken er drie korte piepjes en trilt
-je telefoon als die dat kan. Met **Nog een keer** start dezelfde rust opnieuw. Een minuut
-later verdwijnt de balk vanzelf.
+tijd om, dan wordt de balk groen met *Volgende set!* en klinken er drie korte piepjes. Met
+**Nog een keer** start dezelfde rust opnieuw. Een minuut later verdwijnt de balk vanzelf.
 
 De rusttijd stel je in bij **Instellingen → Trainingsschema's**: bovenaan een **standaard
 rusttijd** (begint op 2:00) en bij elke oefening een eigen tijd, van 0:30 tot 5:00, of
@@ -135,9 +134,11 @@ Goed om te weten:
 
 - De timer telt vanaf een eindtijd, dus hij klopt nog steeds als je even een ander scherm
   opent, de app herlaadt of je telefoon wegstopt.
-- Een piepje kan alleen zolang de app open staat. Zolang de timer loopt, houdt de app je
-  scherm daarom aan, als je browser dat toestaat. Staat je iPhone op stil, dan hoor je het
-  piepje niet; de balk wordt wel groen.
+- **Het seintje komt alleen in de app zelf.** Een iPhone laat een website niet trillen, en
+  zodra je scherm op slot gaat ligt de app stil: een melding op je vergrendelscherm kan dus
+  niet. Daarom houdt de app je scherm aan zolang de timer loopt. Staat je iPhone op stil,
+  dan hoor je het piepje ook niet; de balk wordt wel groen. (Op een Android-telefoon trilt
+  hij wel.)
 - De timer hoort bij dit apparaat. Hij synchroniseert niet en zit niet in je back-up. De
   rusttijden zelf wel, want die horen bij je oefeningen.
 
