@@ -82,9 +82,18 @@ maandag push en woensdag pull, dan vergelijkt hij je bankdrukken gewoon met vori
 één omhoog gaat. Gaat de één omhoog en de ander omlaag (40 kg × 10 → 45 kg × 6), dan beslist
 **gewicht × reps**.
 
-Daaruit volgt automatisch het doel *Progressive overload*: alle vergeleken oefeningen
-vooruit = **Ja**, een deel = **Deels**, geen enkele = **Nee**. De knoppen bij dat doel staan
-daarom op slot zodra je oefeningen hebt ingevuld. Een oefening die je voor het eerst doet
+Daaruit volgt automatisch het doel *Progressive overload*:
+
+- **Ja** zodra **meer dan de helft** van je vergeleken oefeningen vooruitging. Vier van de
+  zes vooruit is dus een volle score, ook als de andere twee tegenzaten. Op álles vooruitgaan,
+  elke sessie, kan na de eerste maanden nu eenmaal niet.
+- **Deels** bij de helft of minder: dan telt het naar rato. Vooruit telt vol, gelijk blijven
+  voor 0,4, terug voor niets, en het geheel wordt afgezet tegen 0,8. Drie van de zes vooruit
+  en de rest gelijk is zo 88%; één van de vier vooruit en de rest terug 31%.
+- **Nee** als er niets vooruitging en niets gelijk bleef.
+
+De knoppen bij dat doel staan daarom op slot zodra je oefeningen hebt ingevuld. Een oefening
+per arm telt hierin als twee: rechts en links. Een oefening die je voor het eerst doet
 valt nergens mee te vergelijken en telt die dag niet mee — je startpunt kan geen misser zijn.
 
 Twee soorten oefeningen, in te stellen per oefening:

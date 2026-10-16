@@ -62,7 +62,32 @@ function check(naam, waar, extra) {
     [40, 10, 42.5, 10], [40, 10, 42.5, 10], [40, 10, 30, 8]
   ]);
   check('één echte terugval erbij', d.terug === 1 && d.vooruit === 5, d.statussen);
-  check('5/6 haalt de drempel van 0,8', d.deel === 1, d.deel);
+  check('5/6 is meer dan de helft', d.deel === 1, d.deel);
+
+  console.log('\n2b. Meer dan de helft vooruit is vol');
+  d = await dag([
+    [40, 10, 42.5, 10], [40, 10, 42.5, 10], [40, 10, 42.5, 10],
+    [40, 10, 42.5, 10], [40, 10, 30, 8], [40, 10, 30, 8]
+  ]);
+  check('vier van de zes vooruit, twee terug', d.vooruit === 4 && d.terug === 2, d.statussen);
+  check('dat is Ja, met de volle punten', d.waarde === 'ja' && d.score === 1, d.waarde + ' ' + d.score);
+
+  d = await dag([[40, 10, 42.5, 10], [40, 10, 42.5, 10], [40, 10, 30, 8]]);
+  check('twee van de drie vooruit, één terug: ook vol', d.score === 1, d.score + ' ' + d.statussen);
+
+  d = await dag([
+    [40, 10, 42.5, 10], [40, 10, 42.5, 10], [40, 10, 42.5, 10],
+    [40, 10, 30, 8], [40, 10, 30, 8], [40, 10, 30, 8]
+  ]);
+  // Precies de helft is niet meer dan de helft: 3 / 6 = 0,5 → 0,625
+  check('drie van de zes vooruit, drie terug: deels', d.waarde === 'deels' && d.score === 0.625, d.score);
+
+  d = await dag([
+    [40, 10, 42.5, 10], [40, 10, 42.5, 10], [40, 10, 42.5, 10],
+    [40, 10, 40, 10], [40, 10, 40, 10], [40, 10, 40, 10]
+  ]);
+  // (3 + 3 × 0,4) / 6 = 0,7 → 0,875: onder de helft kom je nooit aan vol
+  check('drie vooruit en drie gelijk: 87,5%', d.waarde === 'deels' && d.score === 0.875, d.score);
 
   console.log('\n3. Het blijft wel wat meten');
   d = await dag([[40, 10, 40, 10], [40, 10, 40, 10], [40, 10, 40, 10], [40, 10, 40, 10]]);

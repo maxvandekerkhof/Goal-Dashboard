@@ -431,12 +431,18 @@
   var PUNT_VOORUIT = 1;
   var PUNT_GELIJK = 0.4;
 
-  /* Bij welk deel van je oefeningen het doel vol staat. Op álles vooruitgaan,
-     elke sessie, kan niet: na de eerste maanden gaat dat fysiek niet meer.
-     Een eis die niemand kan halen meet niets, dus ging het grootste deel
-     vooruit, dan was dit een sessie met progressive overload — ook als er
-     één oefening tegenzat. Die ene zie je nog steeds bij de oefening zelf
-     staan, en blijft hij hangen dan pikt de plateaumelding hem op. */
+  /* Wanneer het doel vol staat. Op álles vooruitgaan, elke sessie, kan niet:
+     na de eerste maanden gaat dat fysiek niet meer. Een eis die niemand kan
+     halen meet niets. Ging meer dan de helft van je oefeningen vooruit, dan
+     was dit een sessie met progressive overload — ook als de rest tegenzat.
+     Die zie je nog steeds bij de oefening zelf staan, en blijft er een hangen
+     dan pikt de plateaumelding hem op.
+
+     Precies de helft of minder telt naar rato: de punten hierboven gedeeld
+     door het aantal oefeningen, en vol bij 0,8. Dat komt onder de helft nooit
+     aan vol toe (de helft vooruit en de rest gelijk is 0,7), dus Ja betekent
+     altijd: meer dan de helft vooruit. */
+  var MEERDERHEID = 0.5;
   var OVERLOAD_DREMPEL = 0.8;
 
   /**
@@ -477,7 +483,8 @@
 
     var deel = null, waarde = null;
     if (vergeleken > 0) {
-      deel = GD.clamp((punten / vergeleken) / OVERLOAD_DREMPEL, 0, 1);
+      deel = vooruit > vergeleken * MEERDERHEID ? 1
+        : GD.clamp((punten / vergeleken) / OVERLOAD_DREMPEL, 0, 1);
       waarde = deel >= 1 ? 'ja' : (deel <= 0 ? 'nee' : 'deels');
     } else if (regels.length) {
       // Alles voor het eerst: er valt nog niets te vergelijken.

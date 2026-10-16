@@ -578,8 +578,8 @@
       '<div class="macro-regel"><span>' + esc(delen.join(' · ')) + '</span>' +
       '<strong style="color:' + GD.scoreInk(pct) + '">' + Math.round(pct) + '%</strong></div>' +
       C.bar(pct) +
-      '<p class="hint hint-tight">Uit je oefeningen hieronder. Gelijk blijven telt voor een deel ' +
-      'mee, en voor een volle score hoeft niet élke oefening vooruit te gaan.</p>' +
+      '<p class="hint hint-tight">Uit je oefeningen hieronder. Ging meer dan de helft vooruit, dan ' +
+      'staat het doel vol; anders telt het naar rato, en gelijk blijven telt voor een deel mee.</p>' +
       '</div>';
   }
 
@@ -947,8 +947,8 @@
         'vooruitgang, zolang je er minstens de helft van je vorige herhalingen mee haalde. ' +
         'Lukt dat niet, dan beslist je geschatte 1RM — dezelfde maat als de grafiek. ' +
         'Daar telt elke stijging, en pas een daling van meer dan 5% heet terugval. ' +
-        'Voor het dagdoel hoeft niet élke oefening vooruit te gaan: ging het grootste deel ' +
-        'vooruit, dan staat dat doel vol. Gelijk blijven telt voor een deel mee.'
+        'Voor het dagdoel hoeft niet élke oefening vooruit te gaan: ging meer dan de helft ' +
+        'vooruit, dan staat dat doel vol. Anders telt het naar rato, en gelijk blijven telt voor een deel mee.'
       : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
 
     return '<section class="card">' +
@@ -2227,8 +2227,8 @@
       '<li>Elk doel levert punten op: <em>Ja (eiwitrijk)</em> = vol, <em>Ja</em> = 60%, <em>Nee</em> = niets.</li>' +
       '<li>Eiwit, calorieën en progressive overload gaan niet op ja of nee maar op hoe ver je kwam: ' +
       '140 van de 150 gram is geen nul, en vijf van je zes oefeningen vooruit is geen halve dag. ' +
-      'Bij overload staat het doel vol zodra het grootste deel vooruitging — op álles vooruitgaan, ' +
-      'elke sessie, kan nu eenmaal niet.</li>' +
+      'Bij overload staat het doel vol zodra meer dan de helft van je oefeningen vooruitging — op ' +
+      'álles vooruitgaan, elke sessie, kan nu eenmaal niet.</li>' +
       '<li>Je score is <em>behaalde punten ÷ haalbare punten</em>, met de gewichten hierboven.</li>' +
       '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
