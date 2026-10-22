@@ -738,11 +738,18 @@ De app zelf heeft geen dependencies; alleen de tests gebruiken
 [Playwright](https://playwright.dev), dat de app in een echte browser opent.
 
 ```
-npm install
+npm ci
 npx playwright install chromium
 npm test                # alle suites
 npm test -- advies      # alleen suites met "advies" in de naam
+npm audit               # bekende kwetsbaarheden in Playwright
 ```
+
+`npm ci` installeert precies de versie uit `package-lock.json` en controleert elk pakket
+tegen de vingerafdruk die daarin staat; een pakket dat onderweg veranderd is, wordt
+geweigerd. `.npmrc` zet installatiescripts van pakketten uit, zodat een installatie alleen
+bestanden neerzet en niets uitvoert. Geen van beide raakt de app zelf: die gebruikt geen
+npm-pakketten en GitHub Pages serveert alleen je eigen bestanden.
 
 `npm test` start zelf een kleine webserver en draait zeventien suites achter elkaar: de dagscore,
 de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
