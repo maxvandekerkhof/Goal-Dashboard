@@ -125,7 +125,8 @@
       statTile('Goede dagen', st.goodDays + '<span class="unit">/' + totalDays + '</span>',
         '≥ ' + fmt(s.goedeDagDrempel) + '%'),
       statTile('Getraind', st.trainDays + '<span class="unit">×</span>',
-        st.restDays + ' rustdag' + (st.restDays === 1 ? '' : 'en')),
+        st.restDays + ' rustdag' + (st.restDays === 1 ? '' : 'en') +
+        (st.blessureDays ? ' · ' + st.blessureDays + ' dag' + (st.blessureDays === 1 ? '' : 'en') + ' blessure' : '')),
       statTile('Gewicht', st.weightEnd !== null ? fmt(st.weightEnd, 1) + '<span class="unit">kg</span>' : '–',
         st.weightDelta !== null ? signed(st.weightDelta, 1, ' kg in periode') : 'gem. ' + fmt(st.weightAvg, 1) + ' kg'),
       statTile('Gem. eiwit', st.proteinAvg !== null ? fmt(st.proteinAvg) + '<span class="unit">g</span>' : '–',
@@ -284,6 +285,7 @@
       (kr === null ? '' : '<span class="chip" style="color:' + GD.scoreInk(kr) + '">' +
         GD.icon('overload', 14) + 'kracht ' + Math.round(kr) + '</span>') +
       (day.restDay ? '<span class="chip">' + GD.icon('rust', 14) + 'rustdag</span>' : '') +
+      (day.blessure ? '<span class="chip">' + GD.icon('blessure', 14) + 'blessure</span>' : '') +
       '</div>' +
       (ov.open > 0 && !isFuture
         ? '<p class="hint hint-tight">De vage ring eromheen is waar je vandaag nog op uit kunt komen.</p>'
@@ -886,12 +888,15 @@
     var ids = L.dagRegels(date);
     var sid = L.dagSchema(date);
 
-    // Op een rustdag of een dag zonder training alleen tonen als er wél iets staat.
-    var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag';
+    // Op een rustdag, met een blessure of zonder training alleen tonen als er
+    // wél iets staat.
+    var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag' || day.trainedValue === 'blessure';
     if (rust && !ids.length) {
       return '<section class="card card-quiet">' +
         '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2></div>' +
-        '<p class="hint">Geen training vandaag, dus niets bij te houden.</p>' +
+        '<p class="hint">' + (day.blessure
+          ? 'Geblesseerd, dus vandaag niets bij te houden. Herstel eerst goed.'
+          : 'Geen training vandaag, dus niets bij te houden.') + '</p>' +
         '</section>';
     }
 
@@ -1401,6 +1406,11 @@
     var t = 'Je trainde ' + nu.trainDagen + ' keer, ' + fmt(nu.trainPerWeek, 1).replace(/,0$/, '') +
       ' keer per week' +
       (vorig ? ' (' + m.vorigeNaam + ': ' + fmt(vorig.trainPerWeek, 1).replace(/,0$/, '') + ')' : '') + '.';
+    // Minder trainen door een blessure is geen terugval; dat hoort erbij te staan.
+    if (nu.blessureDagen) {
+      t += ' ' + nu.blessureDagen + ' dag' + (nu.blessureDagen === 1 ? '' : 'en') +
+        ' kon je niet trainen door een blessure.';
+    }
     if (k.records.length) {
       // De drie grootste stappen bij naam; een lijst van dertien leest niemand.
       var getoond = k.records.slice(0, MAAND_RECORDS).map(function (r) {
@@ -2230,7 +2240,8 @@
       'Bij overload staat het doel vol zodra meer dan de helft van je oefeningen vooruitging — op ' +
       'álles vooruitgaan, elke sessie, kan nu eenmaal niet.</li>' +
       '<li>Je score is <em>behaalde punten ÷ haalbare punten</em>, met de gewichten hierboven.</li>' +
-      '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
+      '<li>Kies je <em>Rustdag</em> of <em>Blessure</em>, dan telt “gesport” niet mee — een rustdag of ' +
+      'een blessure verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
       'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +

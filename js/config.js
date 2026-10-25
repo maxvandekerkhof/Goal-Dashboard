@@ -7,7 +7,7 @@
   /* ------------------------------------------------------------------ *
    * Doelen
    *
-   * score  : 0..1 (of null = telt niet mee, bv. rustdag)
+   * score  : 0..1 (of null = telt niet mee, bv. rustdag of blessure)
    * weight : standaard gewicht in de eindscore (aanpasbaar in instellingen)
    * onlyIfTrained : doel telt alleen mee op een dag waarop echt gesport is
    * ------------------------------------------------------------------ */
@@ -47,7 +47,9 @@
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
         { v: 'nee', label: 'Nee', short: 'Nee', score: 0 },
-        { v: 'rustdag', label: 'Rustdag', short: 'Rust', score: null, reason: 'rustdag' }
+        { v: 'rustdag', label: 'Rustdag', short: 'Rust', score: null, reason: 'rustdag' },
+        // Net als een rustdag: niet sporten is dan geen misser, maar verstandig.
+        { v: 'blessure', label: 'Blessure', short: 'Blessure', score: null, reason: 'blessure' }
       ]
     },
     {

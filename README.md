@@ -30,7 +30,7 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 | Avondeten | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Post-workout maaltijd | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Water | teller met +25 cl / +50 cl / +1 L | ×1 |
-| Gesport | Ja / Nee / Rustdag | ×2 |
+| Gesport | Ja / Nee / Rustdag / Blessure | ×2 |
 | Progressive overload | volgt uit je oefeningen, zie onder | ×1,5 |
 | Eiwitdoel behaald | Ja / Nee | ×2 |
 | Caloriedoel behaald | Ja / Nee | ×1,5 |
@@ -50,6 +50,12 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
 - Bij progressive overload telt _Deels_ voor de helft. Die waarde bepaalt de app zelf uit je
   ingevulde oefeningen; zie [Oefeningen en progressive overload](#oefeningen-en-progressive-overload).
 - **Rustdag** haalt "gesport" uit de berekening — een rustdag verpest je score dus niet.
+- **Blessure** werkt precies zo: met een blessure kun je niet sporten, dus dat telt niet als
+  misser. Progressive overload en de post-workout maaltijd vallen ook weg, je reeks goede
+  dagen loopt gewoon door, en **Neem gisteren over** neemt hem mee, handig als je een paar
+  dagen uit de roulatie bent. In het week- en maandoverzicht staan blessuredagen apart naast
+  je rustdagen, en de maandafsluiting zegt erbij hoeveel dagen je door een blessure niet kon
+  trainen.
 - **Progressive overload** en de **post-workout maaltijd** tellen alleen mee op dagen dat
   je écht getraind hebt.
 - Zolang **vandaag** loopt zie je een **tussenstand**: de punten die je al binnen hebt,
@@ -751,13 +757,13 @@ geweigerd. `.npmrc` zet installatiescripts van pakketten uit, zodat een installa
 bestanden neerzet en niets uitvoert. Geen van beide raakt de app zelf: die gebruikt geen
 npm-pakketten en GitHub Pages serveert alleen je eigen bestanden.
 
-`npm test` start zelf een kleine webserver en draait zeventien suites achter elkaar: de dagscore,
+`npm test` start zelf een kleine webserver en draait achttien suites achter elkaar: de dagscore,
 de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
 gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
 terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten, de twee
 weken na een nieuw caloriedoel, de maandafsluiting, gewicht over een zelfgekozen periode,
 het inklappen van de instellingen, een aanpassing van je caloriedoel achteraf, de rusttimer,
-de mijlpalen en alle schermen op telefoonbreedte.
+de mijlpalen, de blessure-optie en alle schermen op telefoonbreedte.
 
 Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op
 je echte wegingen hetzelfde zegt als de dagkaart. **Die gegevens staan niet in deze repo**

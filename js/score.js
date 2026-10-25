@@ -211,6 +211,7 @@
         item.reason = 'uitgezet';
       } else if (goal.onlyIfTrained && !trained) {
         if (trainedValue === 'rustdag') item.reason = 'rustdag';
+        else if (trainedValue === 'blessure') item.reason = 'blessure';
         else if (trainedValue) item.reason = 'niet getraind';
         else item.reason = live ? 'nog niet ingevuld' : 'niet getraind';
       } else if (!opt) {
@@ -260,6 +261,7 @@
       trained: trained,
       trainedValue: trainedValue,
       restDay: trainedValue === 'rustdag',
+      blessure: trainedValue === 'blessure',
       hasEntry: !!entry
     };
   }
@@ -433,7 +435,7 @@
 
   function periodStats(dates, days) {
     var t = D.today();
-    var weights = [], trainDays = 0, restDays = 0, kcal = [], prot = [], water = [];
+    var weights = [], trainDays = 0, restDays = 0, blessureDays = 0, kcal = [], prot = [], water = [];
     dates.forEach(function (date) {
       if (date > t) return;
       var e = store.entry(date);
@@ -443,6 +445,7 @@
       var d = scoreDay(date, date === t);
       if (d.trained) trainDays++;
       if (d.restDay) restDays++;
+      if (d.blessure) blessureDays++;
       var k = num(e.kcal); if (k !== null) kcal.push(k);
       var p = num(e.eiwitGram); if (p !== null) prot.push(p);
       var wa = num(e.waterMl); if (wa !== null) water.push(wa);
@@ -461,6 +464,7 @@
       weightAvg: avg(weights.map(function (x) { return x.w; })),
       trainDays: trainDays,
       restDays: restDays,
+      blessureDays: blessureDays,
       kcalAvg: avg(kcal),
       kcalDays: kcal.length,
       proteinAvg: avg(prot),

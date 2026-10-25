@@ -1431,7 +1431,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
   /* ------------------------------------------------------------------ *
    * Doelen
    *
-   * score  : 0..1 (of null = telt niet mee, bv. rustdag)
+   * score  : 0..1 (of null = telt niet mee, bv. rustdag of blessure)
    * weight : standaard gewicht in de eindscore (aanpasbaar in instellingen)
    * onlyIfTrained : doel telt alleen mee op een dag waarop echt gesport is
    * ------------------------------------------------------------------ */
@@ -1471,7 +1471,9 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
         { v: 'nee', label: 'Nee', short: 'Nee', score: 0 },
-        { v: 'rustdag', label: 'Rustdag', short: 'Rust', score: null, reason: 'rustdag' }
+        { v: 'rustdag', label: 'Rustdag', short: 'Rust', score: null, reason: 'rustdag' },
+        // Net als een rustdag: niet sporten is dan geen misser, maar verstandig.
+        { v: 'blessure', label: 'Blessure', short: 'Blessure', score: null, reason: 'blessure' }
       ]
     },
     {
@@ -1803,6 +1805,9 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
     schild: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 '
       + '0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /> <path d="m9 '
       + '12 2 2 4-4" />',
+    blessure: '<path d="M10 10.01h.01" /> <path d="M10 14.01h.01" /> <path d="M14 10.01h.01" /> <path '
+      + 'd="M14 14.01h.01" /> <path d="M18 6v11.5" /> <path d="M6 6v12" /> <rect x="2" y="6" width="20" '
+      + 'height="12" rx="2" />',
     timer: '<line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle '
       + 'cx="12" cy="14" r="8" />',
     trofee: '<path d="M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978" /> <path d="M14 '
@@ -3610,6 +3615,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
         item.reason = 'uitgezet';
       } else if (goal.onlyIfTrained && !trained) {
         if (trainedValue === 'rustdag') item.reason = 'rustdag';
+        else if (trainedValue === 'blessure') item.reason = 'blessure';
         else if (trainedValue) item.reason = 'niet getraind';
         else item.reason = live ? 'nog niet ingevuld' : 'niet getraind';
       } else if (!opt) {
@@ -3659,6 +3665,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       trained: trained,
       trainedValue: trainedValue,
       restDay: trainedValue === 'rustdag',
+      blessure: trainedValue === 'blessure',
       hasEntry: !!entry
     };
   }
@@ -3832,7 +3839,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
 
   function periodStats(dates, days) {
     var t = D.today();
-    var weights = [], trainDays = 0, restDays = 0, kcal = [], prot = [], water = [];
+    var weights = [], trainDays = 0, restDays = 0, blessureDays = 0, kcal = [], prot = [], water = [];
     dates.forEach(function (date) {
       if (date > t) return;
       var e = store.entry(date);
@@ -3842,6 +3849,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       var d = scoreDay(date, date === t);
       if (d.trained) trainDays++;
       if (d.restDay) restDays++;
+      if (d.blessure) blessureDays++;
       var k = num(e.kcal); if (k !== null) kcal.push(k);
       var p = num(e.eiwitGram); if (p !== null) prot.push(p);
       var wa = num(e.waterMl); if (wa !== null) water.push(wa);
@@ -3860,6 +3868,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       weightAvg: avg(weights.map(function (x) { return x.w; })),
       trainDays: trainDays,
       restDays: restDays,
+      blessureDays: blessureDays,
       kcalAvg: avg(kcal),
       kcalDays: kcal.length,
       proteinAvg: avg(prot),
@@ -5896,6 +5905,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       goedeDagen: st.goodDays,
       trainDagen: st.trainDays,
       rustDagen: st.restDays,
+      blessureDagen: st.blessureDays,
       beste: gesorteerd.length ? gesorteerd[0] : null,
       zwakste: gesorteerd.length > 1 ? gesorteerd[gesorteerd.length - 1] : null,
       gewicht: gewicht,
@@ -6089,6 +6099,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       pct: period.pct, ingevuld: period.logged, goedeDagen: st.goodDays,
       breakdown: period.breakdown,
       trainDagen: st.trainDays, trainPerWeek: n ? st.trainDays / n * 7 : null,
+      blessureDagen: st.blessureDays,
       kcalGem: kcal.dagen ? kcal.som / kcal.dagen : null, kcalDagen: kcal.dagen,
       kcalGehaald: kcal.gehaald,
       eiwitGem: eiwit.dagen ? eiwit.som / eiwit.dagen : null, eiwitDagen: eiwit.dagen,
@@ -7575,7 +7586,8 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       statTile('Goede dagen', st.goodDays + '<span class="unit">/' + totalDays + '</span>',
         '≥ ' + fmt(s.goedeDagDrempel) + '%'),
       statTile('Getraind', st.trainDays + '<span class="unit">×</span>',
-        st.restDays + ' rustdag' + (st.restDays === 1 ? '' : 'en')),
+        st.restDays + ' rustdag' + (st.restDays === 1 ? '' : 'en') +
+        (st.blessureDays ? ' · ' + st.blessureDays + ' dag' + (st.blessureDays === 1 ? '' : 'en') + ' blessure' : '')),
       statTile('Gewicht', st.weightEnd !== null ? fmt(st.weightEnd, 1) + '<span class="unit">kg</span>' : '–',
         st.weightDelta !== null ? signed(st.weightDelta, 1, ' kg in periode') : 'gem. ' + fmt(st.weightAvg, 1) + ' kg'),
       statTile('Gem. eiwit', st.proteinAvg !== null ? fmt(st.proteinAvg) + '<span class="unit">g</span>' : '–',
@@ -7734,6 +7746,7 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       (kr === null ? '' : '<span class="chip" style="color:' + GD.scoreInk(kr) + '">' +
         GD.icon('overload', 14) + 'kracht ' + Math.round(kr) + '</span>') +
       (day.restDay ? '<span class="chip">' + GD.icon('rust', 14) + 'rustdag</span>' : '') +
+      (day.blessure ? '<span class="chip">' + GD.icon('blessure', 14) + 'blessure</span>' : '') +
       '</div>' +
       (ov.open > 0 && !isFuture
         ? '<p class="hint hint-tight">De vage ring eromheen is waar je vandaag nog op uit kunt komen.</p>'
@@ -8336,12 +8349,15 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
     var ids = L.dagRegels(date);
     var sid = L.dagSchema(date);
 
-    // Op een rustdag of een dag zonder training alleen tonen als er wél iets staat.
-    var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag';
+    // Op een rustdag, met een blessure of zonder training alleen tonen als er
+    // wél iets staat.
+    var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag' || day.trainedValue === 'blessure';
     if (rust && !ids.length) {
       return '<section class="card card-quiet">' +
         '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2></div>' +
-        '<p class="hint">Geen training vandaag, dus niets bij te houden.</p>' +
+        '<p class="hint">' + (day.blessure
+          ? 'Geblesseerd, dus vandaag niets bij te houden. Herstel eerst goed.'
+          : 'Geen training vandaag, dus niets bij te houden.') + '</p>' +
         '</section>';
     }
 
@@ -8851,6 +8867,11 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
     var t = 'Je trainde ' + nu.trainDagen + ' keer, ' + fmt(nu.trainPerWeek, 1).replace(/,0$/, '') +
       ' keer per week' +
       (vorig ? ' (' + m.vorigeNaam + ': ' + fmt(vorig.trainPerWeek, 1).replace(/,0$/, '') + ')' : '') + '.';
+    // Minder trainen door een blessure is geen terugval; dat hoort erbij te staan.
+    if (nu.blessureDagen) {
+      t += ' ' + nu.blessureDagen + ' dag' + (nu.blessureDagen === 1 ? '' : 'en') +
+        ' kon je niet trainen door een blessure.';
+    }
     if (k.records.length) {
       // De drie grootste stappen bij naam; een lijst van dertien leest niemand.
       var getoond = k.records.slice(0, MAAND_RECORDS).map(function (r) {
@@ -9680,7 +9701,8 @@ body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
       'Bij overload staat het doel vol zodra meer dan de helft van je oefeningen vooruitging — op ' +
       'álles vooruitgaan, elke sessie, kan nu eenmaal niet.</li>' +
       '<li>Je score is <em>behaalde punten ÷ haalbare punten</em>, met de gewichten hierboven.</li>' +
-      '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
+      '<li>Kies je <em>Rustdag</em> of <em>Blessure</em>, dan telt “gesport” niet mee — een rustdag of ' +
+      'een blessure verpest je score dus niet. ' +
       'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
       '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
       'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
