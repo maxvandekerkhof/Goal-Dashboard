@@ -30,7 +30,7 @@ via "Zet op beginscherm" als app-icoon op je telefoon zetten.
 | Avondeten | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Post-workout maaltijd | Ja (eiwitrijk) / Ja / Nee | ×1 |
 | Water | teller met +25 cl / +50 cl / +1 L | ×1 |
-| Gesport | Ja / Nee / Rustdag | ×2 |
+| Gesport | Ja / Nee / Rustdag / Blessure | ×2 |
 | Progressive overload | volgt uit je oefeningen, zie onder | ×1,5 |
 | Eiwitdoel behaald | Ja / Nee | ×2 |
 | Caloriedoel behaald | Ja / Nee | ×1,5 |
@@ -50,6 +50,13 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
 - Bij progressive overload telt _Deels_ voor de helft. Die waarde bepaalt de app zelf uit je
   ingevulde oefeningen; zie [Oefeningen en progressive overload](#oefeningen-en-progressive-overload).
 - **Rustdag** haalt "gesport" uit de berekening — een rustdag verpest je score dus niet.
+- **Blessure** werkt precies zo: met een blessure kun je niet sporten, dus dat telt niet als
+  misser. Progressive overload en de post-workout maaltijd vallen ook weg, je reeks goede
+  dagen loopt gewoon door, en **Neem gisteren over** neemt hem mee, handig als je een paar
+  dagen uit de roulatie bent. In het week- en maandoverzicht staan blessuredagen apart naast
+  je rustdagen, en de maandafsluiting zegt erbij hoeveel dagen je door een blessure niet kon
+  trainen. Ben je terug, dan oordelen je eerste sessies mild; zie
+  [Na een blessure](#na-een-blessure).
 - **Progressive overload** en de **post-workout maaltijd** tellen alleen mee op dagen dat
   je écht getraind hebt.
 - Zolang **vandaag** loopt zie je een **tussenstand**: de punten die je al binnen hebt,
@@ -82,10 +89,20 @@ maandag push en woensdag pull, dan vergelijkt hij je bankdrukken gewoon met vori
 één omhoog gaat. Gaat de één omhoog en de ander omlaag (40 kg × 10 → 45 kg × 6), dan beslist
 **gewicht × reps**.
 
-Daaruit volgt automatisch het doel *Progressive overload*: alle vergeleken oefeningen
-vooruit = **Ja**, een deel = **Deels**, geen enkele = **Nee**. De knoppen bij dat doel staan
-daarom op slot zodra je oefeningen hebt ingevuld. Een oefening die je voor het eerst doet
+Daaruit volgt automatisch het doel *Progressive overload*:
+
+- **Ja** zodra **meer dan de helft** van je vergeleken oefeningen vooruitging. Vier van de
+  zes vooruit is dus een volle score, ook als de andere twee tegenzaten. Op álles vooruitgaan,
+  elke sessie, kan na de eerste maanden nu eenmaal niet.
+- **Deels** bij de helft of minder: dan telt het naar rato. Vooruit telt vol, gelijk blijven
+  voor 0,4, terug voor niets, en het geheel wordt afgezet tegen 0,8. Drie van de zes vooruit
+  en de rest gelijk is zo 88%; één van de vier vooruit en de rest terug 31%.
+- **Nee** als er niets vooruitging en niets gelijk bleef.
+
+De knoppen bij dat doel staan daarom op slot zodra je oefeningen hebt ingevuld. Een oefening
+per arm telt hierin als twee: rechts en links. Een oefening die je voor het eerst doet
 valt nergens mee te vergelijken en telt die dag niet mee — je startpunt kan geen misser zijn.
+Na een blessure oordeelt de app een paar sessies milder; zie [Na een blessure](#na-een-blessure).
 
 Twee soorten oefeningen, in te stellen per oefening:
 
@@ -107,8 +124,57 @@ arm bij, dan krijgen rechts en links elk hun eigen lijn.
 
 In **Instellingen → Trainingsschema's** beheer je je schema's: oefeningen toevoegen, van
 volgorde wisselen, uit een schema halen (je ingevulde sessies blijven staan) en met **↺**
-opnieuw beginnen met tellen, bijvoorbeeld na een blessure of een deload. Staat er nog niets,
-dan zet één knop **Push** en **Pull** voor je klaar.
+opnieuw beginnen met tellen, bijvoorbeeld na een deload. Staat er nog niets, dan zet één knop
+**Push** en **Pull** voor je klaar.
+
+### Na een blessure
+
+Kom je terug na een of meer dagen **Blessure**, dan begin je lichter dan je was, en dat
+hoort ook zo. De app noemt dat geen terugval. Je **eerste drie sessies van elke oefening** na je laatste
+blessuredag zijn herstelsessies:
+
+- Gaat zo'n sessie **vooruit**, dan telt dat gewoon mee.
+- Zo niet, dan staat er **herstel** bij de oefening, met welke sessie het is, en telt hij
+  niet mee voor *Progressive overload*. Zijn al je oefeningen die dag herstelsessies, dan
+  valt het doel weg, net als op een rustdag.
+- Een **plateau** telt pas vanaf daarna. Wat er vóór je blessure stilstond, laat de app los
+  zodra je een blessuredag invult.
+
+Dit geldt alleen voor oefeningen die je vóór de blessure al deed. Je hoeft er niets voor in
+te stellen en ook niet met **↺** opnieuw te beginnen: zet je de blessuredagen terug op iets
+anders, dan oordeelt de app weer zoals altijd.
+
+### Rusttimer
+
+Op de dagpagina van **vandaag** staat bij elke oefening een klokje met zijn rusttijd. Tik
+erop na je set, dan telt onderin een balk af, met de oefening erbij:
+
+```
+⏱ RUST · INCLINE BENCH PRESS
+2:12                                   [−15] [+15] [✕]
+▬▬▬▬▬▬▬▬▬▬▬▬────────────────────────────────────────────
+```
+
+Met **−15** en **+15** schuif je deze ene rust een kwart minuut op; **✕** stopt hem. Is de
+tijd om, dan wordt de balk groen met *Volgende set!* en klinken er drie korte piepjes. Met
+**Nog een keer** start dezelfde rust opnieuw. Een minuut later verdwijnt de balk vanzelf.
+
+De rusttijd stel je in bij **Instellingen → Trainingsschema's**: bovenaan een **standaard
+rusttijd** (begint op 2:00) en bij elke oefening een eigen tijd, van 0:30 tot 5:00, of
+*Rust: standaard*. Zo rust je drie minuten na bankdrukken en anderhalve na curls. Het
+piepje zet je daar ook uit.
+
+Goed om te weten:
+
+- De timer telt vanaf een eindtijd, dus hij klopt nog steeds als je even een ander scherm
+  opent, de app herlaadt of je telefoon wegstopt.
+- **Het seintje komt alleen in de app zelf.** Een iPhone laat een website niet trillen, en
+  zodra je scherm op slot gaat ligt de app stil: een melding op je vergrendelscherm kan dus
+  niet. Daarom houdt de app je scherm aan zolang de timer loopt. Staat je iPhone op stil,
+  dan hoor je het piepje ook niet; de balk wordt wel groen. (Op een Android-telefoon trilt
+  hij wel.)
+- De timer hoort bij dit apparaat. Hij synchroniseert niet en zit niet in je back-up. De
+  rusttijden zelf wel, want die horen bij je oefeningen.
 
 ## Waterteller
 
@@ -336,6 +402,30 @@ Daardoor telt een dag ook op het caloriedoel dat **die dag** gold, net als het e
 deed. Zet je je doel van 2530 op 2360, dan worden je dagen op 2530 van vorige maand niet
 alsnog rood.
 
+### Een aanpassing achteraf invullen
+
+Verzette je je caloriedoel zonder dat de app het weet, bijvoorbeeld vóór hij dat bijhield?
+Dan rekent het advies met weken waarin je nog op je oude doel at, en kent het geen rust na
+de aanpassing. Vul hem daarom alsnog in bij **Instellingen → Voedingsdoelen → Aanpassingen
+van je caloriedoel**: de datum, van welk doel en naar welk doel (*Naar* staat al op je
+huidige doel).
+
+```
+Datum  23-09-2026     Van  2800 kcal     Naar  2530 kcal     [Aanpassing toevoegen]
+```
+
+Vanaf dan telt hij als elke andere aanpassing:
+
+- Het advies en Verbruik rekenen vanaf die dag. Ligt hij nog geen twee weken terug, dan wacht
+  het advies tot die twee weken om zijn.
+- De dagen ervóór worden weer gemeten aan het doel dat toen gold.
+- De maandafsluiting en het gewichtscherm noemen hem bij wat je aanpaste.
+
+Het kan alleen voor dagen vóór vandaag, want vandaag pas je gewoon je doel aan. Je huidige
+doel verandert er niet door. In de lijst staan al je aanpassingen, nieuwste eerst. Wat je
+achteraf invulde kun je weer weghalen; wat de app zelf onthield niet, want dat is echt zo
+gebeurd.
+
 ## Gewicht over een periode
 
 Het tabblad **Gewicht** laat je gewicht zien over een periode die je zelf kiest. Vul bij
@@ -354,6 +444,40 @@ zijn het je eerste en laatste weging zelf. Een lijn komt er vanaf een week en vi
 In de grafiek is die lijn gestippeld, en een verticale streep markeert elke dag waarop je
 je caloriedoel aanpaste. Daaronder je laagste en hoogste weging, hoe vaak je woog en wat je
 gemiddeld at, en onder de grafiek elk doel dat je in die periode veranderde.
+
+## Mijlpalen
+
+Drie soorten, die de app uit je eigen gegevens haalt:
+
+| Soort | Wanneer |
+| --- | --- |
+| **Kracht** | Voor het eerst een rond gewicht op een oefening: per 5 kg tot 50 kg, daarboven per 10 kg. Bij oefeningen zonder gewicht een rond aantal herhalingen (5, 10, 15, 20, 25, 30, 40, 50). En je geschatte 1RM 10, 25, 50 of 100% boven je startpunt. |
+| **Lichaamsgewicht** | Elke hele kilo erbij sinds je begon (bij afvallen eraf), en je streefgewicht. |
+| **Reeksen** | 7, 14, 30, 50, 100, 200 en 365 dagen op rij: goede dagen, creatine en je waterdoel. |
+
+Een paar regels, zodat een mijlpaal ook echt iets zegt:
+
+- **Je startpunt telt niet.** Begon je op 40 kg, dan zijn 5 t/m 40 kg geen mijlpaal; 45 kg
+  wel.
+- **Per arm telt de zwakste kant.** Een mijlpaal met één arm is er nog geen.
+- **Lichaamsgewicht gaat op je weekgemiddelde**, met minstens drie wegingen in die week, en
+  begint bij het gemiddelde van je eerste week. Eén zware ochtend is geen kilo erbij.
+- **Elke mijlpaal telt één keer**, op de eerste dag dat je hem haalde. Haal je na een
+  onderbreking opnieuw zeven dagen op rij, dan is dat geen nieuwe mijlpaal; de volgende is
+  veertien.
+
+Waar je ze ziet:
+
+- **Op de dag zelf** staat bovenaan een gouden kaart. Haal je hem terwijl je invult,
+  bijvoorbeeld met een set bij je oefeningen, dan meldt de app het meteen onderin.
+- **In het maandscherm** staat een kaart **Mijlpalen**: wat je die maand haalde (nieuwste
+  eerst), in de lopende maand ook wat er **bijna** is, met hoe ver je bent, en ingeklapt
+  **alle mijlpalen** die je ooit haalde.
+- **In de maandafsluiting** staan ze op één regel.
+
+Mijlpalen worden nergens opgeslagen: de app rekent ze steeds opnieuw uit je dagen uit. Daarom
+tellen ook je trainingen van vóór deze versie mee, en verdwijnt een mijlpaal vanzelf als je
+een verkeerd ingetikte set verbetert.
 
 ## Synchroniseren tussen telefoon en laptop
 
@@ -597,7 +721,8 @@ staan en word je uitgelogd, zodat het niet meteen weer terugkomt.
 - **Neem gisteren over** kopieert je vinkjes van gisteren, handig op vaste dagen. Metingen
   (gewicht, calorieën, eiwit), water, oefeningen en progressive overload gaan niet mee, en
   eiwit- en caloriedoel behaald ook niet zolang de app die zelf uit je getallen afleidt.
-- **📈** naast een oefening klapt de grafiek van díe oefening uit.
+- **📈** naast een oefening klapt de grafiek van díe oefening uit; het **klokje** ernaast
+  start de rusttimer.
 - Het icoon rechtsboven wisselt tussen donker en licht.
 - Ben je ingelogd voor synchronisatie, dan staat er een **⟳** naast: die synchroniseert
   vanaf elke pagina, zonder eerst naar de instellingen te gaan. Hij draait terwijl hij
@@ -613,10 +738,12 @@ js/store.js         opslag (localStorage), samenvoegen, terugzetten, datum-helpe
 js/vangnet.js       automatische kopieën (IndexedDB) en de back-upherinnering
 js/lifts.js         oefeningen, trainingsschema's en de progressive-overload-regel
 js/score.js         scoreberekening per dag en per periode, streaks, gewichtstrend
+js/mijlpalen.js     mijlpalen: kracht, lichaamsgewicht en reeksen
 js/charts.js        SVG-ring, balken, kalender, gewichts- en oefeninggrafiek
 js/review.js        week- en maandafsluiting, gewicht over een periode
 js/voeding.js       calorieën en eiwitten uit Apple Health toepassen
 js/sync.js          synchronisatie via de REST-API van Supabase
+js/rust.js          de rusttimer tussen sets
 js/app.js           weergave en interactie
 
 icons/apple-touch-icon.png  het icoon voor je beginscherm
@@ -636,18 +763,26 @@ De app zelf heeft geen dependencies; alleen de tests gebruiken
 [Playwright](https://playwright.dev), dat de app in een echte browser opent.
 
 ```
-npm install
+npm ci
 npx playwright install chromium
 npm test                # alle suites
 npm test -- advies      # alleen suites met "advies" in de naam
+npm audit               # bekende kwetsbaarheden in Playwright
 ```
 
-`npm test` start zelf een kleine webserver en draait veertien suites achter elkaar: de dagscore,
+`npm ci` installeert precies de versie uit `package-lock.json` en controleert elk pakket
+tegen de vingerafdruk die daarin staat; een pakket dat onderweg veranderd is, wordt
+geweigerd. `.npmrc` zet installatiescripts van pakketten uit, zodat een installatie alleen
+bestanden neerzet en niets uitvoert. Geen van beide raakt de app zelf: die gebruikt geen
+npm-pakketten en GitHub Pages serveert alleen je eigen bestanden.
+
+`npm test` start zelf een kleine webserver en draait negentien suites achter elkaar: de dagscore,
 de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
 gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
 terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten, de twee
-weken na een nieuw caloriedoel, de maandafsluiting, gewicht over een zelfgekozen periode, het inklappen van de instellingen en alle
-schermen op telefoonbreedte.
+weken na een nieuw caloriedoel, de maandafsluiting, gewicht over een zelfgekozen periode,
+het inklappen van de instellingen, een aanpassing van je caloriedoel achteraf, de rusttimer,
+de mijlpalen, de blessure-optie, het herstel na een blessure en alle schermen op telefoonbreedte.
 
 Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op
 je echte wegingen hetzelfde zegt als de dagkaart. **Die gegevens staan niet in deze repo**

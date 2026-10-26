@@ -971,6 +971,14 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .kopie { grid-template-columns: 1fr; }
   .kopie-knoppen { grid-column: 1; grid-row: auto; margin-top: 4px; }
 }
+/* Een aanpassing van je caloriedoel achteraf: datum over de hele breedte,
+   van en naar naast elkaar. */
+.cw-form { grid-template-columns: 1fr 1fr; margin-top: 12px; }
+.cw-form .cw-datum { grid-column: 1 / -1; }
+@media (min-width: 640px) {
+  .cw-form { grid-template-columns: 1.2fr 1fr 1fr; }
+  .cw-form .cw-datum { grid-column: auto; }
+}
 .uitleg { margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius-s); padding: 11px 13px; }
 .uitleg summary { cursor: pointer; font-weight: 600; font-size: .88rem; }
 .uitleg[open] summary { margin-bottom: 10px; }
@@ -1188,6 +1196,118 @@ ol.explain { list-style: decimal; }
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ------------------------------- mijlpalen ---------------------------- */
+
+/* Goud: buiten de scoreschaal en buiten het blauw van de knoppen. Een
+   mijlpaal is geen score en niets om op te drukken, maar iets om even bij
+   stil te staan. Op wit wordt het goud donkerder, anders leest het niet. */
+.view {
+  --goud: #ffc531;
+  --goud-zacht: rgba(255, 197, 49, .14);
+}
+html[data-theme="light"] .view {
+  --goud: #a16207;
+  --goud-zacht: rgba(161, 98, 7, .10);
+}
+.mijlpalen { list-style: none; margin: 4px 0 0; padding: 0; }
+.mijlpaal {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 11px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.mijlpaal:first-child { border-top: 0; }
+.mijlpaal-ico { display: flex; padding: 6px; border-radius: 8px; color: var(--goud); background: var(--goud-zacht); }
+.mijlpaal-tekst { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mijlpaal-tekst strong { font-size: .92rem; line-height: 1.35; }
+.mijlpaal-tekst > span { font-size: .78rem; color: var(--muted); line-height: 1.45; }
+.mijlpaal-datum { padding-top: 2px; font-size: .74rem; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mijlpaal-tekst > .mijlpaal-balk { display: block; height: 4px; margin-top: 6px; border-radius: 2px; background: var(--track); overflow: hidden; }
+.mijlpaal-balk > span { display: block; height: 100%; border-radius: 2px; background: var(--goud); }
+.mijlpaal-sub { margin-top: 18px; }
+
+/* Op de dag zelf: een eigen kader, zoals de back-up er een heeft. */
+.view > .card.mijlpaal-kaart {
+  margin: 18px 0;
+  padding: 20px 18px 14px;
+  border: 1px solid color-mix(in srgb, var(--goud) 50%, transparent);
+  border-radius: var(--radius);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--goud) 13%, var(--card)) 0%, var(--card) 65%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--goud) 8%, transparent);
+}
+.view > .card.mijlpaal-kaart + .card { border-top: 0; }
+.view > .card.mijlpaal-kaart > .card-head { margin-bottom: 6px; }
+.view > .card.mijlpaal-kaart > .card-head > h2 .ico { color: #1a1300; background: var(--goud); }
+html[data-theme="light"] .view > .card.mijlpaal-kaart > .card-head > h2 .ico { color: #fff; }
+.mijlpaal-kaart .chip { color: var(--goud); border-color: color-mix(in srgb, var(--goud) 50%, transparent); }
+.mijlpaal-vandaag > .card-head > h2 .ico { animation: mijlpaalglans 1.6s ease-out 1; }
+@keyframes mijlpaalglans {
+  0% { transform: scale(.6) rotate(-12deg); box-shadow: 0 0 0 0 color-mix(in srgb, var(--goud) 60%, transparent); }
+  45% { transform: scale(1.12) rotate(6deg); }
+  100% { transform: none; box-shadow: 0 0 0 14px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .mijlpaal-vandaag > .card-head > h2 .ico { animation: none; } }
+.view > .card.mijlpalen-maand > h2 .ico { color: var(--goud); background: var(--goud-zacht); }
+
+/* ------------------------------- rusttimer ---------------------------- */
+
+/* Onderin, over de inhoud heen, zodat hij blijft staan terwijl je scrolt naar
+   je volgende oefening. Hetzelfde blauw als alles wat je kunt indrukken; als
+   de rust voorbij is wordt hij groen, de kleur van "goed zo" in deze app. */
+.rust {
+  --rust-klaar: #00e5a0;
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(calc(100vw - 24px), 520px);
+  z-index: 40;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "naam naam" "tijd knoppen";
+  align-items: center;
+  gap: 2px 12px;
+  padding: 9px 12px 13px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  overflow: hidden;
+}
+html[data-theme="light"] .rust { --rust-klaar: #00875e; box-shadow: 0 8px 24px rgba(16, 24, 40, .16); }
+.rust-naam {
+  grid-area: naam; display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+.rust-naam > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rust-tijd {
+  grid-area: tijd;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 1.9rem; font-weight: 700; line-height: 1.15;
+}
+.rust-knoppen { grid-area: knoppen; display: flex; gap: 6px; }
+.rust-knoppen .btn { min-width: 46px; padding: 9px 10px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.rust-voortgang { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--track); }
+.rust-vulling { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s linear; }
+.rust-klaar { border-color: var(--rust-klaar); animation: rustflits 1s ease-in-out 3; }
+.rust-klaar .rust-naam .ico { color: var(--rust-klaar); }
+.rust-klaar-tekst { font-family: var(--font-body); font-size: 1.35rem; color: var(--rust-klaar); }
+.rust-klaar .rust-knoppen .btn { font-family: inherit; }
+@keyframes rustflits { 50% { background: color-mix(in srgb, var(--rust-klaar) 20%, var(--bg-elev)); } }
+@media (prefers-reduced-motion: reduce) {
+  .rust-klaar { animation: none; }
+  .rust-vulling { transition: none; }
+}
+/* De balk mag niets van de pagina afdekken, en de meldingen schuiven erboven. */
+body.rust-aan { padding-bottom: 96px; }
+body.rust-aan .toast { bottom: calc(104px + env(safe-area-inset-bottom)); }
+
+.rust-start { gap: 5px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.schema-oef select.schema-rust { min-width: 0; }
+.rust-instellingen { margin-bottom: 4px; }
 
 /* ------------------------------- responsive --------------------------- */
 

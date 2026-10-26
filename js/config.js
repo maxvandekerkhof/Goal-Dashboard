@@ -7,7 +7,7 @@
   /* ------------------------------------------------------------------ *
    * Doelen
    *
-   * score  : 0..1 (of null = telt niet mee, bv. rustdag)
+   * score  : 0..1 (of null = telt niet mee, bv. rustdag of blessure)
    * weight : standaard gewicht in de eindscore (aanpasbaar in instellingen)
    * onlyIfTrained : doel telt alleen mee op een dag waarop echt gesport is
    * ------------------------------------------------------------------ */
@@ -47,7 +47,9 @@
       options: [
         { v: 'ja', label: 'Ja', short: 'Ja', score: 1 },
         { v: 'nee', label: 'Nee', short: 'Nee', score: 0 },
-        { v: 'rustdag', label: 'Rustdag', short: 'Rust', score: null, reason: 'rustdag' }
+        { v: 'rustdag', label: 'Rustdag', short: 'Rust', score: null, reason: 'rustdag' },
+        // Net als een rustdag: niet sporten is dan geen misser, maar verstandig.
+        { v: 'blessure', label: 'Blessure', short: 'Blessure', score: null, reason: 'blessure' }
       ]
     },
     {
@@ -63,7 +65,11 @@
         // Alleen automatisch: je eerste sessie van een oefening valt nergens
         // mee te vergelijken, dus die telt niet mee in de dagscore.
         { v: 'nieuw', label: 'Eerste keer', short: 'Nieuw', score: null,
-          reason: 'eerste keer', hidden: true }
+          reason: 'eerste keer', hidden: true },
+        // Ook automatisch: je eerste sessies na een blessure tellen alleen
+        // mee als ze vooruitgaan. Zie "herstel" in GD.lifts.
+        { v: 'herstel', label: 'Herstel', short: 'Herstel', score: null,
+          reason: 'herstel', hidden: true }
       ]
     },
     {
@@ -113,7 +119,9 @@
     gewichtDoel: null,        // kg, optioneel streefgewicht (lijn in de grafiek)
     gewichtRichting: 'aankomen', // 'aankomen' | 'afvallen' | 'behouden' | 'uit'
     gewichtTempo: 0.25,       // kg per week; bij 'behouden' is dit de marge
-    oefeningen: [],           // [{id, naam, type:'gewicht'|'reps', perArm, startDatum}]
+    oefeningen: [],           // [{id, naam, type:'gewicht'|'reps', perArm, startDatum, rust}]
+    rustStandaard: 120,       // seconden rust tussen sets, voor oefeningen zonder eigen rusttijd
+    rustGeluid: true,         // piepje als je rust voorbij is
     schemas: [],              // [{id, naam, oefeningen:[oefening-id]}]
     voedingSync: false,       // calorieën en eiwitten ophalen uit de tabel voeding
     weekafsluitingGezien: '', // maandag van de week waarvan je de afsluiting wegklikte

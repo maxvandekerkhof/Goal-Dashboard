@@ -125,7 +125,8 @@
       statTile('Goede dagen', st.goodDays + '<span class="unit">/' + totalDays + '</span>',
         '≥ ' + fmt(s.goedeDagDrempel) + '%'),
       statTile('Getraind', st.trainDays + '<span class="unit">×</span>',
-        st.restDays + ' rustdag' + (st.restDays === 1 ? '' : 'en')),
+        st.restDays + ' rustdag' + (st.restDays === 1 ? '' : 'en') +
+        (st.blessureDays ? ' · ' + st.blessureDays + ' dag' + (st.blessureDays === 1 ? '' : 'en') + ' blessure' : '')),
       statTile('Gewicht', st.weightEnd !== null ? fmt(st.weightEnd, 1) + '<span class="unit">kg</span>' : '–',
         st.weightDelta !== null ? signed(st.weightDelta, 1, ' kg in periode') : 'gem. ' + fmt(st.weightAvg, 1) + ' kg'),
       statTile('Gem. eiwit', st.proteinAvg !== null ? fmt(st.proteinAvg) + '<span class="unit">g</span>' : '–',
@@ -284,6 +285,7 @@
       (kr === null ? '' : '<span class="chip" style="color:' + GD.scoreInk(kr) + '">' +
         GD.icon('overload', 14) + 'kracht ' + Math.round(kr) + '</span>') +
       (day.restDay ? '<span class="chip">' + GD.icon('rust', 14) + 'rustdag</span>' : '') +
+      (day.blessure ? '<span class="chip">' + GD.icon('blessure', 14) + 'blessure</span>' : '') +
       '</div>' +
       (ov.open > 0 && !isFuture
         ? '<p class="hint hint-tight">De vage ring eromheen is waar je vandaag nog op uit kunt komen.</p>'
@@ -322,6 +324,7 @@
       tot: ov.open > 0 ? ov.plafondPct : null,
       label: loopt ? 'Tussenstand' : null
     });
+    html += mijlpaalKaart(date);
 
     /* Meetwaarden */
     var gm = S.gewichtMelding(date);
@@ -564,7 +567,10 @@
    */
   function overloadVoet(res) {
     if (res.deel === null) {
-      return '<p class="hint hint-tight">' + (res.regels.length
+      return '<p class="hint hint-tight">' + (res.herstel
+        ? 'Je eerste sessies na je blessure: lichter beginnen is verstandig, dus dit doel telt ' +
+          'vandaag niet mee. Gaat een oefening wél vooruit, dan telt dat gewoon.'
+        : res.regels.length
         ? 'Je vult deze oefeningen voor het eerst in, dus er valt nog niets te vergelijken.'
         : 'Volgt zodra je hieronder je oefeningen invult.') + '</p>';
     }
@@ -572,13 +578,16 @@
     var delen = [res.vooruit + ' van de ' + res.vergeleken + ' vooruit'];
     if (res.gelijk) delen.push(res.gelijk + ' gelijk');
     if (res.terug) delen.push(res.terug + ' terug');
+    if (res.herstel) delen.push(res.herstel + ' herstel');
 
     return '<div class="macro-voort">' +
       '<div class="macro-regel"><span>' + esc(delen.join(' · ')) + '</span>' +
       '<strong style="color:' + GD.scoreInk(pct) + '">' + Math.round(pct) + '%</strong></div>' +
       C.bar(pct) +
-      '<p class="hint hint-tight">Uit je oefeningen hieronder. Gelijk blijven telt voor een deel ' +
-      'mee, en voor een volle score hoeft niet élke oefening vooruit te gaan.</p>' +
+      '<p class="hint hint-tight">Uit je oefeningen hieronder. Ging meer dan de helft vooruit, dan ' +
+      'staat het doel vol; anders telt het naar rato, en gelijk blijven telt voor een deel mee.' +
+      (res.herstel ? ' Herstelsessies na je blessure tellen alleen mee als ze vooruitgaan.' : '') +
+      '</p>' +
       '</div>';
   }
 
@@ -650,6 +659,7 @@
     vooruit: { label: '↑ vooruit', pct: 100 },
     gelijk: { label: '= gelijk', pct: 45 },
     terug: { label: '↓ terug', pct: 0 },
+    herstel: { label: 'herstel', pct: null },
     nieuw: { label: 'startpunt', pct: null }
   };
 
@@ -693,8 +703,10 @@
     if (!geschiedenis.length) geschiedenis.push('Nog geen eerdere sessie — dit wordt je startpunt.');
 
     // Ruilde je reps tegen gewicht, dan valt het oordeel niet uit de twee
-    // getallen af te lezen. Dan hoort erbij waaróp het gebaseerd is.
-    var ruil = (regel && regel.detail && regel.detail.ruil) ? ruilUitleg(regel.detail) : '';
+    // getallen af te lezen. Dan hoort erbij waaróp het gebaseerd is. Een
+    // herstelsessie zegt liever waarom hij niet meetelt.
+    var ruil = (regel && regel.status === 'herstel') ? herstelUitleg(regel.herstel)
+      : (regel && regel.detail && regel.detail.ruil) ? ruilUitleg(regel.detail) : '';
 
     return '<div class="lift-side">' +
       (zijde.key ? '<span class="lift-arm" title="' + esc(zijde.label) + '">' + esc(zijde.kort) + '</span>' : '') +
@@ -756,6 +768,12 @@
       esc(oef.id) + '" data-sessies="' + p.sessies + '" data-vanaf="' +
       esc(p.reeks.length ? p.reeks[0].datum : '') + '">Niet meer melden</button>' +
       '</div></div>';
+  }
+
+  /** Waarom een herstelsessie na een blessure niet meetelt. */
+  function herstelUitleg(h) {
+    return 'Sessie ' + h.sessie + ' van ' + h.van + ' na je blessure. Telt alleen mee als hij ' +
+      'vooruitgaat, dus lichter beginnen kost je niets.';
   }
 
   /** Waarom een set met minder reps maar meer kilo's zo beoordeeld wordt. */
@@ -852,11 +870,17 @@
     }).join('');
 
     var open = ui.liftGrafiek === oid;
+    // Rusten doe je tijdens de training, dus alleen vandaag.
+    var rust = GD.rust && date === D.today()
+      ? '<button class="btn btn-ghost btn-sm rust-start" data-action="rust-start" data-oef="' + esc(oid) + '"' +
+        ' title="Rusttimer starten" aria-label="Rusttimer van ' + esc(GD.rust.tijd(GD.rust.voor(oid))) + ' starten">' +
+        GD.icon('timer', 15) + esc(GD.rust.tijd(GD.rust.voor(oid))) + '</button>'
+      : '';
 
     return '<div class="lift">' +
       '<div class="lift-head">' +
       '<span class="lift-name">' + esc(oef.naam) + '</span>' +
-      '<span class="lift-knoppen">' +
+      '<span class="lift-knoppen">' + rust +
       '<button class="btn btn-ghost btn-sm' + (open ? ' btn-aan' : '') + '"' +
       ' data-action="lift-grafiek" data-oef="' + esc(oid) + '"' +
       ' aria-expanded="' + (open ? 'true' : 'false') + '"' +
@@ -879,12 +903,15 @@
     var ids = L.dagRegels(date);
     var sid = L.dagSchema(date);
 
-    // Op een rustdag of een dag zonder training alleen tonen als er wél iets staat.
-    var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag';
+    // Op een rustdag, met een blessure of zonder training alleen tonen als er
+    // wél iets staat.
+    var rust = day.trainedValue === 'nee' || day.trainedValue === 'rustdag' || day.trainedValue === 'blessure';
     if (rust && !ids.length) {
       return '<section class="card card-quiet">' +
         '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2></div>' +
-        '<p class="hint">Geen training vandaag, dus niets bij te houden.</p>' +
+        '<p class="hint">' + (day.blessure
+          ? 'Geblesseerd, dus vandaag niets bij te houden. Herstel eerst goed.'
+          : 'Geen training vandaag, dus niets bij te houden.') + '</p>' +
         '</section>';
     }
 
@@ -911,6 +938,8 @@
       var pct = res.deel * 100;
       status = '<span class="chip" style="color:' + GD.scoreInk(pct) + '">' +
         res.vooruit + ' van de ' + res.vergeleken + ' vooruit</span>';
+    } else if (res.herstel) {
+      status = '<span class="chip chip-off">herstel</span>';
     } else if (res.regels.length) {
       status = '<span class="chip chip-off">startpunt</span>';
     } else {
@@ -934,15 +963,19 @@
         '</div>'
       : '';
 
-    var uitleg = res.vergeleken
+    var naBlessure = res.herstel
+      ? 'Na een blessure tellen je eerste ' + L.HERSTEL_SESSIES + ' sessies van elke oefening alleen ' +
+        'mee als ze vooruitgaan, en een plateau telt pas vanaf daarna. '
+      : '';
+    var uitleg = naBlessure + (res.vergeleken || res.herstel
       ? 'Vooruit telt zodra gewicht én reps gelijk of hoger zijn en er minstens één omhoog gaat. ' +
         'Ruil je het een tegen het ander, dan telt een nieuw record op deze oefening altijd als ' +
         'vooruitgang, zolang je er minstens de helft van je vorige herhalingen mee haalde. ' +
         'Lukt dat niet, dan beslist je geschatte 1RM — dezelfde maat als de grafiek. ' +
         'Daar telt elke stijging, en pas een daling van meer dan 5% heet terugval. ' +
-        'Voor het dagdoel hoeft niet élke oefening vooruit te gaan: ging het grootste deel ' +
-        'vooruit, dan staat dat doel vol. Gelijk blijven telt voor een deel mee.'
-      : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
+        'Voor het dagdoel hoeft niet élke oefening vooruit te gaan: ging meer dan de helft ' +
+        'vooruit, dan staat dat doel vol. Anders telt het naar rato, en gelijk blijven telt voor een deel mee.'
+      : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.');
 
     return '<section class="card">' +
       '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2>' + status + '</div>' +
@@ -1394,6 +1427,11 @@
     var t = 'Je trainde ' + nu.trainDagen + ' keer, ' + fmt(nu.trainPerWeek, 1).replace(/,0$/, '') +
       ' keer per week' +
       (vorig ? ' (' + m.vorigeNaam + ': ' + fmt(vorig.trainPerWeek, 1).replace(/,0$/, '') + ')' : '') + '.';
+    // Minder trainen door een blessure is geen terugval; dat hoort erbij te staan.
+    if (nu.blessureDagen) {
+      t += ' ' + nu.blessureDagen + ' dag' + (nu.blessureDagen === 1 ? '' : 'en') +
+        ' kon je niet trainen door een blessure.';
+    }
     if (k.records.length) {
       // De drie grootste stappen bij naam; een lijst van dertien leest niemand.
       var getoond = k.records.slice(0, MAAND_RECORDS).map(function (r) {
@@ -1492,6 +1530,7 @@
       reviewBlok('gesport', 'Training', maandTrainingTekst(m),
         m.kracht.records.length ? 'goed' : 'neutraal') +
       reviewBlok('vink', 'Doelen', maandDoelenTekst(m), 'neutraal') +
+      maandMijlpalenBlok(nu.start, nu.eind) +
       '</div>';
 
     var knoppen = opties.dagkaart
@@ -1510,6 +1549,90 @@
       'het caloriedoel telt per dag zoals het toen stond.</p>';
 
     return '<section class="card review">' + kop + cijfers + blokken + knoppen + voet + '</section>';
+  }
+
+  /* ----------------------------- mijlpalen ---------------------------- */
+
+  /** Een rijtje mijlpalen; met `datum` staat de dag erbij, met `balk` hoe ver je bent. */
+  function mijlpaalLijst(lijst, opties) {
+    opties = opties || {};
+    return '<ul class="mijlpalen">' + lijst.map(function (m) {
+      return '<li class="mijlpaal mijlpaal-' + m.soort + '">' +
+        '<span class="mijlpaal-ico">' + GD.icon(m.icoon, 16) + '</span>' +
+        '<span class="mijlpaal-tekst"><strong>' + esc(m.titel) + '</strong>' +
+        '<span>' + esc(m.tekst) + '</span>' +
+        (opties.balk
+          ? '<span class="mijlpaal-balk"><span style="width:' +
+            Math.round(Math.min(1, Math.max(0, m.voortgang)) * 100) + '%"></span></span>'
+          : '') +
+        '</span>' +
+        (opties.datum ? '<span class="mijlpaal-datum">' + esc(D.formatShort(m.datum)) + '</span>' : '') +
+        '</li>';
+    }).join('') + '</ul>';
+  }
+
+  /** Op de dag dat je hem haalt: een kaart bovenaan. */
+  function mijlpaalKaart(datum) {
+    if (!GD.mijlpalen) return '';
+    var lijst = GD.mijlpalen.op(datum);
+    if (!lijst.length) return '';
+    var vandaag = datum === D.today();
+    return '<section class="card mijlpaal-kaart' + (vandaag ? ' mijlpaal-vandaag' : '') + '">' +
+      '<div class="card-head"><h2>' + GD.icon('trofee') + (lijst.length === 1 ? 'Mijlpaal' : lijst.length + ' mijlpalen') + '</h2>' +
+      '<span class="chip">' + esc(vandaag ? 'vandaag' : D.formatShort(datum)) + '</span></div>' +
+      mijlpaalLijst(lijst) + '</section>';
+  }
+
+  /** In het maandscherm: wat je deze maand haalde, wat eraan komt en alles. */
+  function mijlpalenSection(start, eind) {
+    if (!GD.mijlpalen) return '';
+    var maand = GD.mijlpalen.tussen(start, eind).reverse();
+    var alle = GD.mijlpalen.alle().reverse();
+    var loopt = eind >= D.today();
+    var bijna = loopt ? GD.mijlpalen.bijna() : [];
+    var naam = D.monthName(start);
+
+    var html = '<h3 class="sub-kop">In ' + esc(naam) + '</h3>' + (maand.length
+      ? mijlpaalLijst(maand, { datum: true })
+      : '<p class="hint">' + (loopt ? 'Deze maand nog geen mijlpaal.' : 'Geen mijlpaal in ' + esc(naam) + '.') + '</p>');
+    if (bijna.length) {
+      html += '<h3 class="sub-kop mijlpaal-sub">Bijna</h3>' + mijlpaalLijst(bijna, { balk: true });
+    }
+    if (alle.length > maand.length) {
+      html += '<div class="inklap inklap-deel mijlpaal-sub' + (isOpen('mijlpalen') ? '' : ' dicht') + '">' +
+        inklapKop('mijlpalen', 'Alle mijlpalen <span class="inklap-aantal">' + alle.length + '</span>', 'h3', 'sub-kop') +
+        '<div class="inklap-inhoud" id="inklap-mijlpalen">' + mijlpaalLijst(alle, { datum: true }) + '</div></div>';
+    }
+    if (!alle.length && !bijna.length) {
+      html += '<p class="hint">Mijlpalen komen vanzelf: voor het eerst een rond gewicht op een oefening, ' +
+        'een hele kilo erbij sinds je begon, of een week op rij goede dagen, creatine of genoeg water.</p>';
+    }
+    return '<section class="card mijlpalen-maand"><h2>' + GD.icon('trofee') + 'Mijlpalen</h2>' + html + '</section>';
+  }
+
+  /** In de maandafsluiting: wat je die maand haalde, in één regel. */
+  function maandMijlpalenBlok(start, eind) {
+    if (!GD.mijlpalen) return '';
+    var lijst = GD.mijlpalen.tussen(start, eind);
+    if (!lijst.length) return '';
+    return reviewBlok('trofee', lijst.length === 1 ? 'Mijlpaal' : lijst.length + ' mijlpalen',
+      lijst.map(function (m) { return m.titel + ' (' + D.formatShort(m.datum) + ')'; }).join(' · ') + '.', 'goed');
+  }
+
+  /* Een mijlpaal die er vandaag net bijkwam, ook als je hem niet ziet: de kaart
+     staat bovenaan, en je zit dan meestal bij je oefeningen. */
+  var mijlpaalVandaag = null;
+  function meldNieuweMijlpaal() {
+    if (!GD.mijlpalen) return;
+    var nu = GD.mijlpalen.op(D.today());
+    var ids = nu.map(function (m) { return m.id; });
+    if (mijlpaalVandaag && mijlpaalVandaag.datum === D.today()) {
+      var nieuw = nu.filter(function (m) { return mijlpaalVandaag.ids.indexOf(m.id) < 0; });
+      if (nieuw.length) {
+        toast('Mijlpaal: ' + nieuw[0].titel + (nieuw.length > 1 ? ' (en nog ' + (nieuw.length - 1) + ')' : '') + '!');
+      }
+    }
+    mijlpaalVandaag = { datum: D.today(), ids: ids };
   }
 
   /** Oefeningen die stilstaan, als regel in de weekafsluiting. */
@@ -1580,6 +1703,7 @@
 
     var html = heroSection(period.pct, sub);
     if (dates[0] <= D.today()) html += maandSection(dates[0], {});
+    if (dates[0] <= D.today()) html += mijlpalenSection(dates[0], dates[dates.length - 1]);
     html += periodStatsSection(period, dates.filter(function (d) { return d <= D.today(); }).length || dates.length);
     html += '<section class="card"><h2>' + GD.icon('maand') + 'Kalender</h2>' + C.calendar(ui.anchor, period.days) +
       C.schaal() +
@@ -1773,6 +1897,7 @@
       '<label class="schema-arm" title="Rechts en links apart bijhouden">' +
       '<input type="checkbox" data-oef-arm="' + esc(oid) + '"' + (o.perArm ? ' checked' : '') + '>' +
       '<span>per arm</span></label>' +
+      (GD.rust ? rustKeuze(oid) : '') +
       '<span class="schema-tel" title="Aantal ingevulde sessies">' + aantal + '×</span>' +
       '<span class="schema-knoppen">' +
       '<button class="btn btn-ghost btn-sm" data-action="oef-up" data-schema="' + esc(s.id) + '"' +
@@ -1784,6 +1909,42 @@
       '<button class="btn btn-ghost btn-sm" data-action="oef-remove" data-schema="' + esc(s.id) + '"' +
       ' data-oef="' + esc(oid) + '" title="Uit dit schema halen (je historie blijft)">✕</button>' +
       '</span></li>';
+  }
+
+  /** De rusttijd van één oefening: je standaard, of een eigen tijd. */
+  function rustKeuze(oid) {
+    var eigen = GD.rust.eigen(oid);
+    var keuzes = GD.rust.KEUZES.slice();
+    if (eigen && keuzes.indexOf(eigen) < 0) keuzes.push(eigen);
+    keuzes.sort(function (a, b) { return a - b; });
+    return '<select class="schema-rust" data-oef-rust="' + esc(oid) + '" aria-label="Rusttijd tussen sets">' +
+      '<option value=""' + (eigen ? '' : ' selected') + '>Rust: standaard</option>' +
+      keuzes.map(function (k) {
+        return '<option value="' + k + '"' + (k === eigen ? ' selected' : '') + '>Rust ' + GD.rust.tijd(k) + '</option>';
+      }).join('') +
+      '</select>';
+  }
+
+  /** Standaard rusttijd en het piepje, boven je schema's. */
+  function rustInstellingen(s) {
+    if (!GD.rust) return '';
+    var nu = GD.rust.standaard();
+    var keuzes = GD.rust.KEUZES.slice();
+    if (keuzes.indexOf(nu) < 0) keuzes.push(nu);
+    keuzes.sort(function (a, b) { return a - b; });
+    return '<div class="form-grid rust-instellingen">' +
+      '<label class="field"><span class="field-label">Standaard rusttijd</span>' +
+      '<select data-rust-standaard>' + keuzes.map(function (k) {
+        return '<option value="' + k + '"' + (k === nu ? ' selected' : '') + '>' + GD.rust.tijd(k) + ' min</option>';
+      }).join('') + '</select></label>' +
+      '</div>' +
+      toggle('rustGeluid', 'Piepje als je rust voorbij is',
+        'Alleen zolang de app open staat; met je telefoon op stil hoor je het niet. Een iPhone laat een ' +
+        'website niet trillen en geen melding geven op je vergrendelscherm, daarom houdt de app je scherm ' +
+        'aan zolang de timer loopt.', s.rustGeluid !== false) +
+      '<p class="hint">Op de dagpagina staat bij elke oefening een klokje met zijn rusttijd. Tik erop ' +
+      'na je set, dan telt onderin de balk af. Hieronder geef je een oefening een eigen tijd, ' +
+      'bijvoorbeeld drie minuten bij bankdrukken en anderhalve bij curls.</p>';
   }
 
   function schemaSection() {
@@ -1817,6 +1978,7 @@
       '<p class="hint">Per training kies je op de dagpagina één schema en vul je per oefening je ' +
       'beste set in. De app onthoudt je startpunt en je vorige keer, en bepaalt daaruit zelf of je ' +
       'progressive overload hebt gehaald.</p>' +
+      rustInstellingen(store.settings()) +
       '<datalist id="alle-oefeningen">' + namen + '</datalist>' +
       (blokken ? '<div class="schemas">' + blokken + '</div>' : '') +
       '<div class="lift-add">' +
@@ -1826,7 +1988,9 @@
         '<button class="btn btn-primary btn-sm" data-action="startschemas">Push &amp; Pull klaarzetten</button>') +
       '</div>' +
       '<p class="hint">Een oefening uit een schema halen laat je ingevulde sessies staan. ' +
-      'Met ↺ begin je opnieuw met tellen, bijvoorbeeld na een blessure of een deload.</p>' +
+      'Met ↺ begin je opnieuw met tellen, bijvoorbeeld na een deload. Na een blessure hoeft dat niet: ' +
+      'je eerste ' + GD.lifts.HERSTEL_SESSIES + ' sessies per oefening tellen dan vanzelf alleen mee als ' +
+      'ze vooruitgaan.</p>' +
       '</section>';
   }
 
@@ -2031,7 +2195,7 @@
       (s.calorieRichting === 'rond'
         ? settingNumber('calorieMarge', 'Marge', '± kcal', s.calorieMarge, '10') : '') +
       settingNumber('gewichtDoel', 'Streefgewicht', 'kg (optioneel)', s.gewichtDoel, '0.1') +
-      '</div>' + eiwitUitleg(s) + '</section>');
+      '</div>' + eiwitUitleg(s) + calorieWisselBlok(s) + '</section>');
 
     html += inklapSectie('gewichtsdoel', '<section class="card"><h2>' + GD.icon('weegschaal') + 'Gewichtsdoel</h2>' +
       '<p class="hint">Hiermee wordt je gewicht afgezet tegen je tempo — nooit met je laatste ' +
@@ -2096,11 +2260,14 @@
       '<li>Elk doel levert punten op: <em>Ja (eiwitrijk)</em> = vol, <em>Ja</em> = 60%, <em>Nee</em> = niets.</li>' +
       '<li>Eiwit, calorieën en progressive overload gaan niet op ja of nee maar op hoe ver je kwam: ' +
       '140 van de 150 gram is geen nul, en vijf van je zes oefeningen vooruit is geen halve dag. ' +
-      'Bij overload staat het doel vol zodra het grootste deel vooruitging — op álles vooruitgaan, ' +
-      'elke sessie, kan nu eenmaal niet.</li>' +
+      'Bij overload staat het doel vol zodra meer dan de helft van je oefeningen vooruitging — op ' +
+      'álles vooruitgaan, elke sessie, kan nu eenmaal niet.</li>' +
       '<li>Je score is <em>behaalde punten ÷ haalbare punten</em>, met de gewichten hierboven.</li>' +
-      '<li>Kies je <em>Rustdag</em>, dan telt “gesport” niet mee — een rustdag verpest je score dus niet. ' +
-      'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
+      '<li>Kies je <em>Rustdag</em> of <em>Blessure</em>, dan telt “gesport” niet mee — een rustdag of ' +
+      'een blessure verpest je score dus niet. ' +
+      'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt. ' +
+      'Na een blessure telt een oefening de eerste ' + GD.lifts.HERSTEL_SESSIES + ' sessies alleen mee als ' +
+      'hij vooruitgaat: lichter beginnen is dan geen terugval.</li>' +
       '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
       'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
       'vandaag nog op uit kunt komen, en de ring blijft in één kleur tot de dag om is — een halve dag ' +
@@ -2418,6 +2585,47 @@
     return html;
   }
 
+  /**
+   * Je aanpassingen van het caloriedoel, en er één alsnog invullen die de app
+   * niet meekreeg. Zonder die datum rekent het advies met weken waarin je nog
+   * op je oude doel at, en zegt het "eet minder" terwijl je dat al doet.
+   */
+  function calorieWisselBlok(s) {
+    var lijst = S.doelGeschiedenis('calorieDoel', s).filter(function (r) {
+      return +r.van > 0 && +r.naar > 0;
+    }).reverse();
+    var rijen = lijst.length
+      ? '<ul class="kopieen">' + lijst.map(function (r) {
+        return '<li class="kopie">' +
+          '<span class="kopie-wanneer">' + esc(D.formatShort(r.datum) + ' ' + D.parse(r.datum).getFullYear()) + '</span>' +
+          '<span class="kopie-wat">' + fmt(+r.van) + ' → ' + fmt(+r.naar) + ' kcal' +
+          (r.achteraf ? ' · achteraf ingevuld' : '') + '</span>' +
+          (r.achteraf
+            ? '<span class="kopie-knoppen"><button class="btn btn-ghost btn-sm" data-action="calorie-wissel-weg"' +
+              ' data-datum="' + esc(r.datum) + '">Weghalen</button></span>'
+            : '') +
+          '</li>';
+      }).join('') + '</ul>'
+      : '<p class="hint">De app kent nog geen aanpassingen van je caloriedoel.</p>';
+
+    return '<hr class="scheiding">' +
+      '<h3 class="sub-kop">Aanpassingen van je caloriedoel</h3>' + rijen +
+      '<p class="hint">Verzette je je caloriedoel zonder dat de app het weet, bijvoorbeeld voordat hij ' +
+      'dat bijhield? Vul het hier alsnog in. Het advies rekent dan vanaf die dag, met twee weken rust ' +
+      'erna, en de dagen ervóór worden weer gemeten aan het doel dat toen gold.</p>' +
+      '<div class="form-grid cw-form">' +
+      '<label class="field cw-datum"><span class="field-label">Datum</span>' +
+      '<input type="date" id="cw-datum" max="' + D.addDays(D.today(), -1) + '"></label>' +
+      '<label class="field"><span class="field-label">Van</span><span class="field-input">' +
+      '<input type="number" inputmode="numeric" step="10" id="cw-van" placeholder="oud doel">' +
+      '<span class="field-unit">kcal</span></span></label>' +
+      '<label class="field"><span class="field-label">Naar</span><span class="field-input">' +
+      '<input type="number" inputmode="numeric" step="10" id="cw-naar" value="' + esc(s.calorieDoel) + '">' +
+      '<span class="field-unit">kcal</span></span></label>' +
+      '</div>' +
+      '<div class="row-actions"><button class="btn btn-sm" data-action="calorie-wissel-erbij">Aanpassing toevoegen</button></div>';
+  }
+
   function opt(v, label, current) {
     return '<option value="' + v + '"' + (current === v ? ' selected' : '') + '>' + esc(label) + '</option>';
   }
@@ -2532,6 +2740,7 @@
 
     $('#view').innerHTML = html;
     $('#view').setAttribute('data-view', ui.view);
+    if (ui.view === 'dag') meldNieuweMijlpaal();
     if (navigatie) naarBoven();
     onthulKaarten(navigatie);
   }
@@ -2832,6 +3041,30 @@
       if (nieuw !== null) {
         toast('Caloriedoel staat op ' + nieuw + ' kcal.' + (store.zetCalorieDoel(nieuw)
           ? ' Over twee weken kijk ik of het klopt.' : ''));
+        render();
+      }
+      return;
+    }
+    if (action === 'rust-start') {
+      if (GD.rust) GD.rust.start(el.dataset.oef);
+      return;
+    }
+    if (action === 'calorie-wissel-erbij') {
+      var cwDatum = $('#cw-datum').value;
+      var cwFout = store.calorieWisselAchteraf(cwDatum, S.num($('#cw-van').value), S.num($('#cw-naar').value));
+      if (cwFout) { toast(cwFout, 'bad'); return; }
+      var cw = S.doelWissel();
+      toast('Aanpassing van ' + D.formatShort(cwDatum) + ' toegevoegd.' + (cw && cw.datum === cwDatum
+        ? (cw.rust ? ' Tot ' + D.formatShort(cw.totDatum) + ' wacht het advies af.'
+          : ' Het advies rekent nu vanaf die dag.')
+        : ''));
+      render();
+      return;
+    }
+    if (action === 'calorie-wissel-weg') {
+      if (confirm('De aanpassing van ' + D.formatShort(el.dataset.datum) + ' weghalen?')) {
+        store.calorieWisselWeg(el.dataset.datum);
+        toast('Weggehaald.');
         render();
       }
       return;
@@ -3164,6 +3397,16 @@
       }
       if (t.dataset && t.dataset.oefArm) {
         GD.lifts.updateOefening(t.dataset.oefArm, { perArm: t.checked });
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.oefRust) {
+        GD.lifts.updateOefening(t.dataset.oefRust, { rust: S.num(t.value) || null });
+        render();
+        return;
+      }
+      if (t.dataset && t.dataset.rustStandaard !== undefined) {
+        store.setSetting('rustStandaard', S.num(t.value) || GD.DEFAULT_SETTINGS.rustStandaard);
         render();
         return;
       }
