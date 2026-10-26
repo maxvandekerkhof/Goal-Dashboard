@@ -289,15 +289,18 @@
   /* -------------------------------- historie ------------------------------ */
 
   /* De hele historie in één keer op een rij, opnieuw opgebouwd zodra er iets
-     verandert. Zonder dat zou elke dagscore de hele opslag doorlopen. */
+     verandert. Zonder dat zou elke dagscore de hele opslag doorlopen. De
+     blessuredagen gaan mee, want die bepalen welke sessies herstel zijn. */
   var cache = null;
   var cacheRev = -1;
 
   function index() {
     if (cache && cacheRev === store.rev()) return cache;
     var map = {};
+    var blessures = [];
     var entries = store.raw().entries;
     Object.keys(entries).sort().forEach(function (datum) {
+      if (entries[datum] && entries[datum].gesport === 'blessure') blessures.push(datum);
       var o = entries[datum] && entries[datum].oefeningen;
       if (!o || typeof o !== 'object') return;
       Object.keys(o).forEach(function (oid) {
@@ -312,13 +315,65 @@
         });
       });
     });
-    cache = map;
+    cache = { sessies: map, blessures: blessures };
     cacheRev = store.rev();
     return cache;
   }
 
   function historie(oid, zijdeKey) {
-    return index()[oid + '|' + (zijdeKey || '')] || [];
+    return index().sessies[oid + '|' + (zijdeKey || '')] || [];
+  }
+
+  /* ------------------------------- herstel -------------------------------- *
+   *
+   * Na een blessure begin je lichter dan je was, en dat hoort ook zo. Een app
+   * die dat terugval noemt, zet je ertoe aan te zwaar te beginnen. Daarom
+   * oordelen je eerste sessies van elke oefening na een blessure mild: gaat
+   * hij vooruit, dan telt dat gewoon; anders telt hij niet mee. Een plateau
+   * telt pas vanaf daarna, en wat je vóór de blessure deed laat de app dan los.
+   *
+   * Alleen bij oefeningen die je vóór de blessure al deed: begon je er pas
+   * daarna mee, dan valt er niets terug te winnen.
+   * ------------------------------------------------------------------------- */
+
+  var HERSTEL_SESSIES = 3;
+
+  /** Je laatste blessuredag op of vóór `datum`, of null. */
+  function laatsteBlessure(datum) {
+    var b = index().blessures;
+    for (var i = b.length - 1; i >= 0; i--) {
+      if (b[i] <= datum) return b[i];
+    }
+    return null;
+  }
+
+  /* De hoeveelste sessie na je laatste blessure h[i] is, of 0 als hij geen
+     herstelsessie (meer) is. `h` is de volledige historie van één kant. */
+  function herstelNummer(h, i) {
+    var b = laatsteBlessure(h[i].datum);
+    if (!b) return 0;
+    var n = 0;
+    for (var j = i; j >= 0 && h[j].datum >= b; j--) {
+      if (++n > HERSTEL_SESSIES) return 0;
+    }
+    // Geen sessie van vóór de blessure: dan is er ook niets om naar terug te komen.
+    return j >= 0 ? n : 0;
+  }
+
+  /**
+   * Is de sessie op `datum` een van je eerste na een blessure?
+   * -> { sessie, van, blessure } of null
+   */
+  function herstel(oid, zijdeKey, datum) {
+    var h = historie(oid, zijdeKey);
+    for (var i = h.length - 1; i >= 0; i--) {
+      if (h[i].datum === datum) {
+        var n = herstelNummer(h, i);
+        return n ? { sessie: n, van: HERSTEL_SESSIES, blessure: laatsteBlessure(datum) } : null;
+      }
+      if (h[i].datum < datum) break;
+    }
+    return null;
   }
 
   /**
@@ -447,7 +502,10 @@
 
   /**
    * Alles wat op één dag is ingevuld, met per regel het oordeel.
-   * -> { regels[], vergeleken, vooruit, gelijk, terug, deel, waarde }
+   * -> { regels[], vergeleken, vooruit, gelijk, terug, herstel, deel, waarde }
+   *
+   * Een herstelsessie die niet vooruitging krijgt status 'herstel' en telt
+   * niet mee, net als een eerste keer. Het echte oordeel staat nog in `detail`.
    */
   function dagResultaat(datum) {
     var dag = dagOefeningen(datum);
@@ -459,6 +517,9 @@
         if (!nu) return;
         var ctx = context(datum, oid, z.key);
         var detail = ctx.vorige ? vergelijkDetail(nu, ctx.vorige, ctx.recordKg) : null;
+        var hs = detail ? herstel(oid, z.key, datum) : null;
+        var status = detail ? detail.status : 'nieuw';
+        if (hs && status !== 'vooruit') status = 'herstel';
         regels.push({
           id: oid,
           zijde: z,
@@ -467,14 +528,16 @@
           start: ctx.start,
           vorige: ctx.vorige,
           detail: detail,
-          status: detail ? detail.status : 'nieuw'
+          herstel: hs,
+          status: status
         });
       });
     });
 
-    var vergeleken = 0, vooruit = 0, gelijk = 0, terug = 0, punten = 0;
+    var vergeleken = 0, vooruit = 0, gelijk = 0, terug = 0, hersteld = 0, punten = 0;
     regels.forEach(function (r) {
       if (r.status === 'nieuw') return;
+      if (r.status === 'herstel') { hersteld++; return; }
       vergeleken++;
       if (r.status === 'vooruit') { vooruit++; punten += PUNT_VOORUIT; }
       else if (r.status === 'gelijk') { gelijk++; punten += PUNT_GELIJK; }
@@ -486,6 +549,9 @@
       deel = vooruit > vergeleken * MEERDERHEID ? 1
         : GD.clamp((punten / vergeleken) / OVERLOAD_DREMPEL, 0, 1);
       waarde = deel >= 1 ? 'ja' : (deel <= 0 ? 'nee' : 'deels');
+    } else if (hersteld) {
+      // Alleen herstelsessies zonder vooruitgang: telt niet mee, net als een rustdag.
+      waarde = 'herstel';
     } else if (regels.length) {
       // Alles voor het eerst: er valt nog niets te vergelijken.
       waarde = 'nieuw';
@@ -493,7 +559,7 @@
 
     return {
       regels: regels, vergeleken: vergeleken, vooruit: vooruit,
-      gelijk: gelijk, terug: terug, deel: deel, waarde: waarde
+      gelijk: gelijk, terug: terug, herstel: hersteld, deel: deel, waarde: waarde
     };
   }
 
@@ -533,7 +599,8 @@
   function plateau(oid, zijdeKey, datum) {
     var oef = byId(oid);
     var vanaf = oef && oef.startDatum ? oef.startDatum : null;
-    var h = historie(oid, zijdeKey).filter(function (r) {
+    var alles = historie(oid, zijdeKey);
+    var h = alles.filter(function (r) {
       return (!vanaf || r.datum >= vanaf) && (!datum || r.datum <= datum);
     });
 
@@ -542,6 +609,12 @@
       deloadKg: null, gemeld: 0, drempel: PLATEAU_LET_OP
     };
     if (h.length < 2) return uit;
+
+    // Geblesseerd sinds je laatste sessie: wat toen stilstond telt niet meer,
+    // na je herstel begint de telling opnieuw.
+    var blessure = laatsteBlessure(datum || GD.date.today());
+    if (blessure && blessure > h[h.length - 1].datum) return uit;
+    var begin = alles.indexOf(h[0]);
 
     // Het zwaarste vóór elke sessie, zodat de recordregel hier hetzelfde
     // oordeelt als op de dagpagina.
@@ -553,6 +626,8 @@
     });
 
     for (var i = h.length - 1; i >= 1; i--) {
+      // Een herstelsessie is geen stilstand, en verder terug kijkt de telling niet.
+      if (herstelNummer(alles, begin + i)) break;
       if (vergelijk(h[i], h[i - 1], records[i]) === 'vooruit') break;
       uit.reeks.unshift(h[i]);
       uit.sessies++;
@@ -654,6 +729,8 @@
     vergelijkDetail: vergelijkDetail,
     geschat1RM: geschat1RM,
     dagResultaat: dagResultaat,
+    herstel: herstel,
+    HERSTEL_SESSIES: HERSTEL_SESSIES,
     dagRegels: dagRegels,
     plateau: plateau,
     plateaus: plateaus,

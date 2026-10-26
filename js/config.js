@@ -65,7 +65,11 @@
         // Alleen automatisch: je eerste sessie van een oefening valt nergens
         // mee te vergelijken, dus die telt niet mee in de dagscore.
         { v: 'nieuw', label: 'Eerste keer', short: 'Nieuw', score: null,
-          reason: 'eerste keer', hidden: true }
+          reason: 'eerste keer', hidden: true },
+        // Ook automatisch: je eerste sessies na een blessure tellen alleen
+        // mee als ze vooruitgaan. Zie "herstel" in GD.lifts.
+        { v: 'herstel', label: 'Herstel', short: 'Herstel', score: null,
+          reason: 'herstel', hidden: true }
       ]
     },
     {

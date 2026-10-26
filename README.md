@@ -55,7 +55,8 @@ Je score is **behaalde punten ÷ haalbare punten**, uitgedrukt in procenten.
   dagen loopt gewoon door, en **Neem gisteren over** neemt hem mee, handig als je een paar
   dagen uit de roulatie bent. In het week- en maandoverzicht staan blessuredagen apart naast
   je rustdagen, en de maandafsluiting zegt erbij hoeveel dagen je door een blessure niet kon
-  trainen.
+  trainen. Ben je terug, dan oordelen je eerste sessies mild; zie
+  [Na een blessure](#na-een-blessure).
 - **Progressive overload** en de **post-workout maaltijd** tellen alleen mee op dagen dat
   je écht getraind hebt.
 - Zolang **vandaag** loopt zie je een **tussenstand**: de punten die je al binnen hebt,
@@ -101,6 +102,7 @@ Daaruit volgt automatisch het doel *Progressive overload*:
 De knoppen bij dat doel staan daarom op slot zodra je oefeningen hebt ingevuld. Een oefening
 per arm telt hierin als twee: rechts en links. Een oefening die je voor het eerst doet
 valt nergens mee te vergelijken en telt die dag niet mee — je startpunt kan geen misser zijn.
+Na een blessure oordeelt de app een paar sessies milder; zie [Na een blessure](#na-een-blessure).
 
 Twee soorten oefeningen, in te stellen per oefening:
 
@@ -122,8 +124,25 @@ arm bij, dan krijgen rechts en links elk hun eigen lijn.
 
 In **Instellingen → Trainingsschema's** beheer je je schema's: oefeningen toevoegen, van
 volgorde wisselen, uit een schema halen (je ingevulde sessies blijven staan) en met **↺**
-opnieuw beginnen met tellen, bijvoorbeeld na een blessure of een deload. Staat er nog niets,
-dan zet één knop **Push** en **Pull** voor je klaar.
+opnieuw beginnen met tellen, bijvoorbeeld na een deload. Staat er nog niets, dan zet één knop
+**Push** en **Pull** voor je klaar.
+
+### Na een blessure
+
+Kom je terug na een of meer dagen **Blessure**, dan begin je lichter dan je was, en dat
+hoort ook zo. De app noemt dat geen terugval. Je **eerste drie sessies van elke oefening** na je laatste
+blessuredag zijn herstelsessies:
+
+- Gaat zo'n sessie **vooruit**, dan telt dat gewoon mee.
+- Zo niet, dan staat er **herstel** bij de oefening, met welke sessie het is, en telt hij
+  niet mee voor *Progressive overload*. Zijn al je oefeningen die dag herstelsessies, dan
+  valt het doel weg, net als op een rustdag.
+- Een **plateau** telt pas vanaf daarna. Wat er vóór je blessure stilstond, laat de app los
+  zodra je een blessuredag invult.
+
+Dit geldt alleen voor oefeningen die je vóór de blessure al deed. Je hoeft er niets voor in
+te stellen en ook niet met **↺** opnieuw te beginnen: zet je de blessuredagen terug op iets
+anders, dan oordeelt de app weer zoals altijd.
 
 ### Rusttimer
 
@@ -757,13 +776,13 @@ geweigerd. `.npmrc` zet installatiescripts van pakketten uit, zodat een installa
 bestanden neerzet en niets uitvoert. Geen van beide raakt de app zelf: die gebruikt geen
 npm-pakketten en GitHub Pages serveert alleen je eigen bestanden.
 
-`npm test` start zelf een kleine webserver en draait achttien suites achter elkaar: de dagscore,
+`npm test` start zelf een kleine webserver en draait negentien suites achter elkaar: de dagscore,
 de voedingsdoelen, het eiwitdoel, progressive overload, verbruik, gewicht,
 gegevensveiligheid (synchroniseren met een nagebootste Supabase, twee tabbladen,
 terugzetten, het vangnet), het advies van de weekafsluiting, de kleinere punten, de twee
 weken na een nieuw caloriedoel, de maandafsluiting, gewicht over een zelfgekozen periode,
 het inklappen van de instellingen, een aanpassing van je caloriedoel achteraf, de rusttimer,
-de mijlpalen, de blessure-optie en alle schermen op telefoonbreedte.
+de mijlpalen, de blessure-optie, het herstel na een blessure en alle schermen op telefoonbreedte.
 
 Een paar stukken rekenen met je eigen gegevens na, bijvoorbeeld of de weekafsluiting op
 je echte wegingen hetzelfde zegt als de dagkaart. **Die gegevens staan niet in deze repo**

@@ -567,7 +567,10 @@
    */
   function overloadVoet(res) {
     if (res.deel === null) {
-      return '<p class="hint hint-tight">' + (res.regels.length
+      return '<p class="hint hint-tight">' + (res.herstel
+        ? 'Je eerste sessies na je blessure: lichter beginnen is verstandig, dus dit doel telt ' +
+          'vandaag niet mee. Gaat een oefening wél vooruit, dan telt dat gewoon.'
+        : res.regels.length
         ? 'Je vult deze oefeningen voor het eerst in, dus er valt nog niets te vergelijken.'
         : 'Volgt zodra je hieronder je oefeningen invult.') + '</p>';
     }
@@ -575,13 +578,16 @@
     var delen = [res.vooruit + ' van de ' + res.vergeleken + ' vooruit'];
     if (res.gelijk) delen.push(res.gelijk + ' gelijk');
     if (res.terug) delen.push(res.terug + ' terug');
+    if (res.herstel) delen.push(res.herstel + ' herstel');
 
     return '<div class="macro-voort">' +
       '<div class="macro-regel"><span>' + esc(delen.join(' · ')) + '</span>' +
       '<strong style="color:' + GD.scoreInk(pct) + '">' + Math.round(pct) + '%</strong></div>' +
       C.bar(pct) +
       '<p class="hint hint-tight">Uit je oefeningen hieronder. Ging meer dan de helft vooruit, dan ' +
-      'staat het doel vol; anders telt het naar rato, en gelijk blijven telt voor een deel mee.</p>' +
+      'staat het doel vol; anders telt het naar rato, en gelijk blijven telt voor een deel mee.' +
+      (res.herstel ? ' Herstelsessies na je blessure tellen alleen mee als ze vooruitgaan.' : '') +
+      '</p>' +
       '</div>';
   }
 
@@ -653,6 +659,7 @@
     vooruit: { label: '↑ vooruit', pct: 100 },
     gelijk: { label: '= gelijk', pct: 45 },
     terug: { label: '↓ terug', pct: 0 },
+    herstel: { label: 'herstel', pct: null },
     nieuw: { label: 'startpunt', pct: null }
   };
 
@@ -696,8 +703,10 @@
     if (!geschiedenis.length) geschiedenis.push('Nog geen eerdere sessie — dit wordt je startpunt.');
 
     // Ruilde je reps tegen gewicht, dan valt het oordeel niet uit de twee
-    // getallen af te lezen. Dan hoort erbij waaróp het gebaseerd is.
-    var ruil = (regel && regel.detail && regel.detail.ruil) ? ruilUitleg(regel.detail) : '';
+    // getallen af te lezen. Dan hoort erbij waaróp het gebaseerd is. Een
+    // herstelsessie zegt liever waarom hij niet meetelt.
+    var ruil = (regel && regel.status === 'herstel') ? herstelUitleg(regel.herstel)
+      : (regel && regel.detail && regel.detail.ruil) ? ruilUitleg(regel.detail) : '';
 
     return '<div class="lift-side">' +
       (zijde.key ? '<span class="lift-arm" title="' + esc(zijde.label) + '">' + esc(zijde.kort) + '</span>' : '') +
@@ -759,6 +768,12 @@
       esc(oef.id) + '" data-sessies="' + p.sessies + '" data-vanaf="' +
       esc(p.reeks.length ? p.reeks[0].datum : '') + '">Niet meer melden</button>' +
       '</div></div>';
+  }
+
+  /** Waarom een herstelsessie na een blessure niet meetelt. */
+  function herstelUitleg(h) {
+    return 'Sessie ' + h.sessie + ' van ' + h.van + ' na je blessure. Telt alleen mee als hij ' +
+      'vooruitgaat, dus lichter beginnen kost je niets.';
   }
 
   /** Waarom een set met minder reps maar meer kilo's zo beoordeeld wordt. */
@@ -923,6 +938,8 @@
       var pct = res.deel * 100;
       status = '<span class="chip" style="color:' + GD.scoreInk(pct) + '">' +
         res.vooruit + ' van de ' + res.vergeleken + ' vooruit</span>';
+    } else if (res.herstel) {
+      status = '<span class="chip chip-off">herstel</span>';
     } else if (res.regels.length) {
       status = '<span class="chip chip-off">startpunt</span>';
     } else {
@@ -946,7 +963,11 @@
         '</div>'
       : '';
 
-    var uitleg = res.vergeleken
+    var naBlessure = res.herstel
+      ? 'Na een blessure tellen je eerste ' + L.HERSTEL_SESSIES + ' sessies van elke oefening alleen ' +
+        'mee als ze vooruitgaan, en een plateau telt pas vanaf daarna. '
+      : '';
+    var uitleg = naBlessure + (res.vergeleken || res.herstel
       ? 'Vooruit telt zodra gewicht én reps gelijk of hoger zijn en er minstens één omhoog gaat. ' +
         'Ruil je het een tegen het ander, dan telt een nieuw record op deze oefening altijd als ' +
         'vooruitgang, zolang je er minstens de helft van je vorige herhalingen mee haalde. ' +
@@ -954,7 +975,7 @@
         'Daar telt elke stijging, en pas een daling van meer dan 5% heet terugval. ' +
         'Voor het dagdoel hoeft niet élke oefening vooruit te gaan: ging meer dan de helft ' +
         'vooruit, dan staat dat doel vol. Anders telt het naar rato, en gelijk blijven telt voor een deel mee.'
-      : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.';
+      : 'Zodra je een oefening voor de tweede keer invult, vergelijkt de app hem met je vorige sessie.');
 
     return '<section class="card">' +
       '<div class="card-head"><h2>' + GD.icon('gesport') + 'Oefeningen</h2>' + status + '</div>' +
@@ -1967,7 +1988,9 @@
         '<button class="btn btn-primary btn-sm" data-action="startschemas">Push &amp; Pull klaarzetten</button>') +
       '</div>' +
       '<p class="hint">Een oefening uit een schema halen laat je ingevulde sessies staan. ' +
-      'Met ↺ begin je opnieuw met tellen, bijvoorbeeld na een blessure of een deload.</p>' +
+      'Met ↺ begin je opnieuw met tellen, bijvoorbeeld na een deload. Na een blessure hoeft dat niet: ' +
+      'je eerste ' + GD.lifts.HERSTEL_SESSIES + ' sessies per oefening tellen dan vanzelf alleen mee als ' +
+      'ze vooruitgaan.</p>' +
       '</section>';
   }
 
@@ -2242,7 +2265,9 @@
       '<li>Je score is <em>behaalde punten ÷ haalbare punten</em>, met de gewichten hierboven.</li>' +
       '<li>Kies je <em>Rustdag</em> of <em>Blessure</em>, dan telt “gesport” niet mee — een rustdag of ' +
       'een blessure verpest je score dus niet. ' +
-      'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt.</li>' +
+      'Progressive overload en de post-workout maaltijd tellen alleen mee op dagen dat je écht getraind hebt. ' +
+      'Na een blessure telt een oefening de eerste ' + GD.lifts.HERSTEL_SESSIES + ' sessies alleen mee als ' +
+      'hij vooruitgaat: lichter beginnen is dan geen terugval.</li>' +
       '<li>Zolang een dag loopt zie je een <em>tussenstand</em>: de punten die je al binnen hebt, ' +
       'gedeeld door alle punten die vandaag te halen waren. De vage ring eromheen laat zien waar je ' +
       'vandaag nog op uit kunt komen, en de ring blijft in één kleur tot de dag om is — een halve dag ' +
